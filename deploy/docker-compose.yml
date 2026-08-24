@@ -20,6 +20,8 @@ services:
   backend:
     build:
       context: ../backend
+    # 로컬 Docker 실배포 모드에서 호스트 docker.sock 접근을 위해 root 실행(개발용)
+    user: root
     environment:
       DB_URL: jdbc:postgresql://db:5432/edumsa
       DB_USER: edumsa
@@ -27,8 +29,15 @@ services:
       PORT: "8080"
       CORS_ORIGINS: http://localhost:5173
       EDU_SEED: "true"
+      # simulate(기본) | docker(로컬 실배포, 호스트 docker로 컨테이너 기동) | real(K8s)
+      EDU_DEPLOY_MODE: ${EDU_DEPLOY_MODE:-simulate}
+      EDU_DEPLOY_APP_HOST: localhost
     ports:
       - "8088:8080"
+    volumes:
+      # docker 모드: 호스트 도커 데몬 사용 + 예제 소스(local:// 시험용) 마운트
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ../examples:/workspace/examples:ro
     depends_on:
       db:
         condition: service_healthy

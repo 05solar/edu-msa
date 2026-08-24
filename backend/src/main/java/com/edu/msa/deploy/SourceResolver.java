@@ -30,6 +30,9 @@ public class SourceResolver {
         if (repoUrl.startsWith("sample://")) {
             return fromClasspath(repoUrl.substring("sample://".length()));
         }
+        if (repoUrl.startsWith("local://")) {
+            return fromLocal(repoUrl.substring("local://".length()));
+        }
         return fromGit(repoUrl, branch != null && !branch.isBlank() ? branch : "main");
     }
 
@@ -40,6 +43,23 @@ public class SourceResolver {
             return new SourceMaterial(yaml, true, "classpath:" + base, null);
         } catch (Exception e) {
             throw new DeployException("예제 레포를 찾을 수 없습니다: " + name);
+        }
+    }
+
+    private SourceMaterial fromLocal(String path) {
+        try {
+            java.nio.file.Path dir = java.nio.file.Path.of(path);
+            java.io.File yamlFile = dir.resolve("service.yaml").toFile();
+            if (!yamlFile.exists()) {
+                throw new DeployException("경로에 service.yaml 이 없습니다: " + path);
+            }
+            String yaml = Files.readString(yamlFile.toPath(), StandardCharsets.UTF_8);
+            boolean hasDockerfile = dir.resolve("Dockerfile").toFile().exists();
+            return new SourceMaterial(yaml, hasDockerfile, "local:" + path, dir.toString());
+        } catch (DeployException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new DeployException("로컬 소스 읽기 오류: " + e.getMessage());
         }
     }
 

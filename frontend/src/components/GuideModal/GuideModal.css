@@ -76,3 +76,5 @@
   padding:12px 14px;font-size:13px;color:var(--ink-900);line-height:1.75;margin:6px 0 4px;
 }
 .guide-open-btn{width:100%;justify-content:flex-start;gap:9px}
+.g-downloads{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 4px}
+.g-downloads .btn{text-decoration:none}

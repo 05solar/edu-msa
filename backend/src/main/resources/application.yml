@@ -34,3 +34,6 @@ edu:
     replicas: ${EDU_DEPLOY_REPLICAS:1}
     cpu-limit: ${EDU_DEPLOY_CPU_LIMIT:500m}
     memory-limit: ${EDU_DEPLOY_MEMORY_LIMIT:512Mi}
+    host-port-base: ${EDU_DEPLOY_HOST_PORT_BASE:31000}
+    app-host: ${EDU_DEPLOY_APP_HOST:localhost}
+    auto-on-approve: ${EDU_DEPLOY_AUTO_ON_APPROVE:true}   # 승인 시 자동 배포

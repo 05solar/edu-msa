@@ -61,10 +61,35 @@ com.edu.msa
 
 ### 배포 파이프라인 (deploy 도메인)
 
-`GitHub 레포 → service.yaml/Dockerfile 검증 → 이미지 빌드 → K8s 매니페스트 렌더 →
-적용 → 공개`. `edu.deploy.mode=simulate`(기본, 매니페스트만 렌더) / `real`(docker·kubectl 실행).
-오프라인 시험: `repoUrl=sample://travel-settlement`. 매니페스트 템플릿은
+`GitHub 레포 → service.yaml/Dockerfile 검증 → 이미지 빌드 → 배포 → 공개`.
+
+**배포 모드 (`EDU_DEPLOY_MODE`)**
+
+| 모드 | 동작 | 용도 |
+| --- | --- | --- |
+| `simulate` (기본) | 검증 + K8s 매니페스트 렌더만, 실제 실행 없음 | 데모·미리보기 |
+| `docker` | 호스트 Docker로 **실제 이미지 빌드 + 컨테이너 기동** (`http://<host>:31000+` 로 접속) | 로컬 실배포·실증 |
+| `real` | 이미지 빌드/푸시 + `kubectl apply` (K8s) | 실 서버(클러스터) |
+
+**승인 시 자동 배포**: `edu.deploy.auto-on-approve=true`(기본)이면 운영 관리자가 승인할 때
+백그라운드로 배포가 실행되어 컨테이너가 뜨고 프로그램이 자동 공개된다. (등록→승인→기동)
+
+**레포 주소 형식**
+- `https://github.com/…` : 실제 공개 레포 (git clone, docker/real 모드에서 빌드)
+- `local:///workspace/examples/<name>` : compose에 마운트된 로컬 예제 (docker 모드 시험용)
+- `sample://travel-settlement` : classpath 번들 예제 (검증 전용, 빌드 컨텍스트 없음)
+
+**로컬에서 실제 컨테이너 띄워보기**
+```bash
+# 저장소 루트에서 (Windows PowerShell: $env:EDU_DEPLOY_MODE="docker")
+EDU_DEPLOY_MODE=docker docker compose -f deploy/docker-compose.yml up --build -d
+curl -X POST localhost:8088/api/deploy -H 'Content-Type: application/json' \
+  -d '{"repoUrl":"local:///workspace/examples/data-summary"}'
+# 응답의 url(예: http://localhost:31003) 로 접속 → 실제 배포된 컨테이너
+```
+compose는 호스트 `docker.sock`과 `examples/`를 백엔드에 마운트한다. 매니페스트 템플릿은
 `resources/deploy-templates/service-template.yaml`, 규격은
-[../docs/MSA_SERVICE_SPEC.md](../docs/MSA_SERVICE_SPEC.md).
+[../docs/MSA_SERVICE_SPEC.md](../docs/MSA_SERVICE_SPEC.md), 다운로드용 AI 지시서는
+`frontend/public/guides/`.
 
 자세한 설계는 [DESIGN.md](DESIGN.md), 작업 규칙은 [AGENT.md](AGENT.md) 참조.

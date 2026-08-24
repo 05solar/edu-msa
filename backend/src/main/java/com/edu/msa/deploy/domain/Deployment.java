@@ -25,6 +25,7 @@ public class Deployment {
     private String branch;
     private String imageTag;
     private String url;
+    private Integer hostPort;
     @Enumerated(EnumType.STRING)
     private DeploymentStatus status = DeploymentStatus.PENDING;
     @Column(columnDefinition = "text")
@@ -54,6 +55,8 @@ public class Deployment {
     public void setImageTag(String imageTag) { this.imageTag = imageTag; }
     public String getUrl() { return url; }
     public void setUrl(String url) { this.url = url; }
+    public Integer getHostPort() { return hostPort; }
+    public void setHostPort(Integer hostPort) { this.hostPort = hostPort; }
     public DeploymentStatus getStatus() { return status; }
     public void setStatus(DeploymentStatus status) { this.status = status; this.updatedAt = Instant.now(); }
     public String getLogText() { return logText; }

@@ -102,35 +102,41 @@ public class DeploymentService {
             String image = renderer.imageRef(spec, tag);
             line(log, "규격 검증 통과 · slug=" + spec.slug() + " · port=" + spec.port() + " · health=" + spec.healthOrDefault());
 
-            // 2. 이미지 빌드
-            d.setStatus(DeploymentStatus.BUILDING);
-            if (props.isReal() && mat.workDir() != null) {
-                run(log, List.of("docker", "build", "-t", image, "."), new File(mat.workDir()), 600);
-                run(log, List.of("docker", "push", image), null, 600);
+            String url;
+            if (props.isDocker()) {
+                // 로컬 Docker 실배포: 실제로 이미지를 빌드하고 컨테이너를 띄운다.
+                url = dockerDeploy(log, d, spec, mat, image);
             } else {
-                line(log, "[simulate] docker build -t " + image + " " + safeDir(mat.workDir()));
-                line(log, "[simulate] docker push " + image);
+                // 2. 이미지 빌드
+                d.setStatus(DeploymentStatus.BUILDING);
+                if (props.isReal() && mat.workDir() != null) {
+                    if (!run(log, List.of("docker", "build", "-t", image, "."), new File(mat.workDir()), 600).ok())
+                        throw new DeployException("docker build 실패");
+                    run(log, List.of("docker", "push", image), null, 600);
+                } else {
+                    line(log, "[simulate] docker build -t " + image + " " + safeDir(mat.workDir()));
+                    line(log, "[simulate] docker push " + image);
+                }
+
+                // 3. 매니페스트 렌더링
+                String manifest = renderer.render(spec, tag);
+                d.setManifest(manifest);
+                line(log, "매니페스트 렌더링 완료 (Deployment/Service/Ingress)");
+
+                // 4. K8s 적용
+                d.setStatus(DeploymentStatus.DEPLOYING);
+                if (props.isReal()) {
+                    Path f = Files.createTempFile("edu-manifest-", ".yaml");
+                    Files.writeString(f, manifest, StandardCharsets.UTF_8);
+                    CommandRunner.Result r = run(log, List.of("kubectl", "apply", "-n", props.namespace(), "-f", f.toString()), null, 120);
+                    if (!r.ok()) throw new DeployException("kubectl apply 실패");
+                } else {
+                    line(log, "[simulate] kubectl apply -n " + props.namespace() + " -f - (Deployment/Service/Ingress)");
+                    line(log, "[simulate] 롤아웃 대기 및 헬스 체크(" + spec.healthOrDefault() + ") 통과 가정");
+                }
+                url = "https://" + props.ingressHost() + "/svc/" + spec.slug();
             }
 
-            // 3. 매니페스트 렌더링
-            String manifest = renderer.render(spec, tag);
-            d.setManifest(manifest);
-            line(log, "매니페스트 렌더링 완료 (Deployment/Service/Ingress)");
-
-            // 4. K8s 적용
-            d.setStatus(DeploymentStatus.DEPLOYING);
-            if (props.isReal()) {
-                Path f = Files.createTempFile("edu-manifest-", ".yaml");
-                Files.writeString(f, manifest, StandardCharsets.UTF_8);
-                CommandRunner.Result r = run(log, List.of("kubectl", "apply", "-n", props.namespace(), "-f", f.toString()), null, 120);
-                if (!r.ok()) throw new DeployException("kubectl apply 실패");
-            } else {
-                line(log, "[simulate] kubectl apply -n " + props.namespace() + " -f - (Deployment/Service/Ingress)");
-                line(log, "[simulate] 롤아웃 대기 및 헬스 체크(" + spec.healthOrDefault() + ") 통과 가정");
-            }
-
-            // 5. 공개 전환
-            String url = "https://" + props.ingressHost() + "/svc/" + spec.slug();
             d.setUrl(url);
             d.setStatus(DeploymentStatus.RUNNING);
             line(log, "배포 완료 · " + url);
@@ -149,6 +155,41 @@ public class DeploymentService {
     @Transactional(readOnly = true)
     public DeploymentResponse latest(Long programId) {
         return deployments.findTopByProgramIdOrderByIdDesc(programId).map(this::toResponse).orElse(null);
+    }
+
+    /** 로컬 Docker 데몬으로 이미지를 빌드하고 컨테이너를 실제로 띄운다. 접속 URL을 반환한다. */
+    private String dockerDeploy(StringBuilder log, Deployment d, ServiceSpec spec, SourceMaterial mat, String image) {
+        if (mat.workDir() == null) {
+            throw new DeployException("도커 배포는 소스 작업 경로가 필요합니다. local:// 또는 실제 git 레포 주소를 사용하세요.");
+        }
+        if (!mat.hasDockerfile()) {
+            throw new DeployException("Dockerfile 이 없어 이미지를 빌드할 수 없습니다.");
+        }
+        String container = "edu-svc-" + spec.slug();
+        int hostPort = props.hostPortBase() + (int) (d.getId() % 2000);
+        d.setHostPort(hostPort);
+
+        d.setStatus(DeploymentStatus.BUILDING);
+        if (!run(log, List.of("docker", "build", "-t", image, "."), new File(mat.workDir()), 600).ok()) {
+            throw new DeployException("docker build 실패");
+        }
+
+        d.setStatus(DeploymentStatus.DEPLOYING);
+        runner.run(List.of("docker", "rm", "-f", container), null, 30);   // 기존 컨테이너 정리(있으면)
+        line(log, "$ docker rm -f " + container + "  (기존 컨테이너 정리)");
+        CommandRunner.Result runRes = run(log, List.of(
+                "docker", "run", "-d", "--name", container, "--restart", "unless-stopped",
+                "-e", "PORT=" + spec.port(), "-p", hostPort + ":" + spec.port(), image), null, 120);
+        if (!runRes.ok()) {
+            throw new DeployException("docker run 실패");
+        }
+        CommandRunner.Result state = run(log, List.of("docker", "inspect", "-f", "{{.State.Running}}", container), null, 30);
+        if (state.output() == null || !state.output().trim().startsWith("true")) {
+            throw new DeployException("컨테이너가 정상 실행되지 않았습니다.");
+        }
+        d.setManifest(renderer.render(spec, d.getImageTag()));   // 매니페스트도 참고용으로 보관
+        line(log, "컨테이너 실행 확인 · " + container + " (host 포트 " + hostPort + ")");
+        return "http://" + props.appHost() + ":" + hostPort;
     }
 
     private void publishLinkedProgram(Long programId, String actor, String url, Long deploymentId) {

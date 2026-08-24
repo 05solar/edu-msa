@@ -27,6 +27,20 @@ export function GuideModal() {
           되고, 코드를 직접 작성하기 어려운 부분은 사용하시는 <b>AI 코딩 도구</b>에 그대로 부탁하면 됩니다.
         </p>
 
+        <h4><span className="g-badge">↓</span>지시서 내려받기 (AI에게 첨부하세요)</h4>
+        <p><b>AI 빌드 지시서 하나만</b> AI 코딩 도구(Claude·Cursor·Copilot 등)에 첨부하고
+          <b> "이 문서 규격대로 내 프로그램 프로젝트를 만들어 줘"</b>라고 하면, 그대로 배포되는
+          프로젝트가 만들어집니다. (이 파일 안에 스택별 완성 템플릿까지 모두 들어 있습니다.
+          아래 개별 스택 템플릿은 선택용 빠른 참고입니다.)</p>
+        <div className="g-downloads">
+          <a className="btn btn-navy" href="/guides/AI_BUILD_SPEC.md" download>
+            <Icon name="download" size={15} /> AI 빌드 지시서 (필수)
+          </a>
+          <a className="btn" href="/guides/template-python.md" download><Icon name="download" size={14} /> 파이썬 템플릿</a>
+          <a className="btn" href="/guides/template-node.md" download><Icon name="download" size={14} /> Node.js 템플릿</a>
+          <a className="btn" href="/guides/template-static.md" download><Icon name="download" size={14} /> 정적 웹 템플릿</a>
+        </div>
+
         <h4><span className="g-badge">i</span>먼저 알아둘 용어 3가지</h4>
         <p>딱 세 가지 개념만 알면 됩니다. 지금 다 이해 못 해도 괜찮고, 아래 단계에서 다시 설명합니다.</p>
         <div className="g-prep">

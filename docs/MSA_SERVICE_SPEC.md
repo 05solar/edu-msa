@@ -11,10 +11,17 @@ GitHub 레포 주소 등록
    → 코드 수집 (git clone, 지정 브랜치)
    → 규격 검증 (service.yaml / Dockerfile / 헬스 경로 정적 검사)
    → 컨테이너 이미지 빌드 (레포의 Dockerfile 사용)
-   → 이미지 레지스트리 push
-   → K8s 배포 (Deployment + Service + Ingress 경로 /svc/<slug>)
+   → 배포 (아래 모드에 따라)
    → 헬스 체크 통과 시 "공개" 상태로 전환
 ```
+
+**배포 모드 (`EDU_DEPLOY_MODE`)**
+- `simulate` (기본): 검증 + 매니페스트 렌더만, 실제 실행 없음 (데모/미리보기)
+- `docker`: 호스트 Docker로 실제 이미지 빌드 + 컨테이너 기동 (`http://<host>:31000+`)
+- `real`: 이미지 push + K8s 배포 (Deployment + Service + Ingress 경로 `/svc/<slug>`)
+
+**레포 주소 형식**: `https://github.com/…`(실제) · `local:///workspace/examples/<name>`(로컬
+예제) · `sample://<name>`(classpath 번들, 검증 전용).
 
 ## 2. 필수 산출물 (레포 루트)
 

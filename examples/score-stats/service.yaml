@@ -1,0 +1,8 @@
+name: 성적 통계 계산기
+slug: score-stats
+category: student
+purposes: [analyze, verify]
+tech: [Python]
+summary: 점수를 입력하면 평균·최고·최저·표준편차와 등급 분포를 계산합니다.
+port: 8080
+health: /healthz

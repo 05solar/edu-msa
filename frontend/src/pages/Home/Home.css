@@ -51,7 +51,7 @@
 .quick-tags button:hover{color:var(--brand);text-decoration:underline;background:transparent}
 
 /* ---------- 업무 분야 카드 ---------- */
-.cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:12px}
+.cat-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:12px}
 .cat-card{
   background:var(--white);border:1px solid var(--line);border-radius:var(--r-lg);
   padding:18px 14px;cursor:pointer;transition:.14s;text-align:center;box-shadow:var(--shadow-sm);
@@ -72,6 +72,25 @@
 .purpose-card .pg-ico{display:flex;justify-content:center;margin-bottom:6px;color:var(--brand)}
 .purpose-card .pg-name{font-size:12.5px;font-weight:600;letter-spacing:-.02em}
 .purpose-card .pg-cnt{font-size:11px;color:var(--ink-400);margin-top:2px}
+
+/* ---------- 즐겨찾는 프로그램 (가로 한 줄 박스) ---------- */
+.fav-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.fav-box{
+  display:flex;flex-direction:column;gap:8px;padding:14px 15px;text-align:left;min-width:0;
+  background:var(--white);border:1px solid var(--line);border-radius:var(--r-lg);
+  box-shadow:var(--shadow-sm);cursor:pointer;transition:.14s;
+}
+.fav-box:hover{border-color:var(--brand-line);background:var(--brand-soft);transform:translateY(-1px)}
+.fav-box .fb-ic{
+  width:38px;height:38px;border-radius:var(--r);flex-shrink:0;
+  background:var(--brand-soft);border:1px solid var(--brand-line);color:var(--brand);
+  display:flex;align-items:center;justify-content:center;
+}
+.fav-box:hover .fb-ic{background:var(--white)}
+.fav-box .fb-name{font-size:13.5px;font-weight:700;color:var(--ink-900);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fav-box .fb-cat{font-size:12px;color:var(--ink-500);display:inline-flex;align-items:center;gap:5px}
+@media (max-width:1180px){.fav-grid{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:640px){.fav-grid{grid-template-columns:repeat(2,1fr)}}
 
 /* ---------- 인기 순위 ---------- */
 .rank-list{display:grid;grid-template-columns:1fr 1fr;gap:0 28px}
@@ -99,4 +118,5 @@
 }
 .home-note b{color:var(--ink-700)}
 .home-note .btn{margin-left:auto}
-@media (max-width:1180px){ .cat-grid{grid-template-columns:repeat(3,1fr)} .purpose-grid{grid-template-columns:repeat(4,1fr)} }
+@media (max-width:1180px){ .cat-grid{grid-template-columns:repeat(4,1fr)} }
+@media (max-width:640px){ .cat-grid{grid-template-columns:repeat(2,1fr)} }

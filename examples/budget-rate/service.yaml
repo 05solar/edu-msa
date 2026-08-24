@@ -1,0 +1,8 @@
+name: 예산 집행률 계산기
+slug: budget-rate
+category: budget
+purposes: [analyze, dash]
+tech: [Python]
+summary: 예산액과 집행액을 입력하면 집행률·잔액과 집행 상태를 계산합니다.
+port: 8080
+health: /healthz

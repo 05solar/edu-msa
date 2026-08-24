@@ -1,0 +1,8 @@
+name: 교육과정 시수 계산기
+slug: class-hours
+category: curri
+purposes: [auto, analyze]
+tech: [Python]
+summary: 주당 시수와 수업 주수를 입력하면 학기·연간 수업 시수를 계산합니다.
+port: 8080
+health: /healthz

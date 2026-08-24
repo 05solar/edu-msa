@@ -52,7 +52,8 @@ K8s 매니페스트(Deployment/Service/Ingress) 렌더링·적용 → 헬스 통
 
 - 표준 규격: [docs/MSA_SERVICE_SPEC.md](docs/MSA_SERVICE_SPEC.md)
 - K8s 매니페스트: [deploy/k8s/](deploy/k8s/) (namespace·플랫폼·서비스 템플릿·RBAC)
-- 표준 예제 서비스: [examples/sample-service/](examples/sample-service/) (`docker build` 후 `/healthz` 동작)
+- 표준 예제 서비스: [examples/](examples/) — 업무 분야별로 **실제 동작하는 프로그램 7개**
+  (문서/학생/교육과정/예산/시설/데이터/민원) + 최소 예제 `sample-service`. 모두 `docker build` 후 즉시 실행.
 - 백엔드 배포 API: `POST /api/deploy/validate`, `POST /api/programs/{id}/deploy`
 - 실행 모드: `EDU_DEPLOY_MODE=simulate`(매니페스트 렌더만) 또는 `real`(docker/kubectl 실행)
 - 오프라인 시험: 레포 주소에 `sample://travel-settlement` 사용

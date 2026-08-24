@@ -1,0 +1,8 @@
+name: 민원 답변 초안 생성기
+slug: civil-reply
+category: civil
+purposes: [gen, auto]
+tech: [Python]
+summary: 민원 유형과 내용을 입력하면 정중한 답변 초안을 만들어 줍니다.
+port: 8080
+health: /healthz

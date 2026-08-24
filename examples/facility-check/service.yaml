@@ -1,0 +1,8 @@
+name: 시설 점검 체크리스트
+slug: facility-check
+category: facil
+purposes: [verify, auto]
+tech: [Python]
+summary: 점검 항목을 체크하면 점검 완료율과 미점검 항목을 정리해 줍니다.
+port: 8080
+health: /healthz

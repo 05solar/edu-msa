@@ -1,7 +1,7 @@
 import './Home.css'
 import { useState } from 'react'
 import { CATEGORIES } from '../../data/catalog'
-import { num } from '../../lib/helpers'
+import { num, catOf } from '../../lib/helpers'
 import { useApp } from '../../state/AppContext'
 import { Icon } from '../../icons/Icon'
 import { ProgramRow } from '../../components/program/ProgramRow'
@@ -77,8 +77,17 @@ export function Home() {
               <div><h2>즐겨찾는 프로그램</h2><div className="sh-desc">내가 즐겨찾기한 프로그램입니다.</div></div>
               <button className="link-more" onClick={() => { setMyTab('fav'); go('my') }}>더 보기</button>
             </div>
-            <div className="prog-rows">
-              {favPrograms.slice(0, 5).map((p) => <ProgramRow key={p.id} p={p} onRun={onRun} />)}
+            <div className="fav-grid">
+              {favPrograms.slice(0, 5).map((p) => {
+                const cat = catOf(p.cat)
+                return (
+                  <button key={p.id} className="fav-box" onClick={() => go('detail', p.id)}>
+                    <span className="fb-ic"><Icon name={cat.icon} size={20} /></span>
+                    <div className="fb-name">{p.name}</div>
+                    <div className="fb-cat"><span className="cat-dot" style={{ background: cat.color }} />{cat.name}</div>
+                  </button>
+                )
+              })}
             </div>
           </section>
         )}

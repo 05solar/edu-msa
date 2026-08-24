@@ -1,14 +1,16 @@
 /* =========================================================
-   디자인 토큰 (PoC 원본 :root 이식)
+   디자인 토큰 · 라이트/다크 테마 + 전역 배율(--ui-zoom)
    ========================================================= */
 :root{
+  /* 네이비(강조/코드) */
   --navy-900:#0D1B2A;
   --navy-800:#132437;
   --navy-700:#1B3149;
-  --ink-900:#101828;
-  --ink-700:#344054;
-  --ink-500:#667085;
-  --ink-400:#8A94A6;
+  /* 잉크(텍스트) — 밝은 배경 대비 강화를 위해 진하게 */
+  --ink-900:#0B1220;
+  --ink-700:#293446;
+  --ink-500:#4B5563;
+  --ink-400:#6B7688;
   --line:#E4E7EC;
   --line-soft:#EFF1F4;
   --bg:#F6F7F9;
@@ -23,12 +25,60 @@
   --warn-soft:#FFF6E5;
   --danger:#B42318;
   --danger-soft:#FEECEA;
+
+  /* 표면(테마 전환용) */
+  --surface-subtle:#FAFBFC;   /* hover/foot 등 옅은 표면 */
+  --surface-muted:#F2F4F7;    /* 칩/배지 표면 */
+  --track:#EDEFF3;            /* 진행바/탭 트랙 */
+  --avatar-soft:#E8EDF4;
+  --code-bg:#0D1B2A;
+  --code-fg:#D6E2F0;
+
   --r-sm:4px;
   --r:6px;
   --r-lg:8px;
-  --gutter:32px;      /* 본문 좌우 여백 */
-  --side-w:236px;     /* 좌측 사이드바 너비 */
+  --gutter:32px;
+  --side-w:236px;
   --shadow-sm:0 1px 2px rgba(16,24,40,.05);
   --shadow:0 1px 3px rgba(16,24,40,.08), 0 1px 2px rgba(16,24,40,.04);
   --shadow-lg:0 12px 32px rgba(13,27,42,.16);
+
+  /* 전역 배율 (사용자 조절). 기본값은 한 단계 확대 */
+  --ui-zoom:1.08;
+}
+
+/* ---------- 다크 테마 ---------- */
+:root[data-theme="dark"]{
+  --navy-900:#0B1220;
+  --navy-800:#111A2B;
+  --navy-700:#1B2740;
+  --ink-900:#F6F9FD;
+  --ink-700:#E3E9F2;
+  --ink-500:#C6D0DE;
+  --ink-400:#A7B3C5;
+  --line:#2A3446;
+  --line-soft:#212A3A;
+  --bg:#0D131E;
+  --white:#151D2B;
+  --brand:#4C86F0;
+  --brand-dark:#3B6FD4;
+  --brand-soft:#18243C;
+  --brand-line:#2C436B;
+  --ok:#34D399;
+  --ok-soft:#123024;
+  --warn:#FBBF24;
+  --warn-soft:#2A2411;
+  --danger:#F87171;
+  --danger-soft:#2B1618;
+
+  --surface-subtle:#1B2434;
+  --surface-muted:#212B3D;
+  --track:#232E42;
+  --avatar-soft:#26324A;
+  --code-bg:#0A101B;
+  --code-fg:#CBD9EC;
+
+  --shadow-sm:0 1px 2px rgba(0,0,0,.40);
+  --shadow:0 1px 3px rgba(0,0,0,.50), 0 1px 2px rgba(0,0,0,.40);
+  --shadow-lg:0 12px 32px rgba(0,0,0,.55);
 }

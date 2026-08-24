@@ -8,16 +8,16 @@
   display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;
 }
 .chat-av.ai{background:var(--navy-800);color:#fff}
-.chat-av.me{background:#E8EDF4;color:var(--navy-800)}
+.chat-av.me{background:var(--avatar-soft);color:var(--navy-800)}
 .chat-bubble{
   max-width:78%;padding:11px 13px;border-radius:var(--r-lg);font-size:13.5px;line-height:1.65;
-  background:#F4F6F8;border:1px solid var(--line-soft);white-space:pre-wrap;
+  background:var(--surface-subtle);border:1px solid var(--line-soft);white-space:pre-wrap;
 }
 .chat-msg.me .chat-bubble{background:var(--brand-soft);border-color:var(--brand-line)}
 .chat-recs{display:flex;flex-direction:column;gap:8px;margin-top:10px}
 .chat-rec{
   display:flex;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);
-  border-radius:var(--r);background:#fff;cursor:pointer;transition:.14s;text-align:left;width:100%;
+  border-radius:var(--r);background:var(--white);cursor:pointer;transition:.14s;text-align:left;width:100%;
 }
 .chat-rec:hover{border-color:var(--brand);background:var(--brand-soft)}
 .chat-rec .cr-ico{
@@ -28,7 +28,7 @@
 .chat-rec .cr-d{font-size:11.5px;color:var(--ink-500);margin-top:1px}
 .chat-suggest{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .chat-suggest button{
-  border:1px solid var(--line);background:#fff;border-radius:100px;height:28px;padding:0 11px;
+  border:1px solid var(--line);background:var(--white);border-radius:100px;height:28px;padding:0 11px;
   font-size:12.5px;color:var(--ink-700);
 }
 .chat-suggest button:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-soft)}

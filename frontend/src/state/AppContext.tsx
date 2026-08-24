@@ -22,6 +22,12 @@ export interface Filters {
 
 export interface Toast { id: number; msg: string; kind: 'ok' | 'warn' | 'info' }
 
+export type FontScale = 'sm' | 'md' | 'lg' | 'xl' | 'xxl' | 'xxxl' | 'x4' | 'x5'
+export const FONT_SCALES: FontScale[] = ['sm', 'md', 'lg', 'xl', 'xxl', 'xxxl', 'x4', 'x5']
+const FONT_ZOOM: Record<FontScale, string> = {
+  sm: '1', md: '1.08', lg: '1.22', xl: '1.4', xxl: '1.62', xxxl: '1.9', x4: '2.25', x5: '2.6',
+}
+
 export interface NewProgramInput {
   name: string; summary: string; desc: string; cat: string; dept: string
   ver: string; repo: string; branch: string; tags: string[]
@@ -45,6 +51,14 @@ interface AppContextValue {
   toggleSide: () => void
   sidebarOpen: boolean
   setSidebarOpen: (v: boolean) => void
+
+  theme: 'light' | 'dark'
+  toggleTheme: () => void
+  fontScale: FontScale
+  setFontScale: (s: FontScale) => void
+
+  myTab: 'mine' | 'fav' | 'noti'
+  setMyTab: (t: 'mine' | 'fav' | 'noti') => void
 
   programs: Program[]
   progOf: (id: number) => Program | null
@@ -103,6 +117,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [detailId, setDetailId] = useState<number | null>(null)
   const [sideCollapsed, setSideCollapsed] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const saved = localStorage.getItem('edu-theme')
+    if (saved === 'light' || saved === 'dark') return saved
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  })
+  const [fontScale, setFontScaleState] = useState<FontScale>(() => {
+    const s = localStorage.getItem('edu-fontscale')
+    return (FONT_SCALES as string[]).includes(s ?? '') ? (s as FontScale) : 'md'
+  })
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    localStorage.setItem('edu-theme', theme)
+  }, [theme])
+  useEffect(() => {
+    document.documentElement.style.setProperty('--ui-zoom', FONT_ZOOM[fontScale])
+    localStorage.setItem('edu-fontscale', fontScale)
+  }, [fontScale])
+
+  const toggleTheme = useCallback(() => setTheme((t) => (t === 'light' ? 'dark' : 'light')), [])
+  const setFontScale = useCallback((s: FontScale) => setFontScaleState(s), [])
+  const [myTab, setMyTab] = useState<'mine' | 'fav' | 'noti'>('mine')
 
   const [programs, setPrograms] = useState<Program[]>(() => USE_API ? [] : PROGRAMS.map((p) => ({ ...p })))
   const [notis, setNotis] = useState<Notification[]>(() => USE_API ? [] : NOTIS_SEED.map((n) => ({ ...n })))
@@ -328,6 +364,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     role, changeRole, me,
     view, detailId, go,
     sideCollapsed, toggleSide, sidebarOpen, setSidebarOpen,
+    theme, toggleTheme, fontScale, setFontScale,
+    myTab, setMyTab,
     programs, progOf, publicPrograms, myPrograms, canSee,
     filters, setFilters, resetFilters,
     favorites, isFav, toggleFav, favPrograms,

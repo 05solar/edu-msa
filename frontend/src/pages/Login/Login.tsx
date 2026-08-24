@@ -34,7 +34,6 @@ export function Login() {
 
       <div className="login-right">
         <div className="login-card">
-          <span className="login-demo-flag"><Icon name="info" size={13} /> DEMO · 인증 미구현</span>
           <h2>로그인</h2>
           <div className="lc-sub">아직 인증 기능은 준비 중입니다. 아래 버튼으로 데모에 진입하세요.</div>
 

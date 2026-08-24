@@ -16,6 +16,7 @@ export type IconName =
   | 'web' | 'download' | 'installer' | 'gitea' | 'manual'
   // UI
   | 'close' | 'check' | 'chevron-left' | 'chevron-right' | 'chevron-down'
+  | 'chevrons-left' | 'chevrons-right' | 'sun' | 'moon' | 'text-size'
   | 'bell' | 'copy' | 'star' | 'star-filled' | 'plus' | 'external'
   | 'file' | 'arrow-right' | 'menu' | 'shield' | 'grid' | 'warn' | 'info'
   | 'git-branch' | 'eye' | 'comment' | 'calendar' | 'folder' | 'upload'
@@ -56,6 +57,11 @@ const P: Record<IconName, JSX.Element> = {
   'chevron-left': <><path d="M14 6l-6 6 6 6" /></>,
   'chevron-right': <><path d="M10 6l6 6-6 6" /></>,
   'chevron-down': <><path d="M6 10l6 6 6-6" /></>,
+  'chevrons-left': <><path d="M11 6l-6 6 6 6" /><path d="M18 6l-6 6 6 6" /></>,
+  'chevrons-right': <><path d="M6 6l6 6-6 6" /><path d="M13 6l6 6-6 6" /></>,
+  sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19" /></>,
+  moon: <><path d="M20 14.5A8 8 0 0 1 9.5 4 7 7 0 1 0 20 14.5z" /></>,
+  'text-size': <><path d="M4 7V5h10v2M9 5v14M7 19h4M14 12v-1h6v1M17 11v8M15.5 19h3" /></>,
   bell: <><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6" /><path d="M10 19a2 2 0 0 0 4 0" /></>,
   copy: <><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h8" /></>,
   star: <><path d="M12 4l2.4 4.9 5.4.8-3.9 3.8.9 5.3L12 16.9 7.2 19l.9-5.3L4.2 9.7l5.4-.8z" /></>,

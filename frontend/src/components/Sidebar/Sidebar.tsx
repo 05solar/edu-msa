@@ -49,9 +49,11 @@ export function Sidebar() {
           </div>
         </div>
 
-        <button className="side-toggle" onClick={toggleSide} title="메뉴 접기" aria-label="메뉴 접기">
+        <button className="side-toggle" onClick={toggleSide}
+          title={sideCollapsed ? '메뉴 펼치기' : '메뉴 접기'}
+          aria-label={sideCollapsed ? '메뉴 펼치기' : '메뉴 접기'}>
           <span className="chev">
-            <Icon name={sideCollapsed ? 'chevron-right' : 'chevron-left'} size={13} />
+            <Icon name={sideCollapsed ? 'chevrons-right' : 'chevrons-left'} size={17} />
           </span>
         </button>
 
@@ -66,15 +68,15 @@ export function Sidebar() {
         </nav>
 
         <div className="side-demo">
-          <div className="sd-lbl"><span className="sd-flag">DEMO</span> 시연용 권한 전환</div>
+          <div className="sd-lbl">시연용 권한 전환</div>
           <select
             className="role-select"
             value={role}
             onChange={(e) => changeRole(e.target.value as Role)}
             title="시연용 권한 전환"
           >
-            <option value="user">일반 사용자</option>
-            <option value="coder">바이브 코더</option>
+            <option value="user">외부 사용자</option>
+            <option value="coder">내부 직원</option>
             <option value="admin">운영 관리자</option>
           </select>
           <div className="side-who">

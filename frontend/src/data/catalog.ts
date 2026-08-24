@@ -50,7 +50,7 @@ export const SCOPE_SHORT: Record<Scope, string> = { all: '전체 공개', dept: 
 
 /* 역할 */
 export const ROLE_LABEL: Record<Role, string> = {
-  user: '일반 사용자', coder: '바이브 코더', admin: '운영 관리자',
+  user: '외부 사용자', coder: '내부 직원', admin: '운영 관리자',
 }
 export const ROLE_USER: Record<Role, AppUser> = {
   user: { name: '윤하늘', dept: '교육과정과', role: 'user' },

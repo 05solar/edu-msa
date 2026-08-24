@@ -17,9 +17,10 @@ const NOTI_ICON: Record<NotiKind, Parameters<typeof Icon>[0]['name']> = {
 }
 
 export function My() {
-  const { role, myPrograms, favPrograms, myNotis, unreadCount, readNoti, readAllNotis, go } = useApp()
+  const { role, myPrograms, favPrograms, myNotis, unreadCount, readNoti, readAllNotis, go, myTab, setMyTab } = useApp()
   const canRegister = role === 'coder' || role === 'admin'
-  const [tab, setTab] = useState<Tab>(canRegister ? 'mine' : 'fav')
+  const tab: Tab = (!canRegister && myTab === 'mine') ? 'fav' : myTab
+  const setTab = setMyTab
   const [status, setStatus] = useState<'all' | ProgramStatus>('all')
 
   const isUser = role === 'user'
@@ -79,7 +80,7 @@ export function My() {
                             </div>
                           )}
                           {p.status === 'stopped' && p.stopReason && (
-                            <div className="reject-box" style={{ borderColor: '#CFD6E0', background: '#F7F8FA' }}>
+                            <div className="reject-box" style={{ borderColor: 'var(--line)', background: 'var(--surface-subtle)' }}>
                               <h5 style={{ color: '#4A5768' }}><Icon name="info" size={13} /> 공개 중지 사유</h5>
                               <p>{p.stopReason}</p>
                             </div>

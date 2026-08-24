@@ -2,12 +2,15 @@ import './Topbar.css'
 import { useState } from 'react'
 import { NAV, NAV_ALT, VIEW_TITLE } from '../../data/catalog'
 import { initialOf } from '../../lib/helpers'
-import { useApp } from '../../state/AppContext'
+import { useApp, FONT_SCALES } from '../../state/AppContext'
 import { Icon } from '../../icons/Icon'
 
+const SCALES = FONT_SCALES
+
 export function Topbar() {
-  const { view, role, me, go, setSidebarOpen, setFilters } = useApp()
+  const { view, role, me, go, setSidebarOpen, setFilters, theme, toggleTheme, fontScale, setFontScale } = useApp()
   const [q, setQ] = useState('')
+  const scaleIdx = SCALES.indexOf(fontScale)
 
   const nav = NAV.find((n) => n.view === view)
   const alt = nav ? NAV_ALT[nav.view]?.[role] : undefined
@@ -36,6 +39,20 @@ export function Topbar() {
               onChange={(e) => setQ(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') submitSearch() }}
             />
+          </div>
+          <div className="topbar-tools">
+            <button className="tool-btn" onClick={() => setFontScale(SCALES[Math.max(0, scaleIdx - 1)])}
+              disabled={scaleIdx === 0} title="글자 작게" aria-label="글자 작게">
+              <span className="fs-a" style={{ fontSize: 12 }}>가</span><span style={{ fontSize: 9 }}>－</span>
+            </button>
+            <button className="tool-btn" onClick={() => setFontScale(SCALES[Math.min(SCALES.length - 1, scaleIdx + 1)])}
+              disabled={scaleIdx === SCALES.length - 1} title="글자 크게" aria-label="글자 크게">
+              <span className="fs-a" style={{ fontSize: 15 }}>가</span><span style={{ fontSize: 9 }}>＋</span>
+            </button>
+            <button className="tool-btn" onClick={toggleTheme}
+              title={theme === 'dark' ? '라이트 모드' : '다크 모드'} aria-label="테마 전환">
+              <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={16} />
+            </button>
           </div>
           <div className="avatar">{initialOf(me.name)}</div>
         </div>

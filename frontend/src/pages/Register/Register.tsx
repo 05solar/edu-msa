@@ -4,6 +4,7 @@ import { CATEGORIES, PURPOSES, RUN_TYPES, SCOPES } from '../../data/catalog'
 import { useApp } from '../../state/AppContext'
 import { Icon } from '../../icons/Icon'
 import { USE_API, api, type ValidationResult } from '../../api/client'
+import { GuideModal } from '../../components/GuideModal/GuideModal'
 import type { NewProgramInput } from '../../state/AppContext'
 import type { PurposeId, RunTypeId, Scope } from '../../types'
 
@@ -22,7 +23,7 @@ const GUIDE = [
 ]
 
 export function Register() {
-  const { addProgram, go, toast, me } = useApp()
+  const { addProgram, go, toast, me, openModal } = useApp()
   const [f, setF] = useState<NewProgramInput>({
     name: '', summary: '', desc: '', cat: '', dept: me.dept, ver: '1.0.0',
     repo: '', branch: 'main', tags: [], purposes: [], run: ['gitea'], scope: 'all', readme: '',
@@ -213,6 +214,10 @@ export function Register() {
         </div>
 
         <aside>
+          <button className="btn btn-navy guide-open-btn" style={{ width: '100%', marginBottom: 16 }}
+            onClick={() => openModal(<GuideModal />)}>
+            <Icon name="info" size={16} /> 처음이신가요? 등록 가이드 자세히 보기
+          </button>
           <div className="panel" style={{ marginBottom: 16 }}>
             <div className="panel-head"><div className="panel-title">등록 절차</div></div>
             <div className="panel-body">

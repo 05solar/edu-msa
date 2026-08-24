@@ -1,5 +1,7 @@
 # 교육청 코드 공유 · 내부 프로그램 공유 플랫폼 (edu-msa)
 
+![CI](https://github.com/05solar/edu-msa/actions/workflows/ci.yml/badge.svg)
+
 교육청 구성원이 단기 교육에서 바이브 코딩으로 만든 프로그램을 GitHub 레포지토리로
 올리면, 본 플랫폼이 해당 코드를 가져와 **하나의 MSA 서비스로 띄워** 다른 직원들이
 바로 사용할 수 있게 하는 사내 포털이다.

@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: edu-msa-backend
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/edumsa}
+    username: ${DB_USER:edumsa}
+    password: ${DB_PASSWORD:edumsa}
+  jpa:
+    hibernate:
+      ddl-auto: update      # Phase 2 편의용. Phase 3에서 Flyway 마이그레이션으로 전환.
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+
+server:
+  port: ${PORT:8080}        # 플랫폼 표준: PORT 환경변수로 listen
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+edu:
+  seed: ${EDU_SEED:true}    # 최초 실행 시 목업 데이터 시드 여부
+  cors:
+    allowed-origins: ${CORS_ORIGINS:http://localhost:5173}
+  deploy:
+    mode: ${EDU_DEPLOY_MODE:simulate}          # simulate | real(kubectl/docker 실행)
+    namespace: ${EDU_DEPLOY_NAMESPACE:edu-services}
+    ingress-host: ${EDU_DEPLOY_INGRESS_HOST:edu.internal}
+    registry: ${EDU_DEPLOY_REGISTRY:registry.edu.internal}
+    replicas: ${EDU_DEPLOY_REPLICAS:1}
+    cpu-limit: ${EDU_DEPLOY_CPU_LIMIT:500m}
+    memory-limit: ${EDU_DEPLOY_MEMORY_LIMIT:512Mi}

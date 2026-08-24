@@ -1,0 +1,81 @@
+# 바이브 코더가 올린 서비스 1개당 렌더링되는 매니페스트 템플릿.
+# 플랫폼 백엔드(ManifestRenderer)가 service.yaml 값을 채워 넣는다.
+# 플레이스홀더: {{SLUG}} {{NAME}} {{IMAGE}} {{PORT}} {{HEALTH}} {{NAMESPACE}}
+#             {{HOST}} {{CATEGORY}} {{REPLICAS}} {{CPU}} {{MEMORY}} {{CPU_LIMIT}} {{MEMORY_LIMIT}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{SLUG}}
+  namespace: {{NAMESPACE}}
+  labels:
+    app: {{SLUG}}
+    edu.category: "{{CATEGORY}}"
+    app.kubernetes.io/managed-by: edu-msa
+  annotations:
+    edu.msa/display-name: "{{NAME}}"
+spec:
+  replicas: {{REPLICAS}}
+  selector:
+    matchLabels:
+      app: {{SLUG}}
+  template:
+    metadata:
+      labels:
+        app: {{SLUG}}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: {{SLUG}}
+          image: {{IMAGE}}
+          env:
+            - name: PORT
+              value: "{{PORT}}"
+          ports:
+            - containerPort: {{PORT}}
+          readinessProbe:
+            httpGet: { path: {{HEALTH}}, port: {{PORT}} }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: {{HEALTH}}, port: {{PORT}} }
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          resources:
+            requests: { cpu: "{{CPU}}", memory: "{{MEMORY}}" }
+            limits: { cpu: "{{CPU_LIMIT}}", memory: "{{MEMORY_LIMIT}}" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{SLUG}}
+  namespace: {{NAMESPACE}}
+  labels:
+    app: {{SLUG}}
+spec:
+  selector:
+    app: {{SLUG}}
+  ports:
+    - port: 80
+      targetPort: {{PORT}}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{SLUG}}
+  namespace: {{NAMESPACE}}
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: {{HOST}}
+      http:
+        paths:
+          - path: /svc/{{SLUG}}
+            pathType: Prefix
+            backend:
+              service:
+                name: {{SLUG}}
+                port:
+                  number: 80

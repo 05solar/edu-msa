@@ -1,0 +1,19 @@
+/* =========================================================
+   App 셸 레이아웃 (좌측 고정 사이드바 + 본문)
+   ========================================================= */
+.app-shell{display:flex;align-items:stretch;min-height:100vh}
+
+.main-area{
+  flex:1;min-width:0;margin-left:var(--side-w);
+  display:flex;flex-direction:column;min-height:100vh;
+  transition:margin-left .18s ease;
+}
+.main-area > main{flex:1}
+
+/* 사이드바 접힘(레일) 시 본문 여백도 함께 줄어든다 */
+.app-shell.rail{--side-w:68px}
+
+@media (max-width:900px){
+  .main-area{margin-left:0}
+  .app-shell.rail{--side-w:0}
+}

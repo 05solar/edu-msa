@@ -1,0 +1,37 @@
+[
+  {
+    "name": "김도현",
+    "dept": "행정지원과",
+    "role": "coder"
+  },
+  {
+    "name": "박서연",
+    "dept": "기획예산과",
+    "role": "coder"
+  },
+  {
+    "name": "이준호",
+    "dept": "감사관실",
+    "role": "coder"
+  },
+  {
+    "name": "최민아",
+    "dept": "교육과정과",
+    "role": "coder"
+  },
+  {
+    "name": "정우성",
+    "dept": "정보화담당관",
+    "role": "admin"
+  },
+  {
+    "name": "윤하늘",
+    "dept": "교육과정과",
+    "role": "user"
+  },
+  {
+    "name": "오세훈",
+    "dept": "학교지원과",
+    "role": "user"
+  }
+]

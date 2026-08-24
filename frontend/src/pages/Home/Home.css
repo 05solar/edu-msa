@@ -1,0 +1,101 @@
+/* ---------- 홈 히어로 ---------- */
+.hero{
+  background:var(--navy-900);
+  background-image:radial-gradient(900px 340px at 8% -20%, rgba(47,98,200,.20), rgba(47,98,200,0) 62%);
+  color:#fff;padding:42px 0 40px;border-bottom:1px solid var(--navy-700);
+}
+.hero-kicker{
+  display:inline-flex;align-items:center;gap:7px;margin-bottom:13px;
+  height:24px;padding:0 11px 0 9px;border-radius:100px;
+  background:rgba(91,138,238,.14);border:1px solid rgba(91,138,238,.34);
+  color:#9DBBF7;font-size:11.5px;font-weight:700;letter-spacing:-.01em;
+}
+.hero-kicker::before{
+  content:"";width:5px;height:5px;border-radius:50%;background:#5B8AEE;
+  box-shadow:0 0 0 3px rgba(91,138,238,.25);
+}
+.hero h1{font-size:30px;line-height:1.32;letter-spacing:-.035em;margin-bottom:10px}
+.hero h1 .hl{color:#7FA8F5}
+.hero p{color:#B3C4D9;font-size:14.5px;line-height:1.6;margin:0 0 32px;max-width:720px}
+
+.hero-search{display:flex;gap:9px;max-width:760px}
+.hero-search .hs-field{position:relative;flex:1;min-width:0;display:flex;align-items:center}
+.hero-search .hs-field .ico{
+  position:absolute;left:16px;top:50%;transform:translateY(-50%);
+  opacity:.45;pointer-events:none;transition:opacity .14s;display:flex;
+}
+.hero-search .hs-field:focus-within .ico{opacity:.8}
+.hero-search input{
+  width:100%;height:52px;border-radius:var(--r-lg);
+  border:1px solid #fff;background:#fff;color:var(--ink-900);
+  padding:0 16px 0 42px;font-size:15px;
+  box-shadow:0 6px 18px rgba(6,14,26,.24);transition:box-shadow .14s;
+}
+.hero-search input::placeholder{color:var(--ink-400)}
+.hero-search input:hover{box-shadow:0 8px 22px rgba(6,14,26,.32)}
+.hero-search input:focus{
+  outline:none;box-shadow:0 0 0 4px rgba(91,138,238,.45), 0 8px 22px rgba(6,14,26,.32);
+}
+.hero-search .btn{
+  height:52px;padding:0 28px;font-size:15px;font-weight:700;border-radius:var(--r-lg);
+  box-shadow:0 6px 18px rgba(29,78,216,.30);
+}
+.hero-search .btn:hover{box-shadow:0 8px 22px rgba(29,78,216,.42)}
+
+.quick-tags{display:flex;gap:7px;flex-wrap:wrap;margin-top:15px;align-items:center}
+.quick-tags .lbl{font-size:12.5px;color:#8FA3BC;margin-right:3px}
+.quick-tags button{
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);
+  color:#D6E1F0;border-radius:100px;height:30px;padding:0 13px;font-size:12.5px;font-weight:600;transition:.14s;
+}
+.quick-tags button:hover{background:rgba(255,255,255,.17);border-color:rgba(255,255,255,.34);color:#fff}
+
+/* ---------- 업무 분야 카드 ---------- */
+.cat-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
+.cat-card{
+  background:#fff;border:1px solid var(--line);border-radius:var(--r-lg);
+  padding:14px;cursor:pointer;transition:.14s;text-align:left;box-shadow:var(--shadow-sm);
+}
+.cat-card:hover{border-color:var(--brand-line);background:var(--brand-soft)}
+.cat-card .cc-icon{margin-bottom:8px;display:flex}
+.cat-card .cc-name{font-size:13.5px;font-weight:600}
+.cat-card .cc-count{font-size:12px;color:var(--ink-400);margin-top:2px}
+
+/* ---------- 기능 유형 바로가기 ---------- */
+.purpose-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+.purpose-card{
+  background:#fff;border:1px solid var(--line);border-radius:var(--r);
+  padding:13px 8px;cursor:pointer;transition:.14s;text-align:center;
+}
+.purpose-card:hover{border-color:var(--brand-line);background:var(--brand-soft)}
+.purpose-card .pg-ico{display:flex;justify-content:center;margin-bottom:6px;color:var(--brand)}
+.purpose-card .pg-name{font-size:12.5px;font-weight:600;letter-spacing:-.02em}
+.purpose-card .pg-cnt{font-size:11px;color:var(--ink-400);margin-top:2px}
+
+/* ---------- 인기 순위 ---------- */
+.rank-list{display:grid;grid-template-columns:1fr 1fr;gap:0 28px}
+.rank-item{
+  display:flex;align-items:center;gap:12px;padding:12px 4px;
+  border-bottom:1px solid var(--line-soft);cursor:pointer;
+}
+.rank-item:hover .ri-name{color:var(--brand)}
+.rank-no{
+  width:22px;height:22px;border-radius:var(--r-sm);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11.5px;font-weight:700;background:#F2F4F7;color:var(--ink-500);
+}
+.rank-item.top .rank-no{background:var(--navy-800);color:#fff}
+.ri-body{min-width:0;flex:1}
+.ri-name{font-size:13.5px;font-weight:600}
+.ri-sub{font-size:12px;color:var(--ink-400)}
+.ri-metric{margin-left:auto;font-size:12px;color:var(--ink-500);white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+
+/* ---------- 홈 안내 줄 ---------- */
+.home-note{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  margin-top:26px;padding:13px 16px;border:1px solid var(--line);border-radius:var(--r-lg);
+  background:#fff;font-size:12.5px;color:var(--ink-500);
+}
+.home-note b{color:var(--ink-700)}
+.home-note .btn{margin-left:auto}
+@media (max-width:1180px){ .cat-grid{grid-template-columns:repeat(3,1fr)} .purpose-grid{grid-template-columns:repeat(4,1fr)} }

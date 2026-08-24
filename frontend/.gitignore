@@ -1,0 +1,10 @@
+node_modules
+dist
+dist-ssr
+*.local
+.vite
+
+# tsc 컴포지트 산출물
+vite.config.js
+vite.config.d.ts
+*.tsbuildinfo

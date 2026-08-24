@@ -1,0 +1,17 @@
+# 줄바꿈 정규화: 저장소는 LF로 통일 (체크아웃 시 OS에 맞게 처리)
+* text=auto eol=lf
+
+# 셸/배치 스크립트
+*.sh text eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# 바이너리 (정규화 금지)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.jar binary
+*.zip binary

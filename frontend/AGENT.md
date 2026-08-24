@@ -1,0 +1,26 @@
+# AGENT.md · 프론트엔드 작업 규칙
+
+루트 [../AGENT.md](../AGENT.md)를 상속한다. 아래는 프론트엔드 고유 규칙이다.
+
+## 규칙
+
+1. **이모지 금지.** 아이콘은 `src/icons/Icon.tsx`의 SVG 세트만 사용. (DESIGN.md 0절)
+2. **페이지/컴포넌트 = 폴더.** 한 폴더에 `*.tsx`와 `*.css`를 함께 둔다. 다른 페이지의
+   스타일을 침범하지 않도록 페이지 고유 클래스는 해당 폴더 css에 둔다.
+3. **공통 디자인 어휘**(버튼/카드/배지 등)는 `styles/base.css`를 재사용한다. 중복
+   정의하지 않는다.
+4. **상태**는 `state/AppContext`를 통해 접근한다. 전역 변수/DOM 직접 조작 금지.
+5. **타입 우선.** 도메인 타입은 `types/`에 정의하고 데이터/뷰가 공유한다.
+
+## 작업 후 갱신할 문서
+
+- `frontend/PROCESS.md` — 변경 이력 1줄 추가 (필수).
+- UI 규칙 변경 시 `frontend/DESIGN.md`.
+- 화면/상호작용 추가 시 `frontend/TEST.md` 체크리스트.
+- 실행/구조 변경 시 `frontend/README.md`.
+
+## 검증
+
+- `npm run typecheck` 통과.
+- `npm run build` 성공.
+- 데모 스모크: 로그인 → 권한 전환 → 7개 화면 이동.

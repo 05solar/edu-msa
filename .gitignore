@@ -1,0 +1,22 @@
+# 의존성 / 빌드 산출물
+node_modules/
+dist/
+dist-ssr/
+build/
+.gradle/
+out/
+bin/
+
+# 로컬/에디터/OS
+*.local
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.iml
+*.log
+
+# 환경 파일
+.env
+.env.*
+!.env.example

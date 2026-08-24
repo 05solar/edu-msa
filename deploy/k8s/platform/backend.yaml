@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: edu-platform
+  labels:
+    app: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      serviceAccountName: edu-deployer   # 서비스 배포용 권한 (rbac.yaml)
+      containers:
+        - name: backend
+          image: registry.edu.internal/edu-msa-backend:latest
+          env:
+            - name: DB_URL
+              value: jdbc:postgresql://postgres.edu-platform.svc.cluster.local:5432/edumsa
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef: { name: edu-db, key: POSTGRES_USER }
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: edu-db, key: POSTGRES_PASSWORD }
+            - name: PORT
+              value: "8080"
+            - name: CORS_ORIGINS
+              value: https://edu.internal
+            - name: EDU_SEED
+              value: "true"
+            - name: EDU_DEPLOY_MODE
+              value: "real"
+            - name: EDU_DEPLOY_NAMESPACE
+              value: edu-services
+            - name: EDU_DEPLOY_INGRESS_HOST
+              value: edu.internal
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet: { path: /api/health, port: 8080 }
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /api/health, port: 8080 }
+            initialDelaySeconds: 40
+            periodSeconds: 15
+          resources:
+            requests: { cpu: "250m", memory: "512Mi" }
+            limits: { cpu: "1", memory: "1Gi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: edu-platform
+spec:
+  selector:
+    app: backend
+  ports:
+    - port: 80
+      targetPort: 8080

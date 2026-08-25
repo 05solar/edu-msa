@@ -39,7 +39,14 @@ kube-state-metrics/node-exporter 대시보드가 기본 제공된다.
 - **ServiceMonitor 디스커버리**: 예제 앱 + `release: kps` ServiceMonitor 적용 → 약 30초 내
   `up{job="promex"}=1` 로 Prometheus 가 자동 발견·스크레이프 확인.
 
+## 알림 (Alertmanager + PrometheusRule)
+- Alertmanager 활성화: `helm upgrade kps ... --reuse-values --set alertmanager.enabled=true`.
+- 규칙: `prometheus-rules.yaml`(라벨 `release: kps`) — EduBackendDown/EduPodCrashLooping/EduHighMemory.
+  적용: `kubectl apply -f prometheus-rules.yaml`.
+- 검증(kind, 2026-08-25): 규칙 4종 로드, 테스트 알림 `EduAlwaysFiring`이 Prometheus에서 **firing** →
+  Alertmanager에 **active** 수신 확인(파이프라인 동작). 검증 후 테스트 알림은 비활성(주석) 처리.
+- 남음: Alertmanager 수신처(Slack/Email/PagerDuty) 라우팅, 심각도별 억제/그룹핑, SLO 기반 규칙 확장.
+
 ## 남은 항목(프로덕션)
-- 로그(Loki)/트레이스(Tempo) 파이프라인, 감사로그, 이미지 스캔 결과 연동.
-- 알림(Alertmanager) 활성화 + 규칙(PrometheusRule).
+- 트레이스(Tempo) 파이프라인, 감사로그, 이미지 스캔 결과 연동.
 - Grafana 대시보드 코드화(ConfigMap sidecar) 및 인증 연동.

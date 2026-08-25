@@ -1,0 +1,44 @@
+# 플랫폼 경보 규칙. 라벨 release: kps 로 스택 Prometheus 가 선택.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: edu-platform-rules
+  namespace: monitoring
+  labels:
+    release: kps
+spec:
+  groups:
+    - name: edu-platform.rules
+      rules:
+        # (검증용, 상시 발화 — 파이프라인 확인 후 비활성화. 필요시 주석 해제)
+        # - alert: EduAlwaysFiring
+        #   expr: vector(1) > 0
+        #   for: 0m
+        #   labels: { severity: info }
+        #   annotations:
+        #     summary: "알림 파이프라인 헬스체크(항상 발화)"
+        # 백엔드 스크레이프 타깃 다운
+        # 주의: job 라벨은 Service 이름(backend)에서 온다. Service 개명/ServiceMonitor jobLabel 지정 시 갱신 필요.
+        - alert: EduBackendDown
+          expr: up{job="backend"} == 0
+          for: 2m
+          labels: { severity: critical }
+          annotations:
+            summary: "백엔드가 다운 상태(스크레이프 실패)"
+        # 파드 크래시 루프
+        - alert: EduPodCrashLooping
+          expr: increase(kube_pod_container_status_restarts_total[10m]) > 3
+          for: 5m
+          labels: { severity: warning }
+          annotations:
+            summary: "파드 재시작 반복: {{ $labels.namespace }}/{{ $labels.pod }}"
+        # 메모리 포화(한도 대비 90% 초과)
+        # 주의: 메모리 limit 미설정 파드는 분모에 없어 대상에서 제외됨(LimitRange로 limit 강제 권장).
+        - alert: EduHighMemory
+          expr: >
+            sum by (namespace,pod) (container_memory_working_set_bytes{container!=""})
+            / sum by (namespace,pod) (kube_pod_container_resource_limits{resource="memory"}) > 0.9
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "메모리 사용률 90% 초과: {{ $labels.namespace }}/{{ $labels.pod }}"

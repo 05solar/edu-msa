@@ -52,7 +52,9 @@
   - [x] Loki + Promtail(`deploy/k8s/platform/logging/`) + Grafana Loki 데이터소스 자동 연동.
     검증(kind): 고유 토큰 로그 → LogQL 조회 status=success 5줄 매칭, 라벨 추출 정상, Grafana 사이드카 데이터소스 로드. 서브에이전트 PASS.
   - [ ] Tempo(트레이스) + 로그-트레이스 상관, 감사로그 파이프라인
-- [ ] **P3-3 알림** — Alertmanager 활성화 + PrometheusRule(SLO/포화도)
+- [x] **P3-3 알림** — Alertmanager 활성화 + PrometheusRule(`deploy/k8s/platform/monitoring/prometheus-rules.yaml`: BackendDown/PodCrashLooping/HighMemory).
+  검증(kind): 규칙 로드, 테스트 알림 Prometheus **firing** → Alertmanager **active** 수신 확인(파이프라인). 서브에이전트 PASS.
+  남음: 수신처(Slack/Email) 라우팅, 억제/그룹핑, SLO 규칙 확장.
 - [ ] **P3-4 레지스트리 pull 경로** — 노드 해석 가능한 레지스트리(kind-local-registry/사내) + containerd 설정
 
 ## 진행 이력
@@ -68,4 +70,5 @@
 - 2026-08-25 — P2-2 완료: 관측성(kube-prometheus-stack). 백엔드 Prometheus 메트릭 노출 + ServiceMonitor. kind에서 스크레이프·디스커버리 검증, 서브에이전트 PASS.
 - 2026-08-25 — P2-3 완료: 엣지(ingress-nginx + ModSecurity/OWASP CRS). kind에서 TLS·WAF 차단(XSS/SQLi/traversal 403)·rate-limit(503) 검증, 서브에이전트 PASS. **P0·P1·P2 로드맵 전체 완료.**
 - 2026-08-25 — P3-1 완료: cert-manager 자동 TLS. 발급자 체인 + ingress-shim(주석만으로 인증서 자동 발급) kind 검증, 서브에이전트 PASS.
-- 2026-08-25 — P3-2 진행: Loki + Promtail 로그 수집 + Grafana 연동. kind에서 LogQL 조회(5줄 매칭)·데이터소스 로드 검증, 서브에이전트 PASS. 남음: Tempo/감사로그. 다음: P3-3 알림.
+- 2026-08-25 — P3-2 진행: Loki + Promtail 로그 수집 + Grafana 연동. kind에서 LogQL 조회(5줄 매칭)·데이터소스 로드 검증, 서브에이전트 PASS. 남음: Tempo/감사로그.
+- 2026-08-25 — P3-3 완료: 알림(Alertmanager + PrometheusRule). kind에서 규칙 로드·발화→Alertmanager active 수신 검증, 서브에이전트 PASS. 다음: P3-4 레지스트리 pull 경로.

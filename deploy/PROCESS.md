@@ -24,6 +24,7 @@ deploy/
 - 2026-08-24 — docker-compose(postgres+backend) 작성, K8s 매니페스트(namespace·플랫폼·서비스 템플릿·RBAC) 추가.
 - 2026-08-25 — docker 실배포 모드용 docker.sock/examples 마운트, 백엔드 이미지에 git/docker/kubectl.
 - 2026-08-25 — 로컬 kind 리허설: Go 서비스가 Pod+Service로 기동·응답 검증. deploy/k8s/README를 K8s 배포 가이드로 리뉴얼.
+- 2026-08-25 — P3-3 알림: Alertmanager 활성화(helm upgrade), PrometheusRule(monitoring/prometheus-rules.yaml: EduBackendDown/PodCrashLooping/HighMemory, release: kps) + README 알림 섹션. kind 검증: 규칙 4종 로드, 테스트 알림 Prometheus firing→Alertmanager active 수신, 이후 테스트 알림 비활성 재적용(실규칙 3종). 서브에이전트 PASS(job 라벨/limit 미설정 주의 반영).
 - 2026-08-25 — P3-2 로그 수집: loki-stack(Loki+Promtail) 설치(helm), logging/ 자산 + Grafana Loki 데이터소스 ConfigMap(사이드카 자동 로드) + README. kind 검증: 테스트 토큰 로그→LogQL `{namespace="default"} |= "..."` status=success 5줄 매칭, 라벨 정상, 사이드카 provisioning 로드 확인. 서브에이전트 PASS(loki-stack deprecated·검증 emptyDir 반영).
 - 2026-08-25 — P3-1 자동 TLS: cert-manager 설치(helm, CRDs), 발급자 체인(selfsigned→edu-root-ca(isCA)→edu-ca) 자산 + README, 테넌트 서비스 템플릿 Ingress에 cert-manager.io/cluster-issuer + spec.tls 배선. kind 검증: 발급자 Ready, 명시적 Certificate 자동발급(issuer=CN=edu-msa-root-ca), ingress-shim 주석만으로 ~3초 내 인증서/시크릿 자동 생성(SAN 일치). 서브에이전트 PASS.
 - 2026-08-25 — P2-3 엣지: ingress-nginx 설치(helm, values로 ModSecurity+OWASP CRS 전역 On, TLS1.2/1.3, replica 2). edge/ 자산 + README, 테넌트 서비스 템플릿 Ingress에 rate-limit/WAF 주석. kind 검증(컨트롤러 ClusterIP --resolve): TLS 200(CN=edu-waf.internal), WAF XSS/SQLi/traversal 403, 정상 200, rate-limit 503. 서브에이전트 PASS. P2 및 전체 로드맵 완료.

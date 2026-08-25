@@ -21,14 +21,14 @@ public class ManifestRenderer {
         return props.registry() + "/" + spec.slug() + ":" + tag;
     }
 
-    public String render(ServiceSpec spec, String imageTag) {
+    public String render(ServiceSpec spec, String imageTag, String namespace) {
         return template
                 .replace("{{SLUG}}", spec.slug())
                 .replace("{{NAME}}", spec.name() == null ? spec.slug() : spec.name())
                 .replace("{{IMAGE}}", imageRef(spec, imageTag))
                 .replace("{{PORT}}", String.valueOf(spec.port()))
                 .replace("{{HEALTH}}", spec.healthOrDefault())
-                .replace("{{NAMESPACE}}", props.namespace())
+                .replace("{{NAMESPACE}}", namespace)
                 .replace("{{HOST}}", props.ingressHost())
                 .replace("{{CATEGORY}}", spec.category() == null ? "" : spec.category())
                 .replace("{{REPLICAS}}", String.valueOf(props.replicas()))

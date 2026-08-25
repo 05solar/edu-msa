@@ -28,7 +28,8 @@ edu:
     allowed-origins: ${CORS_ORIGINS:http://localhost:5173}
   deploy:
     mode: ${EDU_DEPLOY_MODE:simulate}          # simulate | real(kubectl/docker 실행)
-    namespace: ${EDU_DEPLOY_NAMESPACE:edu-services}
+    namespace: ${EDU_DEPLOY_NAMESPACE:edu-services}              # 내부(반신뢰)
+    namespace-public: ${EDU_DEPLOY_NAMESPACE_PUBLIC:edu-services-public}  # 외부(비신뢰)
     ingress-host: ${EDU_DEPLOY_INGRESS_HOST:edu.internal}
     registry: ${EDU_DEPLOY_REGISTRY:registry.edu.internal}
     replicas: ${EDU_DEPLOY_REPLICAS:1}

@@ -7,7 +7,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class DeployProperties {
     @Value("${edu.deploy.mode:simulate}")      private String mode;          // simulate | docker | real
-    @Value("${edu.deploy.namespace:edu-services}") private String namespace;
+    @Value("${edu.deploy.namespace:edu-services}") private String namespace;             // 내부(반신뢰)
+    @Value("${edu.deploy.namespace-public:edu-services-public}") private String namespacePublic; // 외부(비신뢰)
     @Value("${edu.deploy.ingress-host:edu.internal}") private String ingressHost;
     @Value("${edu.deploy.registry:registry.edu.internal}") private String registry;
     @Value("${edu.deploy.replicas:1}")         private int replicas;
@@ -25,6 +26,7 @@ public class DeployProperties {
     public String appHost() { return appHost; }
     public String mode() { return mode; }
     public String namespace() { return namespace; }
+    public String namespacePublic() { return namespacePublic; }
     public String ingressHost() { return ingressHost; }
     public String registry() { return registry; }
     public int replicas() { return replicas; }

@@ -19,7 +19,9 @@
 
 ## P1 (프로덕션 안전)
 
-- [ ] **P1-1 안전 빌드** — docker.sock 제거 → Kaniko + 레지스트리, 신뢰도별 네임스페이스 자동배치
+- [~] **P1-1 안전 빌드 + 신뢰도별 네임스페이스 자동배치** (진행 중)
+  - [x] 네임스페이스 자동배치 — CODER/ADMIN→`edu-services`, USER/익명/불명→`edu-services-public`(fail-closed, 서브에이전트 PASS). 검증: 내부/외부 소유자 매니페스트 namespace 분기 확인.
+  - [ ] Kaniko 인클러스터 빌드(docker.sock 제거) + 레지스트리
 - [x] **P1-2 NetworkPolicy 강제** — Calico 도입 (완료·검증)
   - 구현: kind를 `disableDefaultCNI`로 재생성 + Calico v3.28 설치, hardening NetworkPolicy 적용.
   - 검증: 공개 tier 외부 egress **차단**(DNS만 허용), 내부 tier 인터넷 **허용**, 정책 없는 ns는 개방 → 정책이 실제 강제됨. PodSecurity baseline/restricted 확인.
@@ -36,4 +38,5 @@
 - 2026-08-25 — P0-1 완료·검증(HPA `cpu:1%/70%` 판독, PDB).
 - 2026-08-25 — P0-2 완료·검증(작업 큐+워커, done/재시도→failed 확인).
 - 2026-08-25 — P0-3 완료·검증(CloudNativePG 3-인스턴스, primary 삭제→자동 승격 확인). **P0 전부 완료.**
-- 2026-08-25 — P1-2 완료·검증(Calico 재생성 + NetworkPolicy 강제: 공개 tier egress 차단/내부 tier 허용 대조). 다음: P1-1 안전빌드·네임스페이스 자동배치.
+- 2026-08-25 — P1-2 완료·검증(Calico + NetworkPolicy 강제).
+- 2026-08-25 — P1-1 진행: 신뢰도별 네임스페이스 자동배치 구현·검증(내부→edu-services, 외부→edu-services-public, fail-closed, 서브에이전트 PASS). 다음: Kaniko 빌드.

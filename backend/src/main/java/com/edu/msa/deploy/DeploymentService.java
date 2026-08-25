@@ -10,10 +10,12 @@ import com.edu.msa.deploy.dto.DeployDtos.DeploymentResponse;
 import com.edu.msa.deploy.dto.DeployDtos.SpecView;
 import com.edu.msa.deploy.dto.DeployDtos.ValidateRequest;
 import com.edu.msa.deploy.dto.DeployDtos.ValidationResult;
+import com.edu.msa.common.Role;
 import com.edu.msa.deploy.repository.DeploymentRepository;
 import com.edu.msa.notification.NotificationService;
 import com.edu.msa.program.domain.Program;
 import com.edu.msa.program.repository.ProgramRepository;
+import com.edu.msa.user.repository.AppUserRepository;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -36,10 +38,12 @@ public class DeploymentService {
     private final CommandRunner runner;
     private final ProgramRepository programs;
     private final NotificationService notifications;
+    private final AppUserRepository appUsers;
 
     public DeploymentService(SourceResolver resolver, SpecParser parser, ServiceSpecValidator validator,
                              ManifestRenderer renderer, DeploymentRepository deployments, DeployProperties props,
-                             CommandRunner runner, ProgramRepository programs, NotificationService notifications) {
+                             CommandRunner runner, ProgramRepository programs, NotificationService notifications,
+                             AppUserRepository appUsers) {
         this.resolver = resolver;
         this.parser = parser;
         this.validator = validator;
@@ -49,6 +53,20 @@ public class DeploymentService {
         this.runner = runner;
         this.programs = programs;
         this.notifications = notifications;
+        this.appUsers = appUsers;
+    }
+
+    /**
+     * 업로더 신뢰도에 따라 배포 네임스페이스를 정한다.
+     * 내부 직원(CODER/ADMIN) → edu-services, 외부 사용자(USER)·익명·불명 → edu-services-public(비신뢰).
+     */
+    private String resolveNamespace(Long programId) {
+        if (programId == null) return props.namespacePublic();
+        Program p = programs.findById(programId).orElse(null);
+        if (p == null) return props.namespacePublic();
+        Role role = appUsers.findByName(p.getOwner()).map(u -> u.getRole()).orElse(null);
+        boolean internal = role == Role.CODER || role == Role.ADMIN;
+        return internal ? props.namespace() : props.namespacePublic();
     }
 
     @Transactional(readOnly = true)
@@ -84,7 +102,7 @@ public class DeploymentService {
     public DeploymentResponse deploy(DeployRequest req) {
         Deployment d = deployments.save(new Deployment(req.programId(), req.repoUrl(), req.branch()));
         StringBuilder log = new StringBuilder();
-        line(log, "배포 시작 · mode=" + props.mode() + " · namespace=" + props.namespace());
+        line(log, "배포 시작 · mode=" + props.mode());   // 대상 네임스페이스는 검증 후 신뢰도에 따라 결정
         try {
             d.setStatus(DeploymentStatus.VALIDATING);
             SourceMaterial mat = resolver.resolve(req.repoUrl(), req.branch());
@@ -100,12 +118,14 @@ public class DeploymentService {
             String tag = "d" + d.getId();
             d.setImageTag(tag);
             String image = renderer.imageRef(spec, tag);
-            line(log, "규격 검증 통과 · slug=" + spec.slug() + " · port=" + spec.port() + " · health=" + spec.healthOrDefault());
+            String ns = resolveNamespace(req.programId());   // 신뢰도별 네임스페이스
+            line(log, "규격 검증 통과 · slug=" + spec.slug() + " · port=" + spec.port()
+                    + " · health=" + spec.healthOrDefault() + " · namespace=" + ns);
 
             String url;
             if (props.isDocker()) {
                 // 로컬 Docker 실배포: 실제로 이미지를 빌드하고 컨테이너를 띄운다.
-                url = dockerDeploy(log, d, spec, mat, image);
+                url = dockerDeploy(log, d, spec, mat, image, ns);
             } else {
                 // 2. 이미지 빌드
                 d.setStatus(DeploymentStatus.BUILDING);
@@ -119,19 +139,19 @@ public class DeploymentService {
                 }
 
                 // 3. 매니페스트 렌더링
-                String manifest = renderer.render(spec, tag);
+                String manifest = renderer.render(spec, tag, ns);
                 d.setManifest(manifest);
-                line(log, "매니페스트 렌더링 완료 (Deployment/Service/Ingress)");
+                line(log, "매니페스트 렌더링 완료 (Deployment/Service/Ingress) · ns=" + ns);
 
                 // 4. K8s 적용
                 d.setStatus(DeploymentStatus.DEPLOYING);
                 if (props.isReal()) {
                     Path f = Files.createTempFile("edu-manifest-", ".yaml");
                     Files.writeString(f, manifest, StandardCharsets.UTF_8);
-                    CommandRunner.Result r = run(log, List.of("kubectl", "apply", "-n", props.namespace(), "-f", f.toString()), null, 120);
+                    CommandRunner.Result r = run(log, List.of("kubectl", "apply", "-n", ns, "-f", f.toString()), null, 120);
                     if (!r.ok()) throw new DeployException("kubectl apply 실패");
                 } else {
-                    line(log, "[simulate] kubectl apply -n " + props.namespace() + " -f - (Deployment/Service/Ingress)");
+                    line(log, "[simulate] kubectl apply -n " + ns + " -f - (Deployment/Service/Ingress)");
                     line(log, "[simulate] 롤아웃 대기 및 헬스 체크(" + spec.healthOrDefault() + ") 통과 가정");
                 }
                 url = "https://" + props.ingressHost() + "/svc/" + spec.slug();
@@ -167,7 +187,7 @@ public class DeploymentService {
     }
 
     /** 로컬 Docker 데몬으로 이미지를 빌드하고 컨테이너를 실제로 띄운다. 접속 URL을 반환한다. */
-    private String dockerDeploy(StringBuilder log, Deployment d, ServiceSpec spec, SourceMaterial mat, String image) {
+    private String dockerDeploy(StringBuilder log, Deployment d, ServiceSpec spec, SourceMaterial mat, String image, String ns) {
         if (mat.workDir() == null) {
             throw new DeployException("도커 배포는 소스 작업 경로가 필요합니다. local:// 또는 실제 git 레포 주소를 사용하세요.");
         }
@@ -196,7 +216,7 @@ public class DeploymentService {
         if (state.output() == null || !state.output().trim().startsWith("true")) {
             throw new DeployException("컨테이너가 정상 실행되지 않았습니다.");
         }
-        d.setManifest(renderer.render(spec, d.getImageTag()));   // 매니페스트도 참고용으로 보관
+        d.setManifest(renderer.render(spec, d.getImageTag(), ns));   // 매니페스트도 참고용으로 보관(네임스페이스 반영)
         line(log, "컨테이너 실행 확인 · " + container + " (host 포트 " + hostPort + ")");
         return "http://" + props.appHost() + ":" + hostPort;
     }

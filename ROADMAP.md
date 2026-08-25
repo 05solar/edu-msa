@@ -57,7 +57,9 @@
 - [x] **P3-3 알림** — Alertmanager 활성화 + PrometheusRule(`deploy/k8s/platform/monitoring/prometheus-rules.yaml`: BackendDown/PodCrashLooping/HighMemory).
   검증(kind): 규칙 로드, 테스트 알림 Prometheus **firing** → Alertmanager **active** 수신 확인(파이프라인). 서브에이전트 PASS.
   남음: 수신처(Slack/Email) 라우팅, 억제/그룹핑, SLO 규칙 확장.
-- [ ] **P3-4 레지스트리 pull 경로** — 노드 해석 가능한 레지스트리(kind-local-registry/사내) + containerd 설정
+- [x] **P3-4 레지스트리 pull 경로** — kind-local-registry(containerd certs.d) 자산(`deploy/k8s/platform/registry/`).
+  검증(kind, end-to-end): Kaniko가 test-code(Go)를 docker.sock 없이 빌드→`kind-registry:5000/workdays:v1` push(digest a3c56d8…) → `localhost:5001/workdays:v1` 배포(imagePullPolicy: Always) → kubelet **레지스트리 pull(221ms), Image ID digest 일치**, 파드 1/1 Running, 서비스 `/`·`/healthz` 200. 서브에이전트 PASS.
+  즉 **GitHub 레포 → 인클러스터 빌드 → 레지스트리 → 노드 pull → 서비스 기동** 전 구간 완결.
 
 ## 진행 이력
 - 2026-08-25 — 로드맵 작성. P0-1(오토스케일) 착수.
@@ -74,4 +76,5 @@
 - 2026-08-25 — P3-1 완료: cert-manager 자동 TLS. 발급자 체인 + ingress-shim(주석만으로 인증서 자동 발급) kind 검증, 서브에이전트 PASS.
 - 2026-08-25 — P3-2 진행: Loki + Promtail 로그 수집 + Grafana 연동. kind에서 LogQL 조회(5줄 매칭)·데이터소스 로드 검증, 서브에이전트 PASS. 남음: Tempo/감사로그.
 - 2026-08-25 — P3-3 완료: 알림(Alertmanager + PrometheusRule). kind에서 규칙 로드·발화→Alertmanager active 수신 검증, 서브에이전트 PASS.
-- 2026-08-25 — P3-2 완료(로그+트레이스): Tempo 설치 + 트레이스↔로그 상관. kind에서 트레이스 20건 전송·조회 검증, 서브에이전트 PASS(url $$ 이스케이프 결함 수정). 관측성 3축(metrics/logs/traces) 완성. 남은 P3: P3-4 레지스트리 pull 경로(클러스터 재생성 필요).
+- 2026-08-25 — P3-2 완료(로그+트레이스): Tempo 설치 + 트레이스↔로그 상관. kind에서 트레이스 20건 전송·조회 검증, 서브에이전트 PASS(url $$ 이스케이프 결함 수정). 관측성 3축(metrics/logs/traces) 완성.
+- 2026-08-25 — P3-4 완료: 레지스트리 pull 경로(kind-local-registry, containerd certs.d). 클러스터 재생성 후 Kaniko 빌드→push→노드 pull(digest 일치)→서비스 200 end-to-end 검증, 서브에이전트 PASS. **로드맵 실구현 항목 전부 완료(P0~P3).** 잔여는 감사로그·실 OTel 계측 등 문서화 항목.

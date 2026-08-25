@@ -1,0 +1,9 @@
+# kind 클러스터 — 로컬 레지스트리(containerd certs.d) 지원.
+# 노드 containerd가 /etc/containerd/certs.d/<host>/hosts.toml 로 레지스트리를 해석한다.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: edu
+containerdConfigPatches:
+  - |-
+    [plugins."io.containerd.grpc.v1.cri".registry]
+      config_path = "/etc/containerd/certs.d"

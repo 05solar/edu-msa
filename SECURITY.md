@@ -58,11 +58,11 @@ kubectl apply -f deploy/k8s/hardening/30-runtimeclass-gvisor.yaml   # 노드에 
 ## 5. 프로덕션에서 반드시 채워야 할 것 (아직 아님)
 
 - **gVisor/Kata 노드 설치**: `30-runtimeclass` 사용 전 노드 런타임 준비.
-- **레지스트리 pull 경로**: Kaniko가 push한 이미지를 노드가 pull 하려면 노드에서 해석 가능한
-  레지스트리 엔드포인트가 필요(kind-local-registry 패턴 또는 사내 레지스트리 + containerd 설정).
-- **오토스케일/비용**: HPA + Cluster Autoscaler, 유휴 서비스 **scale-to-zero(Knative/KEDA)**.
+- **감사로그/실 OTel 계측**: 로그에 trace_id 표준화, 앱 자동/수동 계측, 감사로그 별도 보존.
 
 ### 완료된 항목 (구현·검증)
+- **레지스트리 pull 경로** (P3-4): kind-local-registry(containerd certs.d). Kaniko push 이미지를
+  노드가 pull해 파드 기동까지 end-to-end 검증(digest 일치, 서비스 200). 실서버는 사내/클라우드 레지스트리로 교체.
 - **자동 TLS** (P3-1): cert-manager 발급자 체인(self-signed 루트 CA→edu-ca) + Ingress ingress-shim.
   kind 검증: 주석만으로 인증서+시크릿 자동 발급(우리 CA 서명). 실서버는 ACME로 교체.
 - **엣지 보안** (P2-3): ingress-nginx + ModSecurity/OWASP CRS. TLS 종료, 서비스별 rate-limit, WAF.

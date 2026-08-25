@@ -1,0 +1,19 @@
+# ingress-nginx 설치 값 — 엣지 보안(WAF/ModSecurity + OWASP CRS).
+# helm install ingress-nginx ingress-nginx/ingress-nginx -n ingress-nginx --create-namespace -f 이파일
+controller:
+  service:
+    type: LoadBalancer      # 실서버: LB. kind 검증 시엔 ClusterIP로 대체.
+  config:
+    # WAF: ModSecurity + OWASP Core Rule Set 전역 활성화
+    enable-modsecurity: "true"
+    enable-owasp-modsecurity-crs: "true"
+    # 기본은 DetectionOnly → 실제 차단(403)하려면 SecRuleEngine On
+    modsecurity-snippet: |
+      SecRuleEngine On
+      SecRequestBodyAccess On
+      SecAuditEngine RelevantOnly
+    # 공통 하드닝
+    hide-headers: "Server,X-Powered-By"
+    ssl-protocols: "TLSv1.2 TLSv1.3"
+  # 엣지는 다중 복제로 HA
+  replicaCount: 2

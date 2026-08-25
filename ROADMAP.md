@@ -39,7 +39,9 @@
 - [x] **P2-2 관측성** — kube-prometheus-stack(Prometheus+Grafana+kube-state-metrics+node-exporter). 백엔드 `/actuator/prometheus` 노출(micrometer) + ServiceMonitor(`deploy/k8s/platform/monitoring/`).
   검증(kind): `up` 11타깃 스크레이프, 백엔드 메트릭 200(application 라벨), ServiceMonitor 디스커버리→`up{job="promex"}=1`(~30s), 서브에이전트 PASS.
   남음: Loki/Tempo(로그·트레이스), Alertmanager/규칙, 대시보드 코드화.
-- [ ] **P2-3 엣지** — TLS·rate-limit·WAF·CDN
+- [x] **P2-3 엣지** — ingress-nginx(ModSecurity+OWASP CRS) TLS·rate-limit·WAF. 엣지 자산(`deploy/k8s/platform/edge/`) + 테넌트 템플릿 Ingress에 rate-limit/WAF 주석.
+  검증(kind): TLS 200(우리 인증서), WAF 차단 XSS/SQLi/traversal 403, 정상 200, rate-limit 503. 서브에이전트 PASS.
+  남음: cert-manager 자동 인증서, CRS 튜닝, CDN/DDoS.
 
 ## 진행 이력
 - 2026-08-25 — 로드맵 작성. P0-1(오토스케일) 착수.
@@ -51,4 +53,5 @@
 - 2026-08-25 — P1-1 완료: Kaniko 인클러스터 빌드(docker.sock 제거) 배선 + repoUrl/branch 주입 검증. kind에서 실제 GitHub 레포 빌드→레지스트리 push 검증, 서브에이전트 PASS.
 - 2026-08-25 — P1-3 완료: 서비스 템플릿에 무중단 롤링+PDB+AZ분산/안티어피니티. kind에서 롤링 무중단(220/220-1) + PDB 검증, 서브에이전트 PASS.
 - 2026-08-25 — P2-1 완료: scale-to-zero(KEDA HTTP add-on). kind에서 유휴 0축소→요청 시 0→1 콜드스타트(HTTP 200) 검증.
-- 2026-08-25 — P2-2 완료: 관측성(kube-prometheus-stack). 백엔드 Prometheus 메트릭 노출 + ServiceMonitor. kind에서 스크레이프·디스커버리 검증, 서브에이전트 PASS. 다음: P2-3 엣지(TLS/rate-limit/WAF).
+- 2026-08-25 — P2-2 완료: 관측성(kube-prometheus-stack). 백엔드 Prometheus 메트릭 노출 + ServiceMonitor. kind에서 스크레이프·디스커버리 검증, 서브에이전트 PASS.
+- 2026-08-25 — P2-3 완료: 엣지(ingress-nginx + ModSecurity/OWASP CRS). kind에서 TLS·WAF 차단(XSS/SQLi/traversal 403)·rate-limit(503) 검증, 서브에이전트 PASS. **P0·P1·P2 로드맵 전체 완료.**

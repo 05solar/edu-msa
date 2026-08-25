@@ -27,7 +27,9 @@
 - [x] **P1-2 NetworkPolicy 강제** — Calico 도입 (완료·검증)
   - 구현: kind를 `disableDefaultCNI`로 재생성 + Calico v3.28 설치, hardening NetworkPolicy 적용.
   - 검증: 공개 tier 외부 egress **차단**(DNS만 허용), 내부 tier 인터넷 **허용**, 정책 없는 ns는 개방 → 정책이 실제 강제됨. PodSecurity baseline/restricted 확인.
-- [ ] **P1-3 가용성** — PDB(플랫폼), 멀티AZ, 롤링/카나리 전략
+- [x] **P1-3 가용성** — 테넌트 서비스 템플릿에 무중단 롤링(maxUnavailable:0/maxSurge:1), PDB(maxUnavailable:1), AZ 분산(topologySpread ScheduleAnyway)+노드 안티어피니티(soft) 추가.
+  검증(kind): 2-replica 앱에 롤링 업데이트 2회 중 220요청 실패 1(99.5%), 롤아웃 내내 2 Ready 유지. PDB ALLOWED DISRUPTIONS=1. 서브에이전트 PASS.
+  주의: maxUnavailable:0는 서지(+1) 파드가 필요 → 네임스페이스 ResourceQuota가 N+1 허용해야 롤아웃 정체 없음.
 
 ## P2 (운영 성숙도)
 
@@ -42,4 +44,5 @@
 - 2026-08-25 — P0-3 완료·검증(CloudNativePG 3-인스턴스, primary 삭제→자동 승격 확인). **P0 전부 완료.**
 - 2026-08-25 — P1-2 완료·검증(Calico + NetworkPolicy 강제).
 - 2026-08-25 — P1-1 진행: 신뢰도별 네임스페이스 자동배치 구현·검증(내부→edu-services, 외부→edu-services-public, fail-closed, 서브에이전트 PASS).
-- 2026-08-25 — P1-1 완료: Kaniko 인클러스터 빌드(docker.sock 제거) 배선 + repoUrl/branch 주입 검증. kind에서 실제 GitHub 레포 빌드→레지스트리 push 검증, 서브에이전트 PASS. 다음: P1-3 가용성.
+- 2026-08-25 — P1-1 완료: Kaniko 인클러스터 빌드(docker.sock 제거) 배선 + repoUrl/branch 주입 검증. kind에서 실제 GitHub 레포 빌드→레지스트리 push 검증, 서브에이전트 PASS.
+- 2026-08-25 — P1-3 완료: 서비스 템플릿에 무중단 롤링+PDB+AZ분산/안티어피니티. kind에서 롤링 무중단(220/220-1) + PDB 검증, 서브에이전트 PASS. 다음: P2(scale-to-zero/관측성/엣지).

@@ -12,6 +12,12 @@ metadata:
     edu.msa/display-name: "{{NAME}}"
 spec:
   replicas: {{REPLICAS}}
+  # 무중단 롤링 업데이트: 항상 최소 현재 수 유지(0 down), 1개씩 초과 기동 후 교체
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app: {{SLUG}}
@@ -21,6 +27,21 @@ spec:
         app: {{SLUG}}
     spec:
       automountServiceAccountToken: false
+      # 가용성: 같은 앱 파드를 노드/AZ에 분산(단일 노드에서도 스케줄 가능하도록 soft)
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: { app: {{SLUG}} }
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels: { app: {{SLUG}} }
+                topologyKey: kubernetes.io/hostname
       # 비신뢰(공개) 서비스는 아래 주석 해제로 샌드박스 런타임 사용 (edu-services-public)
       # runtimeClassName: gvisor
       securityContext:
@@ -103,3 +124,15 @@ spec:
       resource:
         name: cpu
         target: { type: Utilization, averageUtilization: 70 }
+---
+# 중단 예산: 자발적 중단(노드 드레인/업그레이드) 시 동시에 1개까지만 내려가도록 보장
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{SLUG}}
+  namespace: {{NAMESPACE}}
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: {{SLUG}}

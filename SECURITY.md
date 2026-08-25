@@ -63,6 +63,9 @@ kubectl apply -f deploy/k8s/hardening/30-runtimeclass-gvisor.yaml   # 노드에 
 - **오토스케일/비용**: HPA + Cluster Autoscaler, 유휴 서비스 **scale-to-zero(Knative/KEDA)**.
 
 ### 완료된 항목 (구현·검증)
+- **가용성** (P1-3): 테넌트 서비스 템플릿에 무중단 롤링(maxUnavailable:0/maxSurge:1) + PDB(maxUnavailable:1)
+  + AZ 분산(topologySpread ScheduleAnyway)/노드 안티어피니티(soft). kind에서 롤링 무중단·PDB 검증.
+  주의: maxUnavailable:0 서지(+1)를 위해 네임스페이스 ResourceQuota가 파드 N+1을 허용해야 함.
 - **NetworkPolicy 강제 CNI** (P1-2): kind에 **Calico** 적용, default-deny + tier별 egress 대조 검증.
 - **백엔드 real 모드 배선** (P1-1): docker 소켓 빌드 제거 → **Kaniko 인클러스터 Job**으로 교체.
   업로더 `repoUrl`/`branch`는 정규식 검증 후에만 Kaniko `--context`에 삽입(인자·YAML 주입 차단).

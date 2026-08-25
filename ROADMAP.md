@@ -48,7 +48,10 @@
 - [x] **P3-1 자동 TLS 인증서** — cert-manager. 발급자 체인(selfsigned→루트 CA→`edu-ca`, `deploy/k8s/platform/edge/cert-manager/`) + 테넌트 템플릿 Ingress에 `cert-manager.io/cluster-issuer` + `spec.tls` 자동 배선.
   검증(kind): 발급자 Ready, 명시적 Certificate 자동 발급(issuer=CN=edu-msa-root-ca), **ingress-shim 주석만으로 ~3초 내 인증서+시크릿 자동 생성**(우리 CA 서명, SAN 일치). 서브에이전트 PASS.
   실서버: `edu-ca` → ACME(Let's Encrypt)로 교체. 최적화: 공유 호스트는 서비스별 중복 대신 단일/와일드카드 인증서 검토.
-- [ ] **P3-2 로그·트레이스** — Loki(+Alloy/Promtail), Tempo, 감사로그
+- [~] **P3-2 로그·트레이스** — Loki + Promtail 로그 수집 완료. (Tempo 트레이스·감사로그는 남음)
+  - [x] Loki + Promtail(`deploy/k8s/platform/logging/`) + Grafana Loki 데이터소스 자동 연동.
+    검증(kind): 고유 토큰 로그 → LogQL 조회 status=success 5줄 매칭, 라벨 추출 정상, Grafana 사이드카 데이터소스 로드. 서브에이전트 PASS.
+  - [ ] Tempo(트레이스) + 로그-트레이스 상관, 감사로그 파이프라인
 - [ ] **P3-3 알림** — Alertmanager 활성화 + PrometheusRule(SLO/포화도)
 - [ ] **P3-4 레지스트리 pull 경로** — 노드 해석 가능한 레지스트리(kind-local-registry/사내) + containerd 설정
 
@@ -64,4 +67,5 @@
 - 2026-08-25 — P2-1 완료: scale-to-zero(KEDA HTTP add-on). kind에서 유휴 0축소→요청 시 0→1 콜드스타트(HTTP 200) 검증.
 - 2026-08-25 — P2-2 완료: 관측성(kube-prometheus-stack). 백엔드 Prometheus 메트릭 노출 + ServiceMonitor. kind에서 스크레이프·디스커버리 검증, 서브에이전트 PASS.
 - 2026-08-25 — P2-3 완료: 엣지(ingress-nginx + ModSecurity/OWASP CRS). kind에서 TLS·WAF 차단(XSS/SQLi/traversal 403)·rate-limit(503) 검증, 서브에이전트 PASS. **P0·P1·P2 로드맵 전체 완료.**
-- 2026-08-25 — P3-1 완료: cert-manager 자동 TLS. 발급자 체인 + ingress-shim(주석만으로 인증서 자동 발급) kind 검증, 서브에이전트 PASS. 다음: P3-2 로그·트레이스.
+- 2026-08-25 — P3-1 완료: cert-manager 자동 TLS. 발급자 체인 + ingress-shim(주석만으로 인증서 자동 발급) kind 검증, 서브에이전트 PASS.
+- 2026-08-25 — P3-2 진행: Loki + Promtail 로그 수집 + Grafana 연동. kind에서 LogQL 조회(5줄 매칭)·데이터소스 로드 검증, 서브에이전트 PASS. 남음: Tempo/감사로그. 다음: P3-3 알림.

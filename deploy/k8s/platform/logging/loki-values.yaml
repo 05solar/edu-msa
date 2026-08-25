@@ -1,0 +1,13 @@
+# loki-stack(Loki + Promtail) 설치 값.
+# helm install loki grafana/loki-stack -n logging --create-namespace -f 이파일
+loki:
+  enabled: true
+  persistence:
+    enabled: true          # 실서버: 오브젝트 스토리지(S3/GCS) 권장. 최소구성은 PVC.
+    size: 20Gi
+promtail:
+  enabled: true            # 각 노드 DaemonSet으로 파드 로그 수집
+grafana:
+  enabled: false           # Grafana는 kube-prometheus-stack 것을 재사용
+prometheus:
+  enabled: false

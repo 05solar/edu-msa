@@ -63,6 +63,8 @@ kubectl apply -f deploy/k8s/hardening/30-runtimeclass-gvisor.yaml   # 노드에 
 - **오토스케일/비용**: HPA + Cluster Autoscaler, 유휴 서비스 **scale-to-zero(Knative/KEDA)**.
 
 ### 완료된 항목 (구현·검증)
+- **유휴 비용/scale-to-zero** (P2-1): KEDA HTTP add-on. 유휴 서비스 0 축소, 요청 시 0→1 콜드스타트.
+  kind 검증: replicas 0→1, HTTP 200(2.85s). 인터셉터 경유 라우팅 필요.
 - **가용성** (P1-3): 테넌트 서비스 템플릿에 무중단 롤링(maxUnavailable:0/maxSurge:1) + PDB(maxUnavailable:1)
   + AZ 분산(topologySpread ScheduleAnyway)/노드 안티어피니티(soft). kind에서 롤링 무중단·PDB 검증.
   주의: maxUnavailable:0 서지(+1)를 위해 네임스페이스 ResourceQuota가 파드 N+1을 허용해야 함.

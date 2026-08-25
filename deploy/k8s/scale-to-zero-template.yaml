@@ -1,0 +1,23 @@
+# Scale-to-Zero 템플릿 (KEDA HTTP add-on).
+# 유휴 서비스를 0으로 축소하고, 요청이 오면 인터셉터가 0->1 콜드스타트한다.
+# 플레이스홀더: {{SLUG}} {{NAMESPACE}} {{PORT}} {{HOST}}
+#
+# 전제: 클러스터에 KEDA + keda-add-ons-http 설치.
+# 라우팅: 이 서비스로 향하는 Ingress는 백엔드를 KEDA 인터셉터
+#   (keda-add-ons-http-interceptor-proxy.keda:8080)로 지정하고 Host={{HOST}} 로 전달해야 한다.
+apiVersion: http.keda.sh/v1alpha1
+kind: HTTPScaledObject
+metadata:
+  name: {{SLUG}}
+  namespace: {{NAMESPACE}}
+spec:
+  hosts:
+    - {{HOST}}
+  scaleTargetRef:
+    name: {{SLUG}}
+    service: {{SLUG}}
+    port: {{PORT}}
+  replicas:
+    min: 0          # 유휴 시 0 (비용 0)
+    max: 5
+  scaledownPeriod: 300   # 마지막 요청 후 5분 유휴면 0으로 축소

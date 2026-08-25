@@ -1,8 +1,0 @@
-name: 기안문 서식 생성기
-slug: doc-formatter
-category: doc
-purposes: [gen, auto]
-tech: [Python]
-summary: 제목·부서·본문을 입력하면 표준 기안문 형식으로 정리해 줍니다.
-port: 8080
-health: /healthz

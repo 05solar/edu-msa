@@ -34,6 +34,11 @@ spec:
               value: https://edu.internal
             - name: EDU_SEED
               value: "true"
+            # auth-service 가 발급한 JWT 를 자체 검증하기 위한 공용 서명 키.
+            # auth-service Deployment(auth/auth-service.yaml)와 동일한 Secret 을 참조한다.
+            - name: EDU_JWT_SECRET
+              valueFrom:
+                secretKeyRef: { name: edu-auth-jwt, key: EDU_JWT_SECRET }
             - name: EDU_DEPLOY_MODE
               value: "real"
             - name: EDU_DEPLOY_NAMESPACE

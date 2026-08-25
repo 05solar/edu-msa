@@ -4,10 +4,12 @@ import {
 } from 'react'
 import { ROLE_USER } from '../data/catalog'
 import { USE_API, api } from '../api/client'
+import { setAccessToken } from '../api/token'
+import { authApi, type AuthAccount } from '../api/auth'
 import { ADMIN_LOG_SEED, NOTIS_SEED, PROGRAMS, USERS_SEED } from '../data/programs'
 import { nowStamp, today, dot } from '../lib/helpers'
 import type {
-  AdminAction, AdminLogEntry, AppUser, Comment, NotiKind, Notification, Program,
+  AdminAction, AdminLogEntry, AppUser, AuthView, Comment, NotiKind, Notification, Program,
   ProgramStatus, PurposeId, Role, Scope, ViewId,
 } from '../types'
 
@@ -38,6 +40,17 @@ interface AppContextValue {
   loggedIn: boolean
   login: () => void
   logout: () => void
+
+  authView: AuthView
+  goAuth: (v: AuthView) => void
+
+  /** auth-service 로 로그인한 계정. 데모 로그인 상태에서는 null. */
+  account: AuthAccount | null
+  /** 시연용 데모 진입 여부 — 권한 전환 등 데모 전용 기능의 노출 기준. */
+  demoMode: boolean
+  /** 새로고침 시 세션 복구 시도가 끝났는지 여부. */
+  authReady: boolean
+  signIn: (username: string, password: string) => Promise<void>
 
   role: Role
   changeRole: (r: Role) => void
@@ -112,6 +125,11 @@ const FAVORITES_SEED: Record<Role, number[]> = {
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [loggedIn, setLoggedIn] = useState(false)
+  const [authView, setAuthView] = useState<AuthView>('login')
+  const [account, setAccount] = useState<AuthAccount | null>(null)
+  const [authReady, setAuthReady] = useState(false)
+  const [accessExpiresIn, setAccessExpiresIn] = useState(0)
+  const [authAccounts, setAuthAccounts] = useState<AuthAccount[]>([])
   const [role, setRole] = useState<Role>('coder')
   const [view, setView] = useState<ViewId>('home')
   const [detailId, setDetailId] = useState<number | null>(null)
@@ -151,7 +169,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [modal, setModal] = useState<ReactNode>(null)
   const [, setSeq] = useState(1000)
 
-  const me = ROLE_USER[role]
+  // 실제 로그인 상태에서는 auth-service 의 계정이 기준이고,
+  // 데모 진입 상태에서는 기존과 동일하게 역할별 시연 사용자를 쓴다.
+  const me = useMemo<AppUser>(
+    () => (account
+      ? { name: account.name, dept: account.dept, role: account.role }
+      : ROLE_USER[role]),
+    [account, role],
+  )
 
   const toast = useCallback((msg: string, kind: Toast['kind'] = 'ok') => {
     setSeq((s) => {
@@ -170,8 +195,62 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const openModal = useCallback((node: ReactNode) => setModal(node), [])
   const closeModal = useCallback(() => setModal(null), [])
 
-  const login = useCallback(() => { setLoggedIn(true); setView('home') }, [])
-  const logout = useCallback(() => { setLoggedIn(false); setView('home'); setDetailId(null) }, [])
+  // 데모 로그인 — 시연용 진입 흐름. auth-service 를 거치지 않고 목업 데이터로 진입한다.
+  const login = useCallback(() => {
+    setAccount(null)
+    setAccessToken(null)
+    setLoggedIn(true)
+    setView('home')
+  }, [])
+
+  const clearSession = useCallback(() => {
+    setAccount(null)
+    setAuthAccounts([])
+    setAccessToken(null)
+    setLoggedIn(false)
+    setView('home')
+    setDetailId(null)
+    setAuthView('login')
+  }, [])
+
+  const logout = useCallback(() => {
+    // 데모 진입이었다면 서버 세션이 없으므로 호출하지 않는다.
+    if (account) authApi.logout().catch(() => { /* 이미 만료된 세션이어도 로그아웃은 진행한다 */ })
+    clearSession()
+  }, [account, clearSession])
+
+  /** auth-service 로그인 — Access Token 은 메모리에, Refresh Token 은 HttpOnly 쿠키에 보관된다. */
+  const signIn = useCallback(async (username: string, password: string) => {
+    const res = await authApi.login(username, password)
+    setAccessToken(res.accessToken)
+    setAccount(res.account)
+    setAccessExpiresIn(res.expiresIn)
+    setRole(res.account.role)
+    setLoggedIn(true)
+    setView('home')
+  }, [])
+
+  // 새로고침 시 Refresh 쿠키로 세션을 복구한다. 세션이 없으면 로그인 화면을 유지한다.
+  useEffect(() => {
+    let cancelled = false
+    authApi.refresh()
+      .then((res) => {
+        if (cancelled) return
+        setAccessToken(res.accessToken)
+        setAccount(res.account)
+        setAccessExpiresIn(res.expiresIn)
+        setRole(res.account.role)
+        setLoggedIn(true)
+      })
+      .catch(() => { /* 유효한 세션 없음 */ })
+      .finally(() => { if (!cancelled) setAuthReady(true) })
+    return () => { cancelled = true }
+  }, [])
+
+  const goAuth = useCallback((v: AuthView) => {
+    setAuthView(v)
+    window.scrollTo({ top: 0 })
+  }, [])
 
   const go = useCallback((v: ViewId, id?: number) => {
     setView(v)
@@ -181,11 +260,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const changeRole = useCallback((r: Role) => {
+    if (account) {
+      // 실제 로그인 계정의 권한은 auth-service 가 기준이며 운영 관리자만 변경할 수 있다.
+      toast('권한은 운영 관리자만 변경할 수 있습니다.', 'warn')
+      return
+    }
     setRole(r)
     setDetailId(null)
     setView('home')
     toast(`[시연용] ${ROLE_USER[r].name} 님 화면으로 전환되었습니다.`, 'info')
-  }, [toast])
+  }, [account, toast])
 
   const toggleSide = useCallback(() => setSideCollapsed((v) => !v), [])
 
@@ -193,6 +277,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setFiltersState((prev) => ({ ...prev, ...patch }))
   }, [])
   const resetFilters = useCallback(() => setFiltersState(DEFAULT_FILTERS), [])
+
+  // Access Token 만료 전에 Refresh 쿠키로 조용히 재발급받는다.
+  useEffect(() => {
+    if (!account || accessExpiresIn <= 0) return
+    const delayMs = Math.max(10, accessExpiresIn - 60) * 1000
+    const timer = window.setTimeout(() => {
+      authApi.refresh()
+        .then((res) => {
+          setAccessToken(res.accessToken)
+          setAccount(res.account)
+          setAccessExpiresIn(res.expiresIn)
+        })
+        .catch(() => {
+          clearSession()
+          toast('세션이 만료되었습니다. 다시 로그인해 주세요.', 'warn')
+        })
+    }, delayMs)
+    return () => window.clearTimeout(timer)
+  }, [account, accessExpiresIn, clearSession, toast])
+
+  // 계정과 권한의 기준은 auth-service 다. 운영 관리자로 로그인하면 계정 목록을 여기서 가져온다.
+  const refreshAuthAccounts = useCallback(async () => {
+    const list = await authApi.accounts()
+    setAuthAccounts(list)
+    setUsers(list.map((a) => ({ name: a.name, dept: a.dept, role: a.role })))
+  }, [])
+
+  useEffect(() => {
+    if (account?.role !== 'admin') return
+    refreshAuthAccounts().catch(() => { /* 목록을 못 가져와도 화면은 유지한다 */ })
+  }, [account, refreshAuthAccounts])
 
   // ---- API 모드 연동 (VITE_USE_API=true) ----
   const refreshPrograms = useCallback(async () => {
@@ -310,12 +425,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [programs, me.name, pushNoti, toast, refreshPrograms, refreshLogs, refreshNotisFor])
 
   const setUserRole = useCallback((name: string, r: Role) => {
+    // 실제 로그인 상태에서는 auth-service 가 권한의 기준이다.
+    if (account) {
+      const target = authAccounts.find((a) => a.name === name)
+      if (!target) {
+        toast('auth-service 에서 해당 계정을 찾을 수 없습니다.', 'warn')
+        return
+      }
+      authApi.setRole(target.username, r)
+        .then(() => refreshAuthAccounts())
+        .then(() => toast(`${name} 님의 권한을 변경했습니다.`, 'ok'))
+        .catch((e) => toast('권한 변경 실패: ' + (e as Error).message, 'warn'))
+      return
+    }
+
     setUsers((prev) => prev.map((u) => (u.name === name ? { ...u, role: r } : u)))
     if (USE_API) {
       api.setRole(name, r).then(() => api.users().then(setUsers)).catch((e) => toast('권한 변경 실패: ' + (e as Error).message, 'warn'))
     }
     toast(`${name} 님의 권한을 변경했습니다. (시연용)`, 'ok')
-  }, [toast])
+  }, [account, authAccounts, refreshAuthAccounts, toast])
 
   const addProgram = useCallback((input: NewProgramInput): void => {
     if (USE_API) {
@@ -361,6 +490,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const value: AppContextValue = {
     loggedIn, login, logout,
+    authView, goAuth,
+    account, demoMode: loggedIn && account === null, authReady, signIn,
     role, changeRole, me,
     view, detailId, go,
     sideCollapsed, toggleSide, sidebarOpen, setSidebarOpen,

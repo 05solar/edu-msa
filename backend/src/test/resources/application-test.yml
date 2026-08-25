@@ -13,3 +13,6 @@ edu:
   seed: false
   cors:
     allowed-origins: http://localhost:5173
+  jwt:
+    secret: test-secret-key-for-edu-msa-backend-only-32bytes+
+    issuer: edu-auth-service

@@ -24,3 +24,4 @@
 - 2026-08-24 — 등록 가이드에서 다운로드 가능한 AI 빌드 지시서 MD(AI_BUILD_SPEC + 파이썬/Node/정적 템플릿) 제공(frontend/public/guides/), 가이드 모달에 다운로드 버튼 추가.
 - 2026-08-24 — 업무 분야별 실동작 예제 프로그램 7개 추가(doc-formatter/score-stats/class-hours/budget-rate/facility-check/data-summary/civil-reply). 표준 규격 준수, Docker 구동·계산 결과 검증 완료.
 - 2026-08-24 — Phase 3 완료: MSA 동적 배포 파이프라인(regex/enum 규격 검증 → 이미지 빌드 → K8s 매니페스트 렌더 → 적용 → 공개, simulate/real 모드), 실제 K8s 매니페스트(deploy/k8s), 표준 예제 서비스(examples/sample-service). 프론트 규격검증/배포 UI. 예제 docker build+/healthz 확인, validate/deploy 엔드포인트·매니페스트 렌더 검증 통과.
+- 2026-08-25 — 인증 도입: 인증 전용 마이크로서비스 auth-service(+auth-db) 신설. 회원가입/로그인/refresh/logout/me/중복확인 API, BCrypt 해시, HS256 JWT(Access 본문 + Refresh HttpOnly 쿠키·회전), USER/CODER/ADMIN 역할 모델. 플랫폼 backend에 JWT 자체 검증 필터와 Role 기반 인가 추가(서비스 간 동기 호출 없음). 프론트 인증 화면 4종(로그인/회원가입/아이디 찾기/비밀번호 찾기)과 API 연동, 데모 로그인 흐름 유지. 라우팅 /api/auth → auth-service(Vite 프록시·nginx·Ingress), docker-compose 및 K8s 매니페스트(Secret 주입) 추가, 데모 계정 7명 auth-db 이관.

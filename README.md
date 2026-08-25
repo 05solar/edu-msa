@@ -33,11 +33,37 @@ edu-msa/
 ├── backend/                   # Spring Boot 3 (Java 21, Gradle Kotlin DSL)
 │   ├── README·PROCESS·AGENT·DESIGN·TEST.md
 │   └── src/main/java/com/edu/msa/…
+├── auth-service/              # 인증 마이크로서비스 (Spring Boot 3, 자체 DB)
+│   ├── README.md
+│   └── src/main/java/com/edu/auth/…
 ├── examples/                  # 업무 분야별 실동작 예제 8개(각 폴더 = 배포 가능한 레포)
 └── deploy/
-    ├── docker-compose.yml     # postgres + backend (docker 실배포 모드 지원)
-    └── k8s/                   # namespace · 플랫폼 · 서비스 템플릿 · RBAC
+    ├── docker-compose.yml     # postgres + backend + auth-db + auth-service
+    ├── .env.example           # 시크릿 주입 예시 (EDU_JWT_SECRET 등)
+    └── k8s/                   # namespace · 플랫폼 · 인증 · 서비스 템플릿 · RBAC
 ```
+
+## 인증 구조
+
+계정 정보의 단일 소스는 `auth-service` 이며 전용 DB(`auth-db`)를 사용한다.
+로그인 시 발급된 JWT 를 **각 서비스가 동일한 `EDU_JWT_SECRET` 으로 직접 검증**하므로,
+인증이 필요한 요청마다 `auth-service` 를 호출하지 않는다.
+
+```
+        사용자 → Frontend
+                   │
+        ┌──────────┴──────────┐
+   /api/auth/**            /api/**
+        ▼                     ▼
+   auth-service            backend
+        │                     │
+        ▼                     ▼
+     auth-db             platform-db
+```
+
+역할은 `USER`(외부 사용자) · `CODER`(내부 직원) · `ADMIN`(운영 관리자) 세 가지이며,
+회원가입 기본값은 `USER` 이고 나머지는 운영 관리자가 부여한다.
+자세한 내용은 [auth-service/README.md](auth-service/README.md) 참고.
 
 ## 개발 단계 (Milestones)
 

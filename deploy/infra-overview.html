@@ -13,7 +13,7 @@
     --sh:0 1px 2px rgba(20,40,80,.06), 0 10px 34px rgba(20,40,80,.08);
   }
   *{box-sizing:border-box}
-  html{scroll-snap-type:y proximity; scroll-behavior:smooth}
+  html{scroll-behavior:smooth}
   body{
     margin:0;
     background:
@@ -34,19 +34,19 @@
     padding:0;cursor:pointer;transition:.2s}
   #dots .dot.on{background:var(--blue);border-color:var(--blue);transform:scale(1.25)}
   @media(max-width:900px){#dots{display:none}}
-  /* slide */
-  .slide{min-height:100vh;scroll-snap-align:start;display:flex;flex-direction:column;justify-content:center;
-    padding:70px 26px;position:relative}
+  /* section (자연스러운 페이지 흐름) */
+  .slide{padding:34px 26px;position:relative;border-top:1px solid var(--line)}
+  .slide:first-of-type{border-top:none;padding-top:52px}
   .inner{max-width:1160px;margin:0 auto;width:100%}
   .kicker{color:var(--teal);font-weight:800;font-size:15px;letter-spacing:2.5px;text-transform:uppercase;margin-bottom:12px}
   .stitle{font-size:40px;line-height:1.2;font-weight:800;margin:0 0 14px}
   .stitle span{color:var(--blue)}
   .lead{font-size:20px;color:var(--mut);max-width:960px;margin:0 0 26px}
   .lead b{color:var(--ink);font-weight:700}
-  .foot{position:absolute;bottom:26px;left:0;width:100%;text-align:center;color:var(--dim);font-size:13.5px}
+  .foot{display:none}
   /* cover */
-  .cover{align-items:flex-start}
-  .cover h1{font-size:56px;line-height:1.15;font-weight:900;margin:6px 0 16px;letter-spacing:-.02em}
+  .cover{padding-bottom:30px}
+  .cover h1{font-size:52px;line-height:1.16;font-weight:900;margin:6px 0 16px;letter-spacing:-.02em}
   .cover h1 span{color:var(--blue)}
   .cover .sub{font-size:21px;color:var(--mut);max-width:900px}
   .chips{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px}
@@ -102,7 +102,6 @@
 </head>
 <body>
 <div id="prog"></div>
-<nav id="dots"></nav>
 
 <!-- 0 COVER -->
 <section class="slide cover">
@@ -118,7 +117,7 @@
       <div class="chip"><i class="dotc" style="background:var(--violet)"></i>KEDA · Prometheus · Loki · Tempo</div>
       <div class="chip"><i class="dotc" style="background:var(--rose)"></i>ingress-nginx WAF · cert-manager</div>
     </div>
-    <div class="hint">아래로 스크롤하거나 <span class="kbd">↓</span> <span class="kbd">→</span> <span class="kbd">PgDn</span> 으로 슬라이드 이동 · 오른쪽 점으로 바로가기</div>
+    <div class="hint">아래로 스크롤하며 순서대로 읽으면 된다 · 상단 바가 전체 진행도를 표시</div>
   </div>
   <div class="foot">01 / 15 · edu-msa 인프라 개요</div>
 </section>
@@ -638,27 +637,11 @@
 </section>
 
 <script>
-  const slides=[...document.querySelectorAll('.slide')];
+  // 상단 진행바만 유지(자연스러운 페이지 스크롤)
   const bar=document.getElementById('prog');
-  const nav=document.getElementById('dots');
-  slides.forEach((s,i)=>{const d=document.createElement('button');d.className='dot';
-    d.setAttribute('aria-label','슬라이드 '+(i+1));
-    d.onclick=()=>s.scrollIntoView({behavior:'smooth'});nav.appendChild(d);});
-  const dots=[...nav.children];
   const sc=document.scrollingElement||document.documentElement;
-  function current(){let cur=0,best=1e9;slides.forEach((s,i)=>{const d=Math.abs(s.getBoundingClientRect().top);if(d<best){best=d;cur=i;}});return cur;}
-  function upd(){
-    const max=sc.scrollHeight-sc.clientHeight;const p=max>0?sc.scrollTop/max:0;
-    bar.style.width=(p*100)+'%';
-    const cur=current();dots.forEach((d,i)=>d.classList.toggle('on',i===cur));
-  }
-  function go(dir){const t=Math.max(0,Math.min(slides.length-1,current()+dir));slides[t].scrollIntoView({behavior:'smooth'});}
-  addEventListener('scroll',upd,{passive:true});addEventListener('resize',upd);
-  addEventListener('keydown',e=>{
-    if(e.key==='PageDown'||e.key==='ArrowRight'||e.key==='ArrowDown'){e.preventDefault();go(1);}
-    if(e.key==='PageUp'||e.key==='ArrowLeft'||e.key==='ArrowUp'){e.preventDefault();go(-1);}
-  });
-  upd();
+  function upd(){const max=sc.scrollHeight-sc.clientHeight;const p=max>0?sc.scrollTop/max:0;bar.style.width=(p*100)+'%';}
+  addEventListener('scroll',upd,{passive:true});addEventListener('resize',upd);upd();
 </script>
 </body>
 </html>

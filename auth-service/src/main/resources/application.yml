@@ -31,6 +31,8 @@ edu:
     issuer: ${EDU_JWT_ISSUER:edu-auth-service}
     access-ttl-seconds: ${EDU_JWT_ACCESS_TTL:1800}        # 30분
     refresh-ttl-seconds: ${EDU_JWT_REFRESH_TTL:1209600}   # 14일
+    # 시연용 세션은 짧게 — 데모 진입 후에도 로그인 화면을 다시 확인할 수 있도록
+    demo-refresh-ttl-seconds: ${EDU_JWT_DEMO_REFRESH_TTL:86400}   # 1일
   auth:
     demo:
       # 시연용 데모 로그인. 운영 환경에서는 false 로 끈다.

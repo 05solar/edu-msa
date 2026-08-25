@@ -8,7 +8,10 @@ import { Icon } from '../../icons/Icon'
 const SCALES = FONT_SCALES
 
 export function Topbar() {
-  const { view, role, me, go, setSidebarOpen, setFilters, theme, toggleTheme, fontScale, setFontScale } = useApp()
+  const {
+    view, role, me, go, setSidebarOpen, setFilters, theme, toggleTheme,
+    fontScale, setFontScale, logout, demoMode,
+  } = useApp()
   const [q, setQ] = useState('')
   const scaleIdx = SCALES.indexOf(fontScale)
 
@@ -54,7 +57,17 @@ export function Topbar() {
               <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={16} />
             </button>
           </div>
-          <div className="avatar">{initialOf(me.name)}</div>
+          <div className="topbar-user">
+            <div className="avatar" title={`${me.name} · ${me.dept}`}>{initialOf(me.name)}</div>
+            <button
+              className="tool-btn"
+              onClick={logout}
+              title={demoMode ? '데모 종료 (로그인 화면으로)' : '로그아웃'}
+              aria-label={demoMode ? '데모 종료' : '로그아웃'}
+            >
+              <Icon name="logout" size={16} />
+            </button>
+          </div>
         </div>
       </div>
     </header>

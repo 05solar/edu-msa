@@ -21,6 +21,12 @@ public class JwtProperties {
     /** Refresh Token 유효 기간(초). */
     private long refreshTtlSeconds = 1209600;
 
+    /**
+     * 데모 로그인의 Refresh Token 유효 기간(초).
+     * 시연용 세션이 오래 남아 로그인 화면을 확인하기 어려워지지 않도록 짧게 둔다.
+     */
+    private long demoRefreshTtlSeconds = 86400;
+
     public String getSecret() { return secret; }
     public void setSecret(String secret) { this.secret = secret; }
 
@@ -32,4 +38,9 @@ public class JwtProperties {
 
     public long getRefreshTtlSeconds() { return refreshTtlSeconds; }
     public void setRefreshTtlSeconds(long refreshTtlSeconds) { this.refreshTtlSeconds = refreshTtlSeconds; }
+
+    public long getDemoRefreshTtlSeconds() { return demoRefreshTtlSeconds; }
+    public void setDemoRefreshTtlSeconds(long demoRefreshTtlSeconds) {
+        this.demoRefreshTtlSeconds = demoRefreshTtlSeconds;
+    }
 }

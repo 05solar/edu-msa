@@ -74,6 +74,10 @@ public class JwtTokenProvider {
     }
 
     public String createRefreshToken(Account account) {
+        return createRefreshToken(account, props.getRefreshTtlSeconds());
+    }
+
+    public String createRefreshToken(Account account, long ttlSeconds) {
         Instant now = Instant.now();
         return Jwts.builder()
                 .issuer(props.getIssuer())
@@ -82,7 +86,7 @@ public class JwtTokenProvider {
                 .claim("typ", TYPE_REFRESH)
                 .id(UUID.randomUUID().toString())
                 .issuedAt(Date.from(now))
-                .expiration(Date.from(now.plusSeconds(props.getRefreshTtlSeconds())))
+                .expiration(Date.from(now.plusSeconds(ttlSeconds)))
                 .signWith(key, ALGORITHM)
                 .compact();
     }
@@ -112,6 +116,8 @@ public class JwtTokenProvider {
     public long getAccessTtlSeconds() { return props.getAccessTtlSeconds(); }
 
     public long getRefreshTtlSeconds() { return props.getRefreshTtlSeconds(); }
+
+    public long getDemoRefreshTtlSeconds() { return props.getDemoRefreshTtlSeconds(); }
 
     /** Refresh Token 은 원문 대신 해시로 저장한다. */
     public static String hash(String token) {

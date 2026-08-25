@@ -62,6 +62,8 @@ Access Token 은 응답 본문으로, **Refresh Token 은 `HttpOnly` 쿠키(`edu
 | `ADMIN` | `jungwooseong` (정우성) | `EDU_DEMO_ADMIN` |
 
 시연이 필요 없는 환경에서는 `EDU_DEMO_LOGIN=false` 로 엔드포인트를 막는다.
+데모 세션은 일반 로그인(14일)보다 짧은 1일로 발급된다. 갱신할 때도 처음 발급된
+유효 기간을 유지하므로 시연용 세션이 무한정 연장되지 않는다.
 
 SSO 추가 시 필요한 변경(컬럼·매핑·역할 부여 규칙)은 루트
 [README.md](../README.md) 의 "교육청 SSO 연동" 절에 정리했다.
@@ -90,7 +92,8 @@ JWT 의 `role` 클레임은 대문자(`USER`/`CODER`/`ADMIN`), API 응답 JSON �
 | **`EDU_JWT_SECRET`** | 없음(필수) | HS256 서명 키. 32바이트 이상. backend 와 동일해야 한다 |
 | `EDU_JWT_ISSUER` | `edu-auth-service` | 토큰 발급자 |
 | `EDU_JWT_ACCESS_TTL` | `1800` | Access Token 유효 기간(초) |
-| `EDU_JWT_REFRESH_TTL` | `1209600` | Refresh Token 유효 기간(초) |
+| `EDU_JWT_REFRESH_TTL` | `1209600` | Refresh Token 유효 기간(초) · 14일 |
+| `EDU_JWT_DEMO_REFRESH_TTL` | `86400` | 데모 로그인 세션 유효 기간(초) · 1일 |
 | `EDU_COOKIE_SECURE` | `false` | HTTPS 배포에서는 `true` |
 | `EDU_COOKIE_SAMESITE` | `Lax` | Refresh 쿠키 SameSite |
 | `EDU_SEED` | `true` | 데모 계정 시드 여부 |

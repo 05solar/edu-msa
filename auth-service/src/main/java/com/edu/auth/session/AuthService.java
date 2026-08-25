@@ -11,6 +11,7 @@ import com.edu.auth.session.dto.AuthDtos.IssuedTokens;
 import com.edu.auth.session.repository.RefreshTokenRepository;
 import com.edu.auth.token.JwtTokenProvider;
 import io.jsonwebtoken.Claims;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -69,7 +70,7 @@ public class AuthService {
         }
         Account account = accounts.findByUsername(username)
                 .orElseThrow(() -> new NotFoundException("데모 계정을 찾을 수 없습니다: " + username));
-        return issue(account);
+        return issue(account, jwt.getDemoRefreshTtlSeconds());
     }
 
     @Transactional
@@ -93,7 +94,10 @@ public class AuthService {
                 .orElseThrow(() -> new UnauthorizedException("계정을 찾을 수 없습니다."));
 
         stored.revoke();
-        return issue(account);
+        // 회전 시 원래 세션의 유효 기간을 유지한다.
+        // 그러지 않으면 짧게 발급한 데모 세션이 갱신될 때마다 일반 세션 길이로 늘어난다.
+        long ttlSeconds = Duration.between(stored.getCreatedAt(), stored.getExpiresAt()).toSeconds();
+        return issue(account, ttlSeconds > 0 ? ttlSeconds : jwt.getRefreshTtlSeconds());
     }
 
     @Transactional
@@ -105,16 +109,20 @@ public class AuthService {
     }
 
     private IssuedTokens issue(Account account) {
+        return issue(account, jwt.getRefreshTtlSeconds());
+    }
+
+    private IssuedTokens issue(Account account, long refreshTtlSeconds) {
         String accessToken = jwt.createAccessToken(account);
-        String refreshToken = jwt.createRefreshToken(account);
+        String refreshToken = jwt.createRefreshToken(account, refreshTtlSeconds);
 
         refreshTokens.save(new RefreshToken(
                 account.getId(),
                 JwtTokenProvider.hash(refreshToken),
-                OffsetDateTime.now().plusSeconds(jwt.getRefreshTtlSeconds())));
+                OffsetDateTime.now().plusSeconds(refreshTtlSeconds)));
 
         return new IssuedTokens(accessToken, refreshToken,
-                jwt.getAccessTtlSeconds(), jwt.getRefreshTtlSeconds(),
+                jwt.getAccessTtlSeconds(), refreshTtlSeconds,
                 AccountResponse.of(account));
     }
 }

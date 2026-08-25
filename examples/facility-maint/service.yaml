@@ -1,0 +1,8 @@
+name: 시설 유지보수 관리
+slug: facility-maint
+category: facil
+purposes: [manage, workflow]
+tech: [Python, FastAPI]
+summary: 학교 시설 정비요청의 접수→배정→작업→완료(보류/반려) 흐름과 SLA 기한·통계를 관리합니다.
+port: 8080
+health: /healthz

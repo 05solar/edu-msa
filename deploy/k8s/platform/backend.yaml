@@ -44,7 +44,8 @@ spec:
             - name: EDU_DEPLOY_INGRESS_HOST
               value: edu.internal
           ports:
-            - containerPort: 8080
+            - name: http
+              containerPort: 8080
           readinessProbe:
             httpGet: { path: /api/health, port: 8080 }
             initialDelaySeconds: 20
@@ -62,9 +63,12 @@ kind: Service
 metadata:
   name: backend
   namespace: edu-platform
+  labels:
+    app: backend
 spec:
   selector:
     app: backend
   ports:
-    - port: 80
+    - name: http
+      port: 80
       targetPort: 8080

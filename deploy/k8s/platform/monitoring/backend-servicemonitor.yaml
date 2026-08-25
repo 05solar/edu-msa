@@ -1,0 +1,17 @@
+# 플랫폼 백엔드 메트릭 스크레이프 (kube-prometheus-stack).
+# 백엔드는 /actuator/prometheus 로 JVM/HTTP/Hikari 등 메트릭을 노출한다.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: backend
+  namespace: edu-platform
+  labels:
+    release: kps        # kube-prometheus-stack Prometheus 가 이 라벨로 ServiceMonitor 를 선택
+spec:
+  selector:
+    matchLabels:
+      app: backend      # 대상 Service 라벨
+  endpoints:
+    - port: http        # Service 포트 이름
+      path: /actuator/prometheus
+      interval: 30s

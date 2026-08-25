@@ -63,6 +63,8 @@ kubectl apply -f deploy/k8s/hardening/30-runtimeclass-gvisor.yaml   # 노드에 
 - **오토스케일/비용**: HPA + Cluster Autoscaler, 유휴 서비스 **scale-to-zero(Knative/KEDA)**.
 
 ### 완료된 항목 (구현·검증)
+- **관측성** (P2-2): kube-prometheus-stack. 백엔드 `/actuator/prometheus`(micrometer) + ServiceMonitor.
+  kind 검증: up 11타깃, 백엔드 메트릭 200, ServiceMonitor 디스커버리→up=1.
 - **유휴 비용/scale-to-zero** (P2-1): KEDA HTTP add-on. 유휴 서비스 0 축소, 요청 시 0→1 콜드스타트.
   kind 검증: replicas 0→1, HTTP 200(2.85s). 인터셉터 경유 라우팅 필요.
 - **가용성** (P1-3): 테넌트 서비스 템플릿에 무중단 롤링(maxUnavailable:0/maxSurge:1) + PDB(maxUnavailable:1)

@@ -36,7 +36,9 @@
 - [x] **P2-1 유휴 비용** — scale-to-zero (KEDA HTTP add-on). 클러스터에 KEDA+http-add-on 설치, HTTPScaledObject 템플릿(`deploy/k8s/scale-to-zero-template.yaml`) + 문서(`deploy/k8s/platform/scale-to-zero/README.md`).
   검증(kind): 유휴 서비스 `replicas=0` 도달 → 인터셉터 경유 요청 시 0→1 콜드스타트, HTTP 200(2.85s), ready=1.
   적용 시 주의: Ingress 백엔드를 KEDA 인터셉터로 지정(경유 필수), 저지연 필요 서비스는 min:1.
-- [ ] **P2-2 관측성** — Prometheus/Grafana/Loki/Tempo, 감사로그, 이미지 스캔
+- [x] **P2-2 관측성** — kube-prometheus-stack(Prometheus+Grafana+kube-state-metrics+node-exporter). 백엔드 `/actuator/prometheus` 노출(micrometer) + ServiceMonitor(`deploy/k8s/platform/monitoring/`).
+  검증(kind): `up` 11타깃 스크레이프, 백엔드 메트릭 200(application 라벨), ServiceMonitor 디스커버리→`up{job="promex"}=1`(~30s), 서브에이전트 PASS.
+  남음: Loki/Tempo(로그·트레이스), Alertmanager/규칙, 대시보드 코드화.
 - [ ] **P2-3 엣지** — TLS·rate-limit·WAF·CDN
 
 ## 진행 이력
@@ -48,4 +50,5 @@
 - 2026-08-25 — P1-1 진행: 신뢰도별 네임스페이스 자동배치 구현·검증(내부→edu-services, 외부→edu-services-public, fail-closed, 서브에이전트 PASS).
 - 2026-08-25 — P1-1 완료: Kaniko 인클러스터 빌드(docker.sock 제거) 배선 + repoUrl/branch 주입 검증. kind에서 실제 GitHub 레포 빌드→레지스트리 push 검증, 서브에이전트 PASS.
 - 2026-08-25 — P1-3 완료: 서비스 템플릿에 무중단 롤링+PDB+AZ분산/안티어피니티. kind에서 롤링 무중단(220/220-1) + PDB 검증, 서브에이전트 PASS.
-- 2026-08-25 — P2-1 완료: scale-to-zero(KEDA HTTP add-on). kind에서 유휴 0축소→요청 시 0→1 콜드스타트(HTTP 200) 검증. 다음: P2-2 관측성.
+- 2026-08-25 — P2-1 완료: scale-to-zero(KEDA HTTP add-on). kind에서 유휴 0축소→요청 시 0→1 콜드스타트(HTTP 200) 검증.
+- 2026-08-25 — P2-2 완료: 관측성(kube-prometheus-stack). 백엔드 Prometheus 메트릭 노출 + ServiceMonitor. kind에서 스크레이프·디스커버리 검증, 서브에이전트 PASS. 다음: P2-3 엣지(TLS/rate-limit/WAF).

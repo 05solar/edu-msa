@@ -24,6 +24,7 @@ deploy/
 - 2026-08-24 — docker-compose(postgres+backend) 작성, K8s 매니페스트(namespace·플랫폼·서비스 템플릿·RBAC) 추가.
 - 2026-08-25 — docker 실배포 모드용 docker.sock/examples 마운트, 백엔드 이미지에 git/docker/kubectl.
 - 2026-08-25 — 로컬 kind 리허설: Go 서비스가 Pod+Service로 기동·응답 검증. deploy/k8s/README를 K8s 배포 가이드로 리뉴얼.
+- 2026-08-25 — P2-2 관측성: kube-prometheus-stack 설치(helm, alertmanager off, retention 2h). backend Service 포트명/라벨 + ServiceMonitor(platform/monitoring/) 추가, README. kind 검증: up 11타깃 스크레이프, ServiceMonitor 디스커버리(예제앱 up=1, ~30s). 백엔드는 micrometer로 /actuator/prometheus 노출.
 - 2026-08-25 — P2-1 scale-to-zero: KEDA + keda-add-ons-http 설치(helm), HTTPScaledObject 템플릿(scale-to-zero-template.yaml) + platform/scale-to-zero/README 추가. kind 검증: 샘플 서비스 유휴→replicas 0, 인터셉터 경유 요청 시 0→1 콜드스타트(HTTP 200, 2.85s). 라우팅은 인터셉터(keda-add-ons-http-interceptor-proxy:8080) 경유 필수.
 - 2026-08-25 — P1-3 가용성: 서비스 템플릿에 무중단 롤링(maxUnavailable:0/maxSurge:1)+PDB(maxUnavailable:1)+topologySpread(AZ)/anti-affinity(soft). kind 검증: 롤링 중 무중단(220요청 실패 1), PDB ALLOWED=1.
 - 2026-08-25 — P1-1 Kaniko 안전빌드: 백엔드 real 모드가 docker.sock 대신 Kaniko Job으로 빌드. kind 검증: 실제 GitHub 레포 빌드→인클러스터 레지스트리 push. repoUrl/branch 주입 검증 추가.

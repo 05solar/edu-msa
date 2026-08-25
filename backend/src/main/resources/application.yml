@@ -20,7 +20,14 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus   # Prometheus 스크레이프용 메트릭 엔드포인트
+  metrics:
+    tags:
+      application: edu-msa-backend        # 모든 메트릭에 애플리케이션 라벨 부여
+  prometheus:
+    metrics:
+      export:
+        enabled: true
 
 edu:
   seed: ${EDU_SEED:true}    # 최초 실행 시 목업 데이터 시드 여부

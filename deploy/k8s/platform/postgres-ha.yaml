@@ -1,0 +1,23 @@
+# HA PostgreSQL (CloudNativePG). 단일 Deployment(postgres.yaml)를 대체하는 프로덕션용.
+# 오퍼레이터 설치 필요: kubectl apply --server-side -f <cnpg release manifest>
+# primary 1 + replica 2, 자동 장애조치(failover)/재조인. 접속 서비스:
+#   - edu-db-rw (읽기/쓰기 = primary)  ← 백엔드 DB_URL 은 이걸 사용
+#   - edu-db-ro (읽기 전용 = replica)  - edu-db-r (아무 인스턴스)
+# 앱 계정 비밀번호는 오퍼레이터가 시크릿 edu-db-app 으로 생성한다.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: edu-db
+  namespace: edu-platform
+spec:
+  instances: 3
+  primaryUpdateStrategy: unsupervised
+  bootstrap:
+    initdb:
+      database: edumsa
+      owner: edumsa
+  storage:
+    size: 1Gi
+  resources:
+    requests: { cpu: "100m", memory: "256Mi" }
+    limits: { cpu: "500m", memory: "512Mi" }

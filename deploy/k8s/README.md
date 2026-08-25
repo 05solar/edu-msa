@@ -74,11 +74,22 @@ kubectl -n ingress-nginx wait --for=condition=Ready pod -l app.kubernetes.io/com
 ```bash
 kubectl apply -f deploy/k8s/namespaces.yaml
 kubectl apply -f deploy/k8s/platform/rbac.yaml
-kubectl apply -f deploy/k8s/platform/postgres.yaml
+kubectl apply -f deploy/k8s/platform/postgres.yaml       # 개발용 단일 DB
 kubectl apply -f deploy/k8s/platform/backend.yaml
 kubectl apply -f deploy/k8s/platform/frontend.yaml
 kubectl apply -f deploy/k8s/platform/ingress.yaml
+kubectl apply -f deploy/k8s/platform/autoscale.yaml      # HPA + PDB(P0-1)
 ```
+
+**프로덕션 HA DB(P0-3)**: 단일 `postgres.yaml` 대신 CloudNativePG로 primary+replica를 쓴다.
+```bash
+# 1) 오퍼레이터 설치
+kubectl apply --server-side -f https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/release-1.24/releases/cnpg-1.24.1.yaml
+# 2) HA 클러스터(instances 3) 생성 → 서비스 edu-db-rw/ro/r, 앱 시크릿 edu-db-app 자동 생성
+kubectl apply -f deploy/k8s/platform/postgres-ha.yaml
+```
+`backend.yaml`은 이미 `edu-db-rw`(현재 primary) + `edu-db-app` 시크릿을 사용하도록 설정돼 있다.
+검증: primary 파드를 삭제하면 복제본이 자동 승격(failover)된다.
 
 - 이미지는 `registry.edu.internal/edu-msa-backend`,
   `registry.edu.internal/edu-msa-frontend`로 빌드·push 되어 있어야 한다.

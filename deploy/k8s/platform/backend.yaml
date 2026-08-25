@@ -20,14 +20,17 @@ spec:
         - name: backend
           image: registry.edu.internal/edu-msa-backend:latest
           env:
+            # HA DB(CloudNativePG, postgres-ha.yaml) 사용: edu-db-rw = 현재 primary로 라우팅.
+            # 앱 계정 시크릿(edu-db-app)은 오퍼레이터가 생성한다.
+            # (개발용 단일 postgres.yaml 사용 시: host=postgres, secret=edu-db)
             - name: DB_URL
-              value: jdbc:postgresql://postgres.edu-platform.svc.cluster.local:5432/edumsa
+              value: jdbc:postgresql://edu-db-rw.edu-platform.svc.cluster.local:5432/edumsa
             - name: DB_USER
               valueFrom:
-                secretKeyRef: { name: edu-db, key: POSTGRES_USER }
+                secretKeyRef: { name: edu-db-app, key: username }
             - name: DB_PASSWORD
               valueFrom:
-                secretKeyRef: { name: edu-db, key: POSTGRES_PASSWORD }
+                secretKeyRef: { name: edu-db-app, key: password }
             - name: PORT
               value: "8080"
             - name: CORS_ORIGINS

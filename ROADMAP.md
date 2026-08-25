@@ -13,8 +13,9 @@
   - 구현: `DeployJob` 엔티티/큐, `DeployJobService`(claimNext = `FOR UPDATE SKIP LOCKED` 행잠금),
     `DeployWorker`(@Scheduled 폴링, 재시도), 승인/등록은 큐에 적재(비동기 202). @EnableScheduling.
   - 검증: 적재→워커 처리→`done`(deploymentId 부여·컨테이너 기동), 실패 소스는 attempts 0→1→2 후 `failed`.
-- [ ] **P0-3 데이터베이스 HA** — 단일 Deployment → StatefulSet/오퍼레이터(CloudNativePG) 또는 관리형
-  - 검증: primary/replica 구성, 장애 시 승격.
+- [x] **P0-3 데이터베이스 HA** — CloudNativePG 3-인스턴스 클러스터 (완료·검증)
+  - 구현: `deploy/k8s/platform/postgres-ha.yaml`(Cluster instances 3, rw/ro 서비스), backend.yaml을 `edu-db-rw` + `edu-db-app` 시크릿으로 전환.
+  - 검증(kind): 3/3 healthy(primary+replica 2), **primary 파드 삭제 → 복제본 자동 승격(edu-db-1→edu-db-2) → 3/3 재수렴**.
 
 ## P1 (프로덕션 안전)
 
@@ -31,4 +32,5 @@
 ## 진행 이력
 - 2026-08-25 — 로드맵 작성. P0-1(오토스케일) 착수.
 - 2026-08-25 — P0-1 완료·검증(HPA `cpu:1%/70%` 판독, PDB).
-- 2026-08-25 — P0-2 완료·검증(작업 큐+워커, done/재시도→failed 확인). 다음: P0-3 DB HA.
+- 2026-08-25 — P0-2 완료·검증(작업 큐+워커, done/재시도→failed 확인).
+- 2026-08-25 — P0-3 완료·검증(CloudNativePG 3-인스턴스, primary 삭제→자동 승격 확인). **P0 전부 완료.** 다음: P1.

@@ -1,0 +1,8 @@
+name: 교직원 출장·복무 관리
+slug: staff-trip
+category: hr
+purposes: [approve, settle]
+tech: [Java, Javalin]
+summary: 교직원 출장 신청→승인→여비 정산(자동계산)→지급 흐름과 복무 이력·통계를 관리합니다.
+port: 8080
+health: /healthz

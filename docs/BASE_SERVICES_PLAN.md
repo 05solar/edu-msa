@@ -40,7 +40,7 @@ PodSecurity/securityContext(restricted, 비루트) 호환.
 |---|---|---|---|---|---|
 | doc-approval | ✅ Go/distroless | ✅ 200 | ✅ 상태전이·403/409/400/404·검색·통계·전결·재상신 | ✅ 업무 사용 가능(고도화 반영) | 대기(마지막 일괄) |
 | facility-maint | ✅ Python/FastAPI | ✅ 200 | ✅ 상태전이·SLA·보류/재개·재오픈·비용집계·정렬·첨부 | ✅ 업무 사용 가능(고도화 반영) | 대기(마지막 일괄) |
-| staff-trip | - | - | - | - | - |
+| staff-trip | ✅ Java/Javalin | ✅ 200 | ✅ 여비 자동계산·승인/정산/지급·반려/취소/반송·관내출장·무료숙박 | ✅ 업무 사용 가능(고도화 반영) | 대기(마지막 일괄) |
 | civil-desk | - | - | - | - | - |
 | asset-mgr | - | - | - | - | - |
 | safety-check | - | - | - | - | - |

@@ -7,7 +7,7 @@ import type { NavItem, Role } from '../../types'
 
 export function Sidebar() {
   const {
-    role, changeRole, demoMode, view, go, me, sideCollapsed, toggleSide,
+    role, changeRole, demoMode, demoPending, view, go, me, sideCollapsed, toggleSide,
     sidebarOpen, setSidebarOpen, unreadCount, pendingPrograms,
   } = useApp()
 
@@ -75,6 +75,7 @@ export function Sidebar() {
               <select
                 className="role-select"
                 value={role}
+                disabled={demoPending}
                 onChange={(e) => changeRole(e.target.value as Role)}
                 title="시연용 권한 전환"
               >
@@ -93,7 +94,7 @@ export function Sidebar() {
           </div>
           <div className="side-note">
             {demoMode ? (
-              <>시연을 위한 임시 전환 기능입니다.<br />실제 로그인 시에는 계정 권한으로 결정됩니다.</>
+              <>시연용 데모 계정으로 전환합니다.<br />실제 로그인 시에는 계정 권한으로 결정됩니다.</>
             ) : (
               <>auth-service 계정으로 로그인한 상태입니다.<br />권한 변경은 운영 관리자가 수행합니다.</>
             )}

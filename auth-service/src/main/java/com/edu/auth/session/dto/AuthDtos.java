@@ -13,6 +13,11 @@ public final class AuthDtos {
             @NotBlank(message = "비밀번호를 입력해 주세요.") String password
     ) {}
 
+    /** 시연용 데모 로그인 — 역할만 지정한다. */
+    public record DemoLoginRequest(
+            @NotBlank(message = "역할을 입력해 주세요.") String role
+    ) {}
+
     public record TokenResponse(
             String accessToken,
             String tokenType,

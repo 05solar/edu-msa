@@ -32,6 +32,13 @@ edu:
     access-ttl-seconds: ${EDU_JWT_ACCESS_TTL:1800}        # 30분
     refresh-ttl-seconds: ${EDU_JWT_REFRESH_TTL:1209600}   # 14일
   auth:
+    demo:
+      # 시연용 데모 로그인. 운영 환경에서는 false 로 끈다.
+      enabled: ${EDU_DEMO_LOGIN:true}
+      accounts:
+        user: ${EDU_DEMO_USER:yunhaneul}
+        coder: ${EDU_DEMO_CODER:kimdohyun}
+        admin: ${EDU_DEMO_ADMIN:jungwooseong}
     cookie:
       # 로컬 http 개발에서는 false, HTTPS 배포에서는 true 로 주입한다.
       secure: ${EDU_COOKIE_SECURE:false}

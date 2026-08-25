@@ -51,6 +51,7 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/health", "/api/auth/healthz").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/signup", "/api/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/demo-login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/refresh").permitAll()
                         // 로그아웃은 Access Token 이 만료된 뒤에도 쿠키만으로 수행할 수 있어야 한다.
                         .requestMatchers(HttpMethod.POST, "/api/auth/logout").permitAll()

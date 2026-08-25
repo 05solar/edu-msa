@@ -1,5 +1,7 @@
 package com.edu.auth.session;
 
+import com.edu.auth.account.domain.AccountRole;
+import com.edu.auth.session.dto.AuthDtos.DemoLoginRequest;
 import com.edu.auth.session.dto.AuthDtos.IssuedTokens;
 import com.edu.auth.session.dto.AuthDtos.LoginRequest;
 import com.edu.auth.session.dto.AuthDtos.TokenResponse;
@@ -33,6 +35,12 @@ public class SessionController {
     @PostMapping("/login")
     public ResponseEntity<TokenResponse> login(@Valid @RequestBody LoginRequest req) {
         return withRefreshCookie(authService.login(req.username(), req.password()));
+    }
+
+    /** 시연용 — 비밀번호 없이 역할별 데모 계정으로 로그인한다. */
+    @PostMapping("/demo-login")
+    public ResponseEntity<TokenResponse> demoLogin(@Valid @RequestBody DemoLoginRequest req) {
+        return withRefreshCookie(authService.demoLogin(AccountRole.from(req.role())));
     }
 
     @PostMapping("/refresh")

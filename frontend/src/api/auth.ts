@@ -92,6 +92,13 @@ export const authApi = {
   login: (username: string, password: string) =>
     req<TokenResponse>('/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
 
+  /**
+   * 시연용 데모 로그인 — 비밀번호 없이 역할별 데모 계정의 토큰을 받는다.
+   * 발급되는 토큰은 일반 로그인과 같으므로 플랫폼 API 도 그대로 사용할 수 있다.
+   */
+  demoLogin: (role: Role) =>
+    req<TokenResponse>('/demo-login', { method: 'POST', body: JSON.stringify({ role }) }),
+
   /** Refresh 쿠키로 Access Token 을 재발급한다. 세션이 없으면 401. */
   refresh: () => req<TokenResponse>('/refresh', { method: 'POST' }),
 

@@ -27,6 +27,7 @@
 |---|---|---|---|
 | POST | `/api/auth/signup` | 공개 | 회원가입 (기본 `role=USER`) |
 | POST | `/api/auth/login` | 공개 | 로그인 · 토큰 발급 |
+| POST | `/api/auth/demo-login` | 공개 | 시연용 — 역할별 데모 계정 토큰 발급 |
 | POST | `/api/auth/refresh` | 공개(쿠키) | Access Token 재발급 |
 | POST | `/api/auth/logout` | 공개(쿠키) | Refresh Token 폐기 |
 | GET | `/api/auth/me` | 로그인 | 현재 계정 |
@@ -47,13 +48,23 @@ Access Token 은 응답 본문으로, **Refresh Token 은 `HttpOnly` 쿠키(`edu
 | 경로 | 상태 | 대상 |
 | --- | --- | --- |
 | `LOCAL` — 회원가입 + ID/PW | 구현 완료 | 외부 사용자 |
-| `SSO` — 교육청 단일 인증 | 미구현 | 내부 직원 · 운영 관리자 |
-| `DEMO` — 데모 로그인 | 프론트엔드 전용 | 시연 |
+| `DEMO` — 데모 로그인 (비밀번호 없음) | 구현 완료 | 시연 |
+| `SSO` — 교육청 단일 인증 | 이번 범위 아님 | 내부 직원 · 운영 관리자 |
 
-데모 로그인은 이 서비스를 거치지 않는다. 프론트엔드 상태만 바꾸며 JWT 를 발급받지 않는다.
+데모 로그인은 비밀번호 없이 역할별 데모 계정의 토큰을 발급한다. 공통 임시 비밀번호를
+프론트엔드에 심지 않기 위한 것이며, **발급되는 토큰은 일반 로그인과 완전히 같다.**
+따라서 데모로 진입해도 플랫폼 API 를 그대로 사용할 수 있다.
+
+| 역할 | 데모 계정 | 환경변수 |
+| --- | --- | --- |
+| `USER` | `yunhaneul` (윤하늘) | `EDU_DEMO_USER` |
+| `CODER` | `kimdohyun` (김도현) | `EDU_DEMO_CODER` |
+| `ADMIN` | `jungwooseong` (정우성) | `EDU_DEMO_ADMIN` |
+
+시연이 필요 없는 환경에서는 `EDU_DEMO_LOGIN=false` 로 엔드포인트를 막는다.
 
 SSO 추가 시 필요한 변경(컬럼·매핑·역할 부여 규칙)은 루트
-[README.md](../README.md) 의 "향후 교육청 SSO 연동" 절에 정리했다.
+[README.md](../README.md) 의 "교육청 SSO 연동" 절에 정리했다.
 
 ## 역할
 
@@ -84,6 +95,8 @@ JWT 의 `role` 클레임은 대문자(`USER`/`CODER`/`ADMIN`), API 응답 JSON �
 | `EDU_COOKIE_SAMESITE` | `Lax` | Refresh 쿠키 SameSite |
 | `EDU_SEED` | `true` | 데모 계정 시드 여부 |
 | `EDU_SEED_PASSWORD` | `Edu@2026!` | 데모 계정 공통 임시 비밀번호 |
+| `EDU_DEMO_LOGIN` | `true` | 데모 로그인 허용 여부 |
+| `EDU_DEMO_USER` / `EDU_DEMO_CODER` / `EDU_DEMO_ADMIN` | 시드 계정 | 역할별 데모 계정 아이디 |
 
 시크릿은 소스에 두지 않는다. 로컬은 `deploy/.env`, 배포는 Kubernetes Secret 으로 주입한다.
 

@@ -7,7 +7,7 @@ import { checkUsername, collect, hasError, required, type Errors } from './valid
 type K = 'username' | 'password'
 
 export function Login() {
-  const { login, signIn, goAuth, toast } = useApp()
+  const { login, demoPending, signIn, goAuth, toast } = useApp()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [errors, setErrors] = useState<Errors<K>>({})
@@ -91,10 +91,12 @@ export function Login() {
           <span className="db-title">데모 로그인</span>
         </div>
         <div className="db-desc">
-          계정 없이 바로 둘러봅니다. 진입 후 좌측 하단에서 일반 사용자·바이브 코더·운영 관리자
+          계정 입력 없이 바로 둘러봅니다. 진입 후 좌측 하단에서 일반 사용자·바이브 코더·운영 관리자
           권한을 전환해 각 역할 화면을 확인할 수 있습니다.
         </div>
-        <button type="button" className="btn btn-lg btn-navy" onClick={login}>데모로 시작하기</button>
+        <button type="button" className="btn btn-lg btn-navy" onClick={login} disabled={demoPending}>
+          {demoPending ? '진입 중...' : '데모로 시작하기'}
+        </button>
       </div>
 
       <div className="auth-note">

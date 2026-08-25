@@ -1,8 +1,10 @@
 package com.edu.auth.session;
 
 import com.edu.auth.account.domain.Account;
+import com.edu.auth.account.domain.AccountRole;
 import com.edu.auth.account.dto.AccountDtos.AccountResponse;
 import com.edu.auth.account.repository.AccountRepository;
+import com.edu.auth.common.NotFoundException;
 import com.edu.auth.common.UnauthorizedException;
 import com.edu.auth.session.domain.RefreshToken;
 import com.edu.auth.session.dto.AuthDtos.IssuedTokens;
@@ -27,15 +29,17 @@ public class AuthService {
     private final SessionRevoker sessionRevoker;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwt;
+    private final DemoProperties demo;
 
     public AuthService(AccountRepository accounts, RefreshTokenRepository refreshTokens,
                        SessionRevoker sessionRevoker, PasswordEncoder passwordEncoder,
-                       JwtTokenProvider jwt) {
+                       JwtTokenProvider jwt, DemoProperties demo) {
         this.accounts = accounts;
         this.refreshTokens = refreshTokens;
         this.sessionRevoker = sessionRevoker;
         this.passwordEncoder = passwordEncoder;
         this.jwt = jwt;
+        this.demo = demo;
     }
 
     @Transactional
@@ -47,6 +51,24 @@ public class AuthService {
         if (!passwordEncoder.matches(rawPassword, account.getPasswordHash())) {
             throw new UnauthorizedException("아이디 또는 비밀번호가 올바르지 않습니다.");
         }
+        return issue(account);
+    }
+
+    /**
+     * 시연용 데모 로그인 — 비밀번호 없이 역할별 데모 계정의 토큰을 발급한다.
+     * 발급되는 토큰은 일반 로그인과 완전히 같으므로 이후 흐름에 차이가 없다.
+     */
+    @Transactional
+    public IssuedTokens demoLogin(AccountRole role) {
+        if (!demo.isEnabled()) {
+            throw new NotFoundException("데모 로그인이 비활성화되어 있습니다.");
+        }
+        String username = demo.getAccounts().get(role.code());
+        if (username == null || username.isBlank()) {
+            throw new NotFoundException("해당 역할의 데모 계정이 설정되어 있지 않습니다: " + role.code());
+        }
+        Account account = accounts.findByUsername(username)
+                .orElseThrow(() -> new NotFoundException("데모 계정을 찾을 수 없습니다: " + username));
         return issue(account);
     }
 

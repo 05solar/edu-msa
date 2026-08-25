@@ -36,4 +36,10 @@ public final class DeployDtos {
             DeploymentStatus status, String url, String imageTag, String mode,
             String manifest, String log, Instant createdAt
     ) {}
+
+    public record DeployJobResponse(
+            Long id, Long programId, String repoUrl, String branch,
+            com.edu.msa.common.DeployJobStatus status, int attempts,
+            Long deploymentId, String lastError
+    ) {}
 }

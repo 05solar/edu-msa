@@ -9,8 +9,10 @@
 - [x] **P0-1 오토스케일** — HPA + PodDisruptionBudget (완료·검증)
   - 구현: `deploy/k8s/platform/autoscale.yaml`(backend/frontend HPA+PDB), 서비스 템플릿에 HPA 추가(동적 서비스 자동확장).
   - 검증(kind): metrics-server 설치, workdays HPA가 `cpu: 1%/70%` 메트릭 정상 판독, PDB 활성. (Cluster Autoscaler는 실서버 노드풀 필요)
-- [ ] **P0-2 배포 오케스트레이션 분리** — 인메모리 스레드풀 → **DB 기반 작업 큐 + 워커**
-  - 멱등·재시도·다중 replica 안전(행 잠금/리스). 검증: 큐 적재→워커 처리→상태 전이.
+- [x] **P0-2 배포 오케스트레이션 분리** — DB 작업 큐 + 워커 (완료·검증)
+  - 구현: `DeployJob` 엔티티/큐, `DeployJobService`(claimNext = `FOR UPDATE SKIP LOCKED` 행잠금),
+    `DeployWorker`(@Scheduled 폴링, 재시도), 승인/등록은 큐에 적재(비동기 202). @EnableScheduling.
+  - 검증: 적재→워커 처리→`done`(deploymentId 부여·컨테이너 기동), 실패 소스는 attempts 0→1→2 후 `failed`.
 - [ ] **P0-3 데이터베이스 HA** — 단일 Deployment → StatefulSet/오퍼레이터(CloudNativePG) 또는 관리형
   - 검증: primary/replica 구성, 장애 시 승격.
 
@@ -28,4 +30,5 @@
 
 ## 진행 이력
 - 2026-08-25 — 로드맵 작성. P0-1(오토스케일) 착수.
-- 2026-08-25 — P0-1 완료·검증(HPA `cpu:1%/70%` 판독, PDB). 다음: P0-2 배포 오케스트레이션 큐+워커.
+- 2026-08-25 — P0-1 완료·검증(HPA `cpu:1%/70%` 판독, PDB).
+- 2026-08-25 — P0-2 완료·검증(작업 큐+워커, done/재시도→failed 확인). 다음: P0-3 DB HA.

@@ -13,3 +13,6 @@ edu:
   seed: false
   cors:
     allowed-origins: http://localhost:5173
+  deploy:
+    worker:
+      enabled: false   # 테스트에서는 배포 워커 비활성(H2)

@@ -1,0 +1,12 @@
+# Tempo(모놀리식) — OTLP 수신 활성화.
+tempo:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+  storage:
+    trace:
+      backend: local

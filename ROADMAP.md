@@ -48,10 +48,12 @@
 - [x] **P3-1 자동 TLS 인증서** — cert-manager. 발급자 체인(selfsigned→루트 CA→`edu-ca`, `deploy/k8s/platform/edge/cert-manager/`) + 테넌트 템플릿 Ingress에 `cert-manager.io/cluster-issuer` + `spec.tls` 자동 배선.
   검증(kind): 발급자 Ready, 명시적 Certificate 자동 발급(issuer=CN=edu-msa-root-ca), **ingress-shim 주석만으로 ~3초 내 인증서+시크릿 자동 생성**(우리 CA 서명, SAN 일치). 서브에이전트 PASS.
   실서버: `edu-ca` → ACME(Let's Encrypt)로 교체. 최적화: 공유 호스트는 서비스별 중복 대신 단일/와일드카드 인증서 검토.
-- [~] **P3-2 로그·트레이스** — Loki + Promtail 로그 수집 완료. (Tempo 트레이스·감사로그는 남음)
-  - [x] Loki + Promtail(`deploy/k8s/platform/logging/`) + Grafana Loki 데이터소스 자동 연동.
-    검증(kind): 고유 토큰 로그 → LogQL 조회 status=success 5줄 매칭, 라벨 추출 정상, Grafana 사이드카 데이터소스 로드. 서브에이전트 PASS.
-  - [ ] Tempo(트레이스) + 로그-트레이스 상관, 감사로그 파이프라인
+- [~] **P3-2 로그·트레이스** — 로그(Loki)·트레이스(Tempo) 완료. (감사로그는 남음)
+  - [x] Loki + Promtail(`deploy/k8s/platform/logging/`) + Grafana Loki 데이터소스.
+    검증(kind): LogQL 조회 5줄 매칭, 라벨 추출, 사이드카 로드. 서브에이전트 PASS.
+  - [x] Tempo(`deploy/k8s/platform/tracing/`) + 트레이스↔로그 상관(tracesToLogsV2 / derivedFields).
+    검증(kind): telemetrygen 20 트레이스 전송→Tempo 검색 20건 조회(rootServiceName 확인), Grafana Tempo 데이터소스 로드. 서브에이전트 PASS(로그→트레이스 url `$$` 이스케이프 결함 수정).
+  - [ ] 감사로그 파이프라인, 앱 실제 OTel 계측, trace_id 로그 표준화
 - [x] **P3-3 알림** — Alertmanager 활성화 + PrometheusRule(`deploy/k8s/platform/monitoring/prometheus-rules.yaml`: BackendDown/PodCrashLooping/HighMemory).
   검증(kind): 규칙 로드, 테스트 알림 Prometheus **firing** → Alertmanager **active** 수신 확인(파이프라인). 서브에이전트 PASS.
   남음: 수신처(Slack/Email) 라우팅, 억제/그룹핑, SLO 규칙 확장.
@@ -71,4 +73,5 @@
 - 2026-08-25 — P2-3 완료: 엣지(ingress-nginx + ModSecurity/OWASP CRS). kind에서 TLS·WAF 차단(XSS/SQLi/traversal 403)·rate-limit(503) 검증, 서브에이전트 PASS. **P0·P1·P2 로드맵 전체 완료.**
 - 2026-08-25 — P3-1 완료: cert-manager 자동 TLS. 발급자 체인 + ingress-shim(주석만으로 인증서 자동 발급) kind 검증, 서브에이전트 PASS.
 - 2026-08-25 — P3-2 진행: Loki + Promtail 로그 수집 + Grafana 연동. kind에서 LogQL 조회(5줄 매칭)·데이터소스 로드 검증, 서브에이전트 PASS. 남음: Tempo/감사로그.
-- 2026-08-25 — P3-3 완료: 알림(Alertmanager + PrometheusRule). kind에서 규칙 로드·발화→Alertmanager active 수신 검증, 서브에이전트 PASS. 다음: P3-4 레지스트리 pull 경로.
+- 2026-08-25 — P3-3 완료: 알림(Alertmanager + PrometheusRule). kind에서 규칙 로드·발화→Alertmanager active 수신 검증, 서브에이전트 PASS.
+- 2026-08-25 — P3-2 완료(로그+트레이스): Tempo 설치 + 트레이스↔로그 상관. kind에서 트레이스 20건 전송·조회 검증, 서브에이전트 PASS(url $$ 이스케이프 결함 수정). 관측성 3축(metrics/logs/traces) 완성. 남은 P3: P3-4 레지스트리 pull 경로(클러스터 재생성 필요).

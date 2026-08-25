@@ -1,0 +1,25 @@
+# Grafana Tempo 데이터소스(트레이스) + 트레이스→로그(Loki) 상관.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tempo-datasource
+  namespace: monitoring
+  labels:
+    grafana_datasource: "1"
+data:
+  tempo-datasource.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Tempo
+        type: tempo
+        uid: tempo
+        access: proxy
+        url: http://tempo.tracing.svc.cluster.local:3200
+        jsonData:
+          # 트레이스 스팬에서 관련 로그(Loki)로 이동
+          tracesToLogsV2:
+            datasourceUid: loki
+            filterByTraceID: true
+            tags:
+              - key: service.name
+                value: service_name

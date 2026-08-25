@@ -102,8 +102,13 @@ metadata:
     nginx.ingress.kubernetes.io/limit-connections: "10"
     nginx.ingress.kubernetes.io/enable-modsecurity: "true"
     nginx.ingress.kubernetes.io/enable-owasp-core-rules: "true"
+    # 자동 TLS 인증서(cert-manager). 실서버는 edu-ca 를 ACME(Let's Encrypt) 발급자로 교체.
+    cert-manager.io/cluster-issuer: edu-ca
 spec:
   ingressClassName: nginx
+  tls:
+    - hosts: [ {{HOST}} ]
+      secretName: {{SLUG}}-tls
   rules:
     - host: {{HOST}}
       http:

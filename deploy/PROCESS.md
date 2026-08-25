@@ -24,6 +24,7 @@ deploy/
 - 2026-08-24 — docker-compose(postgres+backend) 작성, K8s 매니페스트(namespace·플랫폼·서비스 템플릿·RBAC) 추가.
 - 2026-08-25 — docker 실배포 모드용 docker.sock/examples 마운트, 백엔드 이미지에 git/docker/kubectl.
 - 2026-08-25 — 로컬 kind 리허설: Go 서비스가 Pod+Service로 기동·응답 검증. deploy/k8s/README를 K8s 배포 가이드로 리뉴얼.
+- 2026-08-25 — P3-1 자동 TLS: cert-manager 설치(helm, CRDs), 발급자 체인(selfsigned→edu-root-ca(isCA)→edu-ca) 자산 + README, 테넌트 서비스 템플릿 Ingress에 cert-manager.io/cluster-issuer + spec.tls 배선. kind 검증: 발급자 Ready, 명시적 Certificate 자동발급(issuer=CN=edu-msa-root-ca), ingress-shim 주석만으로 ~3초 내 인증서/시크릿 자동 생성(SAN 일치). 서브에이전트 PASS.
 - 2026-08-25 — P2-3 엣지: ingress-nginx 설치(helm, values로 ModSecurity+OWASP CRS 전역 On, TLS1.2/1.3, replica 2). edge/ 자산 + README, 테넌트 서비스 템플릿 Ingress에 rate-limit/WAF 주석. kind 검증(컨트롤러 ClusterIP --resolve): TLS 200(CN=edu-waf.internal), WAF XSS/SQLi/traversal 403, 정상 200, rate-limit 503. 서브에이전트 PASS. P2 및 전체 로드맵 완료.
 - 2026-08-25 — P2-2 관측성: kube-prometheus-stack 설치(helm, alertmanager off, retention 2h). backend Service 포트명/라벨 + ServiceMonitor(platform/monitoring/) 추가, README. kind 검증: up 11타깃 스크레이프, ServiceMonitor 디스커버리(예제앱 up=1, ~30s). 백엔드는 micrometer로 /actuator/prometheus 노출.
 - 2026-08-25 — P2-1 scale-to-zero: KEDA + keda-add-ons-http 설치(helm), HTTPScaledObject 템플릿(scale-to-zero-template.yaml) + platform/scale-to-zero/README 추가. kind 검증: 샘플 서비스 유휴→replicas 0, 인터셉터 경유 요청 시 0→1 콜드스타트(HTTP 200, 2.85s). 라우팅은 인터셉터(keda-add-ons-http-interceptor-proxy:8080) 경유 필수.

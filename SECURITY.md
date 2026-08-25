@@ -63,6 +63,8 @@ kubectl apply -f deploy/k8s/hardening/30-runtimeclass-gvisor.yaml   # 노드에 
 - **오토스케일/비용**: HPA + Cluster Autoscaler, 유휴 서비스 **scale-to-zero(Knative/KEDA)**.
 
 ### 완료된 항목 (구현·검증)
+- **자동 TLS** (P3-1): cert-manager 발급자 체인(self-signed 루트 CA→edu-ca) + Ingress ingress-shim.
+  kind 검증: 주석만으로 인증서+시크릿 자동 발급(우리 CA 서명). 실서버는 ACME로 교체.
 - **엣지 보안** (P2-3): ingress-nginx + ModSecurity/OWASP CRS. TLS 종료, 서비스별 rate-limit, WAF.
   kind 검증: 정상 200, XSS/SQLi/경로탐색 403, rate-limit 503. 미신뢰(공개) 서비스 경계 강화.
 - **관측성** (P2-2): kube-prometheus-stack. 백엔드 `/actuator/prometheus`(micrometer) + ServiceMonitor.

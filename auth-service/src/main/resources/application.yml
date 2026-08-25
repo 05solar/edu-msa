@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: edu-auth-service
+  datasource:
+    url: ${AUTH_DB_URL:jdbc:postgresql://localhost:5433/eduauth}
+    username: ${AUTH_DB_USER:eduauth}
+    password: ${AUTH_DB_PASSWORD:eduauth}
+  jpa:
+    hibernate:
+      ddl-auto: update      # 플랫폼 backend 와 동일한 단계별 전략. 추후 Flyway 로 전환.
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+
+server:
+  port: ${PORT:8080}        # 플랫폼 표준: PORT 환경변수로 listen
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+edu:
+  cors:
+    allowed-origins: ${CORS_ORIGINS:http://localhost:5173}
+  jwt:
+    # 시크릿은 소스에 두지 않는다. 컨테이너/K8s Secret 으로 EDU_JWT_SECRET 을 주입한다.
+    secret: ${EDU_JWT_SECRET:}
+    issuer: ${EDU_JWT_ISSUER:edu-auth-service}
+    access-ttl-seconds: ${EDU_JWT_ACCESS_TTL:1800}        # 30분
+    refresh-ttl-seconds: ${EDU_JWT_REFRESH_TTL:1209600}   # 14일
+  auth:
+    cookie:
+      # 로컬 http 개발에서는 false, HTTPS 배포에서는 true 로 주입한다.
+      secure: ${EDU_COOKIE_SECURE:false}
+      same-site: ${EDU_COOKIE_SAMESITE:Lax}
+  seed:
+    enabled: ${EDU_SEED:true}
+    # 데모 계정 7명의 공통 임시 비밀번호. 운영에서는 반드시 재정의한다.
+    password: ${EDU_SEED_PASSWORD:Edu@2026!}

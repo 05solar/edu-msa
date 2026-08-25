@@ -1,0 +1,26 @@
+# 신뢰 등급별 네임스페이스 분리 (PodSecurity Admission 적용)
+# - edu-services         : 내부 직원(반신뢰) 서비스 → baseline 강제, restricted 경고
+# - edu-services-public  : 불특정 다수(비신뢰) 서비스 → restricted 강제(비루트/권한상승금지/캡드롭/seccomp)
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: edu-services
+  labels:
+    app.kubernetes.io/part-of: edu-msa
+    edu.tier: internal
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: edu-services-public
+  labels:
+    app.kubernetes.io/part-of: edu-msa
+    edu.tier: public
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted

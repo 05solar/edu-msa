@@ -1,0 +1,85 @@
+# NetworkPolicy — 기본 차단(deny-by-default) 후 필요한 통신만 허용.
+# ※ 실제 강제는 CNI가 NetworkPolicy를 지원해야 함(Calico/Cilium 등).
+#    kind 기본 CNI(kindnet)는 미강제이므로, 실서버에서 Calico/Cilium 사용 권장.
+
+# ---------- 공통: 두 네임스페이스 모두 기본 차단 ----------
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: default-deny-all, namespace: edu-services }
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: default-deny-all, namespace: edu-services-public }
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+# ---------- DNS 조회 허용(두 tier 공통) ----------
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: allow-dns, namespace: edu-services }
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: allow-dns, namespace: edu-services-public }
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+---
+# ---------- Ingress 컨트롤러에서 들어오는 트래픽만 허용(두 tier 공통) ----------
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: allow-ingress-from-controller, namespace: edu-services }
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: ingress-nginx } }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: allow-ingress-from-controller, namespace: edu-services-public }
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: ingress-nginx } }
+---
+# ---------- 내부 tier: 공용 인터넷 egress 허용, 단 사설망/메타데이터는 차단 ----------
+# (플랫폼 네임스페이스·DB·클라우드 메타데이터(169.254.169.254) 접근 차단)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: allow-internet-except-private, namespace: edu-services }
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
+# ---------- 공개 tier(edu-services-public): 추가 egress 없음 = DNS 외 완전 격리 ----------

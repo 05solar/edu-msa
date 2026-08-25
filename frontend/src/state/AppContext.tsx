@@ -146,6 +146,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [users, setUsers] = useState<AppUser[]>(() => USE_API ? [] : USERS_SEED.map((u) => ({ ...u })))
   const [favByRole, setFavByRole] = useState<Record<Role, number[]>>(FAVORITES_SEED)
   const [filters, setFiltersState] = useState<Filters>(DEFAULT_FILTERS)
+  // 백엔드 연동 활성 여부. USE_API 여도 백엔드 연결 실패 시 false(데모 폴백)로 내려간다.
+  const [apiActive, setApiActive] = useState(USE_API)
 
   const [toasts, setToasts] = useState<Toast[]>([])
   const [modal, setModal] = useState<ReactNode>(null)
@@ -214,15 +216,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!USE_API) return
-    refreshPrograms()
-    refreshLogs()
-    api.users().then(setUsers).catch(() => { /* noop */ })
-  }, [refreshPrograms, refreshLogs])
+    let cancelled = false
+    void (async () => {
+      try {
+        const list = await api.listAll()
+        if (cancelled) return
+        setPrograms(list)
+        refreshLogs()
+        try { setUsers(await api.users()) } catch { /* noop */ }
+      } catch {
+        if (cancelled) return
+        // 백엔드에 연결하지 못하면 데모(목업) 데이터로 폴백
+        setApiActive(false)
+        setPrograms(PROGRAMS.map((p) => ({ ...p })))
+        setUsers(USERS_SEED.map((u) => ({ ...u })))
+        setNotis(NOTIS_SEED.map((n) => ({ ...n })))
+        toast('백엔드에 연결하지 못해 데모 데이터로 표시합니다.', 'warn')
+      }
+    })()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
-    if (!USE_API) return
+    if (!USE_API || !apiActive) return
     refreshNotisFor(ROLE_USER[role].name)
-  }, [role, refreshNotisFor])
+  }, [role, apiActive, refreshNotisFor])
 
   const progOf = useCallback(
     (id: number) => programs.find((p) => p.id === id) ?? null,
@@ -264,11 +283,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const unreadCount = useMemo(() => myNotis.filter((n) => !n.read).length, [myNotis])
   const readNoti = useCallback((id: number) => {
     setNotis((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
-    if (USE_API) api.readNoti(id).catch(() => { /* noop */ })
+    if (apiActive) api.readNoti(id).catch(() => { /* noop */ })
   }, [])
   const readAllNotis = useCallback(() => {
     setNotis((prev) => prev.map((n) => (n.to === me.name ? { ...n, read: true } : n)))
-    if (USE_API) api.readAllNotis(me.name).catch(() => { /* noop */ })
+    if (apiActive) api.readAllNotis(me.name).catch(() => { /* noop */ })
     toast('모든 알림을 읽음 처리했습니다.', 'info')
   }, [me.name, toast])
 
@@ -282,7 +301,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const reviewProgram = useCallback((id: number, act: AdminAction, memo: string) => {
     const actLabel = { approve: '승인', reject: '반려', stop: '공개 중지', resume: '재공개' }[act]
-    if (USE_API) {
+    if (apiActive) {
       api.review(id, act, memo, me.name)
         .then(() => {
           refreshPrograms(); refreshLogs(); refreshNotisFor(me.name)
@@ -311,14 +330,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const setUserRole = useCallback((name: string, r: Role) => {
     setUsers((prev) => prev.map((u) => (u.name === name ? { ...u, role: r } : u)))
-    if (USE_API) {
+    if (apiActive) {
       api.setRole(name, r).then(() => api.users().then(setUsers)).catch((e) => toast('권한 변경 실패: ' + (e as Error).message, 'warn'))
     }
     toast(`${name} 님의 권한을 변경했습니다. (시연용)`, 'ok')
   }, [toast])
 
   const addProgram = useCallback((input: NewProgramInput): void => {
-    if (USE_API) {
+    if (apiActive) {
       api.create({
         name: input.name, summary: input.summary, desc: input.desc, cat: input.cat || 'doc',
         owner: me.name, dept: input.dept || me.dept, ver: input.ver, repo: input.repo,
@@ -349,7 +368,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [programs, me.name, me.dept, pushNoti, toast, refreshPrograms, refreshNotisFor])
 
   const addComment = useCallback((id: number, body: { user: string; dept: string; body: string }) => {
-    if (USE_API) {
+    if (apiActive) {
       api.addComment(id, body).then(() => loadDetail(id)).catch((e) => toast('의견 등록 실패: ' + (e as Error).message, 'warn'))
       toast('의견을 등록했습니다.', 'ok')
       return

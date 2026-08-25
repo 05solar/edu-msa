@@ -1,0 +1,35 @@
+# 인클러스터 이미지 빌드(Kaniko) — 호스트 docker.sock 없이 안전하게 빌드/푸시.
+# 프로덕션 real 모드에서 docker build 대신 이 Job을 생성해 사용한다.
+# 플레이스홀더: {{SLUG}} {{IMAGE}} {{REPO_URL}} {{BRANCH}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: build-{{SLUG}}
+  namespace: edu-platform
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 600
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: kaniko
+          image: gcr.io/kaniko-project/executor:latest
+          args:
+            - "--context={{REPO_URL}}#refs/heads/{{BRANCH}}"   # git 컨텍스트 직접 clone
+            - "--destination={{IMAGE}}"
+            - "--dockerfile=Dockerfile"
+            - "--cache=true"
+          volumeMounts:
+            - name: docker-config       # 레지스트리 인증(푸시용)
+              mountPath: /kaniko/.docker
+      volumes:
+        - name: docker-config
+          secret:
+            secretName: edu-registry-auth   # kubectl create secret docker-registry ...
+---
+# 레지스트리 인증 시크릿 생성 예시:
+#   kubectl -n edu-platform create secret docker-registry edu-registry-auth \
+#     --docker-server=registry.edu.internal \
+#     --docker-username=<U> --docker-password=<P>
+# Kaniko는 루트/도커데몬 없이 사용자 공간에서 이미지를 빌드하므로 docker.sock 노출이 필요 없다.

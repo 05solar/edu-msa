@@ -20,11 +20,23 @@ spec:
       labels:
         app: {{SLUG}}
     spec:
+      automountServiceAccountToken: false
+      # 비신뢰(공개) 서비스는 아래 주석 해제로 샌드박스 런타임 사용 (edu-services-public)
+      # runtimeClassName: gvisor
       securityContext:
         runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: {{SLUG}}
           image: {{IMAGE}}
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
           env:
             - name: PORT
               value: "{{PORT}}"
@@ -76,3 +88,18 @@ spec:
                 name: {{SLUG}}
                 port:
                   number: 80
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{SLUG}}
+  namespace: {{NAMESPACE}}
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: {{SLUG}} }
+  minReplicas: {{REPLICAS}}
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 70 }

@@ -59,7 +59,9 @@ K8s 매니페스트(Deployment/Service/Ingress) 렌더링·적용 → 헬스 통
 - 백엔드 배포 API: `POST /api/deploy/validate`, `POST /api/programs/{id}/deploy`
 - 배포 모드(`EDU_DEPLOY_MODE`): `simulate`(매니페스트 렌더만·기본) · `docker`(호스트 Docker로 **실제 컨테이너 기동**) · `real`(K8s `kubectl apply`)
 - 레포 주소 형식: `https://github.com/…`(실제) · `local:///workspace/examples/<name>`(로컬 예제) · `sample://travel-settlement`(검증 전용)
-- 자세한 배포/모드는 [backend/README.md](backend/README.md), K8s는 [deploy/k8s/README.md](deploy/k8s/README.md)
+- 자세한 배포/모드는 [backend/README.md](backend/README.md)
+- **K8s로 띄우는 법**: [deploy/k8s/README.md](deploy/k8s/README.md) — 로컬 `kind` 리허설로
+  GitHub 레포의 서비스가 실제 **Pod + Service**로 떠서 응답하는 것까지 검증됨.
 
 ## 전체 스택 한 번에 실행
 
@@ -86,6 +88,8 @@ $env:VITE_USE_API="true"; npm run dev     # PowerShell 기준. http://localhost:
 | `frontend/public/guides/AI_BUILD_SPEC.md` | **다운로드용 AI 지시서** — AI에 첨부해 규격대로 프로젝트 생성 (+ 파이썬/Node/정적 템플릿) |
 | [examples/README.md](examples/README.md) | 업무 분야별 실동작 예제 목록·실행법 |
 | [deploy/k8s/README.md](deploy/k8s/README.md) | K8s 매니페스트 구성·적용 순서 |
+| [SECURITY.md](SECURITY.md) | 멀티테넌트 보안 하드닝(신뢰 등급·격리·검증) |
+| [deploy/PROCESS.md](deploy/PROCESS.md) · [deploy/AGENT.md](deploy/AGENT.md) | 인프라 진행 이력 · 작업 규칙 |
 | [frontend/README.md](frontend/README.md) · [backend/README.md](backend/README.md) | 각 앱 실행·구조·API |
 | 각 폴더 `AGENT.md` · `DESIGN.md` · `TEST.md` · `PROCESS.md` | 작업 규칙 · 설계 원칙 · 테스트 · 진행 이력 |
 

@@ -22,16 +22,21 @@ public class ServiceSpecValidator {
         this.deployments = deployments;
     }
 
-    /** 오류 목록을 반환한다(빈 목록이면 통과). */
-    public List<String> validate(ServiceSpec spec, boolean hasDockerfile) {
+    /** 오류 목록을 반환한다(빈 목록이면 통과). currentProgramId 는 재배포 허용용(없으면 null). */
+    public List<String> validate(ServiceSpec spec, boolean hasDockerfile, Long currentProgramId) {
         List<String> errors = new ArrayList<>();
         if (spec.name() == null || spec.name().isBlank()) {
             errors.add("service.yaml: name 이 필요합니다.");
         }
         if (spec.slug() == null || !SLUG.matcher(spec.slug()).matches()) {
             errors.add("service.yaml: slug 형식이 올바르지 않습니다. (^[a-z][a-z0-9-]{1,38}$)");
-        } else if (deployments.existsBySlug(spec.slug())) {
-            errors.add("service.yaml: slug 가 이미 배포된 서비스와 중복됩니다: " + spec.slug());
+        } else {
+            boolean dup = currentProgramId != null
+                    ? deployments.existsBySlugAndProgramIdNot(spec.slug(), currentProgramId)
+                    : deployments.existsBySlug(spec.slug());
+            if (dup) {
+                errors.add("service.yaml: slug 가 이미 다른 서비스와 중복됩니다: " + spec.slug());
+            }
         }
         if (spec.category() == null || !CATEGORIES.contains(spec.category())) {
             errors.add("service.yaml: category 값이 올바르지 않습니다. (doc|student|curri|budget|facil|data|civil)");

@@ -67,7 +67,7 @@ export function featuresOf(p: Program): string[] {
 
 export function repoName(url: string): string {
   const m = String(url || '').replace(/\/+$/, '').split('/')
-  return m[m.length - 1] || url
+  return (m[m.length - 1] || url).replace(/\.git$/, '')
 }
 
 export function cloneCmd(p: Program): string {

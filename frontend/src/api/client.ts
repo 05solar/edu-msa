@@ -7,7 +7,8 @@ import type {
   AdminLogEntry, AppUser, Comment, Notification, Program, Role, PurposeId, RunTypeId, Scope,
 } from '../types'
 
-export const USE_API = import.meta.env.VITE_USE_API === 'true'
+// 기본값: API 연동 사용. 명시적으로 VITE_USE_API=false 일 때만 목업(오프라인 데모) 모드.
+export const USE_API = import.meta.env.VITE_USE_API !== 'false'
 const BASE = '/api'
 
 export interface SpecView {

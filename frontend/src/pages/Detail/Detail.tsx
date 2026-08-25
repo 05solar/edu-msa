@@ -8,6 +8,7 @@ import { useApp } from '../../state/AppContext'
 import { Icon } from '../../icons/Icon'
 import { PurposeBadges, TechLine, StatusBadge } from '../../components/program/Badges'
 import { RunModal } from '../../components/RunModal/RunModal'
+import { USE_API, api, type DeploymentResponse } from '../../api/client'
 
 type Tab = 'desc' | 'readme' | 'history' | 'comments'
 
@@ -35,8 +36,15 @@ export function Detail() {
   const { detailId, progOf, go, toggleFav, isFav, openModal, toast, addComment, loadDetail, me } = useApp()
   const [tab, setTab] = useState<Tab>('desc')
   const [draft, setDraft] = useState('')
+  const [deploy, setDeploy] = useState<DeploymentResponse | null>(null)
 
   useEffect(() => { if (detailId) loadDetail(detailId) }, [detailId, loadDetail])
+  useEffect(() => {
+    setDeploy(null)
+    if (USE_API && detailId) {
+      api.deploymentOf(detailId).then((d) => setDeploy(d ?? null)).catch(() => setDeploy(null))
+    }
+  }, [detailId])
 
   const p = detailId ? progOf(detailId) : null
   if (!p) {
@@ -94,9 +102,18 @@ export function Detail() {
               </div>
             </div>
             <div className="dh-actions">
-              <button className="btn btn-lg btn-primary" onClick={() => openModal(<RunModal p={p} />)}>
-                <Icon name="web" size={16} /> 바로 사용하기
-              </button>
+              {deploy?.status === 'running' && deploy.url ? (
+                <a className="btn btn-lg btn-primary" href={deploy.url} target="_blank" rel="noreferrer">
+                  <Icon name="external" size={16} /> 웹에서 바로 사용
+                </a>
+              ) : (
+                <button className="btn btn-lg btn-primary" onClick={() => openModal(<RunModal p={p} />)}>
+                  <Icon name="web" size={16} /> 바로 사용하기
+                </button>
+              )}
+              {deploy?.status === 'running' && deploy.url && (
+                <div className="dh-hint" style={{ color: 'var(--ok)' }}>실행 중 · {deploy.url}</div>
+              )}
               <button className={`btn ${fav ? 'btn-ok' : ''}`} onClick={() => toggleFav(p.id)}>
                 <Icon name={fav ? 'star-filled' : 'star'} size={15} /> {fav ? '즐겨찾기 됨' : '즐겨찾기'}
               </button>

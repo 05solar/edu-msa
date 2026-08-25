@@ -76,7 +76,7 @@ public class DeploymentService {
         } catch (Exception e) {
             return new ValidationResult(false, List.of("service.yaml 파싱 실패: " + e.getMessage()), null, resolvedFrom);
         }
-        List<String> errors = validator.validate(spec, hasDockerfile);
+        List<String> errors = validator.validate(spec, hasDockerfile, null);
         return new ValidationResult(errors.isEmpty(), errors, toSpecView(spec), resolvedFrom);
     }
 
@@ -90,7 +90,7 @@ public class DeploymentService {
             SourceMaterial mat = resolver.resolve(req.repoUrl(), req.branch());
             line(log, "소스 수집: " + mat.resolvedFrom());
             ServiceSpec spec = parser.parse(mat.serviceYaml());
-            List<String> errors = validator.validate(spec, mat.hasDockerfile());
+            List<String> errors = validator.validate(spec, mat.hasDockerfile(), req.programId());
             if (!errors.isEmpty()) {
                 errors.forEach(e -> line(log, "검증 오류: " + e));
                 throw new DeployException("표준 규격 검증 실패");
@@ -154,7 +154,16 @@ public class DeploymentService {
 
     @Transactional(readOnly = true)
     public DeploymentResponse latest(Long programId) {
-        return deployments.findTopByProgramIdOrderByIdDesc(programId).map(this::toResponse).orElse(null);
+        return deployments.findTopByProgramIdOrderByIdDesc(programId).map(d -> {
+            // docker 모드에서 running 기록이라도 실제 컨테이너가 죽었으면 running으로 보고하지 않는다.
+            if (props.isDocker() && d.getStatus() == DeploymentStatus.RUNNING && d.getSlug() != null) {
+                CommandRunner.Result st = runner.run(
+                        List.of("docker", "inspect", "-f", "{{.State.Running}}", "edu-svc-" + d.getSlug()), null, 15);
+                boolean alive = st.output() != null && st.output().trim().startsWith("true");
+                if (!alive) return toResponse(d, DeploymentStatus.FAILED);
+            }
+            return toResponse(d);
+        }).orElse(null);
     }
 
     /** 로컬 Docker 데몬으로 이미지를 빌드하고 컨테이너를 실제로 띄운다. 접속 URL을 반환한다. */
@@ -222,7 +231,11 @@ public class DeploymentService {
     }
 
     private DeploymentResponse toResponse(Deployment d) {
+        return toResponse(d, d.getStatus());
+    }
+
+    private DeploymentResponse toResponse(Deployment d, DeploymentStatus status) {
         return new DeploymentResponse(d.getId(), d.getProgramId(), d.getSlug(), d.getName(),
-                d.getStatus(), d.getUrl(), d.getImageTag(), props.mode(), d.getManifest(), d.getLogText(), d.getCreatedAt());
+                status, d.getUrl(), d.getImageTag(), props.mode(), d.getManifest(), d.getLogText(), d.getCreatedAt());
     }
 }

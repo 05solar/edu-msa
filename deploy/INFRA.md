@@ -80,6 +80,21 @@ GitHub 레포 URL
 
 ---
 
+## 3-1. 기본 내장 서비스 (7개 · 7개 언어)
+
+플랫폼에 동봉되는 실제 업무 서비스 7개(`examples/`). seed(`programs.json`)에 **내부 계정 소유**로
+등록되어 배포 시 신뢰 네임스페이스 `edu-services`로 배치된다. 소스는 `local://examples/<slug>`.
+
+| slug | 업무 분야 | 언어 | slug | 업무 분야 | 언어 |
+|---|---|---|---|---|---|
+| doc-approval | 공문 결재 | Go | asset-mgr | 자산 관리 | C# |
+| facility-maint | 시설 유지보수 | Python | safety-check | 안전점검 | Rust |
+| staff-trip | 출장·복무 | Java | report-hub | 통계·보고 | Kotlin |
+| civil-desk | 민원 처리 | TypeScript | | | |
+
+모두 비루트·`/healthz`·상태기계 워크플로. 검증: docker 모드 배포 시 `edu-svc-<slug>` 컨테이너 기동→`/healthz 200`.
+상세는 [../examples/README.md](../examples/README.md).
+
 ## 4. 멀티테넌트 보안 (hardening/)
 
 | 파일 | 통제 |

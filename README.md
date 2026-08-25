@@ -33,7 +33,7 @@ edu-msa/
 ├── backend/                   # Spring Boot 3 (Java 21, Gradle Kotlin DSL)
 │   ├── README·PROCESS·AGENT·DESIGN·TEST.md
 │   └── src/main/java/com/edu/msa/…
-├── examples/                  # 업무 분야별 실동작 예제 8개(각 폴더 = 배포 가능한 레포)
+├── examples/                  # 기본 업무 서비스 7개(7개 언어, 각 폴더 = 배포 가능한 레포)
 └── deploy/
     ├── docker-compose.yml     # postgres + backend (docker 실배포 모드 지원)
     └── k8s/                   # namespace · 플랫폼 · 서비스 템플릿 · RBAC
@@ -54,11 +54,22 @@ K8s 매니페스트(Deployment/Service/Ingress) 렌더링·적용 → 헬스 통
 
 - 표준 규격: [docs/MSA_SERVICE_SPEC.md](docs/MSA_SERVICE_SPEC.md)
 - K8s 매니페스트: [deploy/k8s/](deploy/k8s/) (namespace·플랫폼·서비스 템플릿·RBAC)
-- 표준 예제 서비스: [examples/](examples/) — 업무 분야별로 **실제 동작하는 프로그램 7개**
-  (문서/학생/교육과정/예산/시설/데이터/민원) + 최소 예제 `sample-service`. 모두 `docker build` 후 즉시 실행.
+- **기본 서비스 7개**: [examples/](examples/) — 실제 교육청 업무를 **7개 서로 다른 언어**로 구현(단순 데모 아님).
+
+  | 서비스 | 업무 분야 | 언어 | 배포 경로 |
+  |---|---|---|---|
+  | doc-approval | 공문/업무요청 결재 | Go | `/svc/doc-approval` |
+  | facility-maint | 학교 시설 유지보수 | Python(FastAPI) | `/svc/facility-maint` |
+  | staff-trip | 교직원 출장·복무 | Java(Javalin) | `/svc/staff-trip` |
+  | civil-desk | 학생·학부모 민원 | TypeScript(Fastify) | `/svc/civil-desk` |
+  | asset-mgr | 교육 기자재·자산 | C#(.NET) | `/svc/asset-mgr` |
+  | safety-check | 학교 안전점검 | Rust(axum) | `/svc/safety-check` |
+  | report-hub | 통계/보고 자료 | Kotlin(Ktor) | `/svc/report-hub` |
+
+  모두 비루트·`/healthz`·통일 오류포맷·상태기계 워크플로. seed(`programs.json`)에 내부 계정 소유로 등록 → 배포 시 `edu-services`.
 - 백엔드 배포 API: `POST /api/deploy/validate`, `POST /api/programs/{id}/deploy`
 - 배포 모드(`EDU_DEPLOY_MODE`): `simulate`(매니페스트 렌더만·기본) · `docker`(호스트 Docker로 **실제 컨테이너 기동**) · `real`(K8s `kubectl apply`)
-- 레포 주소 형식: `https://github.com/…`(실제) · `local:///workspace/examples/<name>`(로컬 예제) · `sample://travel-settlement`(검증 전용)
+- 레포 주소 형식: `https://github.com/…`(실제) · `local://examples/<slug>`(플랫폼 동봉 기본 서비스)
 - 자세한 배포/모드는 [backend/README.md](backend/README.md)
 - **K8s로 띄우는 법**: [deploy/k8s/README.md](deploy/k8s/README.md) — 로컬 `kind` 리허설로
   GitHub 레포의 서비스가 실제 **Pod + Service**로 떠서 응답하는 것까지 검증됨.

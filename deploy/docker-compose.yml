@@ -37,7 +37,7 @@ services:
     volumes:
       # docker 모드: 호스트 도커 데몬 사용 + 예제 소스(local:// 시험용) 마운트
       - /var/run/docker.sock:/var/run/docker.sock
-      - ../examples:/workspace/examples:ro
+      - ../examples:/app/examples:ro
     depends_on:
       db:
         condition: service_healthy

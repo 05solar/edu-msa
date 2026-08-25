@@ -38,12 +38,36 @@ public class ManifestRenderer {
                 .replace("{{MEMORY_LIMIT}}", props.memoryLimit());
     }
 
+    // 미신뢰 업로더 입력이 Kaniko 인자/YAML 로 주입되지 않도록 엄격 검증한다.
+    private static final java.util.regex.Pattern REPO_RE =
+            java.util.regex.Pattern.compile("^https?://[A-Za-z0-9._-]+(:\\d+)?(/[A-Za-z0-9._-]+)+(\\.git)?$");
+    private static final java.util.regex.Pattern BRANCH_RE =
+            java.util.regex.Pattern.compile("^[A-Za-z0-9._/-]{1,120}$");
+
+    /** Kaniko 빌드 Job 매니페스트 렌더링(real 모드, docker.sock 미사용). */
+    public String renderKanikoJob(ServiceSpec spec, String image, String repoUrl, String branch, String namespace) {
+        if (repoUrl == null || !REPO_RE.matcher(repoUrl).matches())
+            throw new DeployException("허용되지 않는 레포 주소 형식: " + repoUrl);
+        String br = (branch != null && !branch.isBlank()) ? branch : "main";
+        if (!BRANCH_RE.matcher(br).matches())
+            throw new DeployException("허용되지 않는 브랜치 이름: " + branch);
+        String ctx = "git://" + repoUrl.replaceFirst("^https?://", "") + "#refs/heads/" + br;
+        return load("deploy-templates/kaniko-job.yaml")
+                .replace("{{SLUG}}", spec.slug())
+                .replace("{{NAMESPACE}}", namespace)
+                .replace("{{IMAGE}}", image)
+                .replace("{{CONTEXT}}", ctx);
+    }
+
     private String load() {
+        return load("deploy-templates/service-template.yaml");
+    }
+
+    private String load(String path) {
         try {
-            return new String(new ClassPathResource("deploy-templates/service-template.yaml")
-                    .getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            return new String(new ClassPathResource(path).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
         } catch (Exception e) {
-            throw new IllegalStateException("서비스 템플릿을 로드하지 못했습니다.", e);
+            throw new IllegalStateException("템플릿 로드 실패: " + path, e);
         }
     }
 }

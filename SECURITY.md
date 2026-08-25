@@ -57,11 +57,17 @@ kubectl apply -f deploy/k8s/hardening/30-runtimeclass-gvisor.yaml   # 노드에 
 
 ## 5. 프로덕션에서 반드시 채워야 할 것 (아직 아님)
 
-- **NetworkPolicy 강제 CNI**: kind 기본(kindnet)은 미강제 → 실서버는 **Calico/Cilium**.
 - **gVisor/Kata 노드 설치**: `30-runtimeclass` 사용 전 노드 런타임 준비.
-- **백엔드 real 모드 배선**: docker 소켓 빌드 → **Kaniko + 이미지 레지스트리**로 교체,
-  업로더 신뢰도에 따라 배포 네임스페이스(`edu-services` vs `edu-services-public`) 자동 선택.
+- **레지스트리 pull 경로**: Kaniko가 push한 이미지를 노드가 pull 하려면 노드에서 해석 가능한
+  레지스트리 엔드포인트가 필요(kind-local-registry 패턴 또는 사내 레지스트리 + containerd 설정).
 - **오토스케일/비용**: HPA + Cluster Autoscaler, 유휴 서비스 **scale-to-zero(Knative/KEDA)**.
+
+### 완료된 항목 (구현·검증)
+- **NetworkPolicy 강제 CNI** (P1-2): kind에 **Calico** 적용, default-deny + tier별 egress 대조 검증.
+- **백엔드 real 모드 배선** (P1-1): docker 소켓 빌드 제거 → **Kaniko 인클러스터 Job**으로 교체.
+  업로더 `repoUrl`/`branch`는 정규식 검증 후에만 Kaniko `--context`에 삽입(인자·YAML 주입 차단).
+  업로더 신뢰도에 따라 배포 네임스페이스(`edu-services` vs `edu-services-public`) **fail-closed** 자동 선택.
+  검증: kind에서 Kaniko가 실제 GitHub 레포를 docker.sock 없이 빌드→레지스트리 push 성공.
 - **플랫폼 HA**: 백엔드 무상태+복제, 관리형 HA PostgreSQL, 시크릿 관리(Vault/Sealed Secrets).
 - **관측성**: 로그/메트릭/감사(감사 로그, 이미지 스캐닝, 정책 위반 알림).
 

@@ -1,0 +1,28 @@
+# Kaniko 인클러스터 빌드 Job (real 모드). 호스트 docker.sock 미사용(rootless).
+# 플레이스홀더: {{SLUG}} {{NAMESPACE}} {{IMAGE}} {{CONTEXT}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: build-{{SLUG}}
+  namespace: {{NAMESPACE}}
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 600
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: kaniko
+          image: gcr.io/kaniko-project/executor:latest
+          args:
+            - "--context={{CONTEXT}}"
+            - "--dockerfile=Dockerfile"
+            - "--destination={{IMAGE}}"
+          volumeMounts:
+            - name: docker-config
+              mountPath: /kaniko/.docker
+      volumes:
+        - name: docker-config
+          secret:
+            secretName: edu-registry-auth   # 레지스트리 인증(없으면 optional)
+            optional: true

@@ -19,9 +19,11 @@
 
 ## P1 (프로덕션 안전)
 
-- [~] **P1-1 안전 빌드 + 신뢰도별 네임스페이스 자동배치** (진행 중)
+- [x] **P1-1 안전 빌드 + 신뢰도별 네임스페이스 자동배치** (완료)
   - [x] 네임스페이스 자동배치 — CODER/ADMIN→`edu-services`, USER/익명/불명→`edu-services-public`(fail-closed, 서브에이전트 PASS). 검증: 내부/외부 소유자 매니페스트 namespace 분기 확인.
-  - [ ] Kaniko 인클러스터 빌드(docker.sock 제거) + 레지스트리
+  - [x] Kaniko 인클러스터 빌드(docker.sock 제거) — real 모드가 host `docker build` 대신 Kaniko Job(kubectl apply + wait)으로 이미지 빌드. 미신뢰 업로더 입력(repoUrl/branch) 정규식 검증으로 인자 주입 차단.
+    검증: kind에서 Kaniko Job이 실제 GitHub 레포(test-code, Go)를 docker.sock 없이 빌드→인클러스터 레지스트리 push 성공(카탈로그 `{"repositories":["workdays"]}`), 서브에이전트 리뷰 PASS(보안 지적 반영).
+    남은 인프라: 노드가 pull 가능한 레지스트리 엔드포인트(kind-local-registry 패턴 또는 사내 레지스트리) 구성 — 문서화.
 - [x] **P1-2 NetworkPolicy 강제** — Calico 도입 (완료·검증)
   - 구현: kind를 `disableDefaultCNI`로 재생성 + Calico v3.28 설치, hardening NetworkPolicy 적용.
   - 검증: 공개 tier 외부 egress **차단**(DNS만 허용), 내부 tier 인터넷 **허용**, 정책 없는 ns는 개방 → 정책이 실제 강제됨. PodSecurity baseline/restricted 확인.
@@ -39,4 +41,5 @@
 - 2026-08-25 — P0-2 완료·검증(작업 큐+워커, done/재시도→failed 확인).
 - 2026-08-25 — P0-3 완료·검증(CloudNativePG 3-인스턴스, primary 삭제→자동 승격 확인). **P0 전부 완료.**
 - 2026-08-25 — P1-2 완료·검증(Calico + NetworkPolicy 강제).
-- 2026-08-25 — P1-1 진행: 신뢰도별 네임스페이스 자동배치 구현·검증(내부→edu-services, 외부→edu-services-public, fail-closed, 서브에이전트 PASS). 다음: Kaniko 빌드.
+- 2026-08-25 — P1-1 진행: 신뢰도별 네임스페이스 자동배치 구현·검증(내부→edu-services, 외부→edu-services-public, fail-closed, 서브에이전트 PASS).
+- 2026-08-25 — P1-1 완료: Kaniko 인클러스터 빌드(docker.sock 제거) 배선 + repoUrl/branch 주입 검증. kind에서 실제 GitHub 레포 빌드→레지스트리 push 검증, 서브에이전트 PASS. 다음: P1-3 가용성.

@@ -127,15 +127,25 @@ public class DeploymentService {
                 // 로컬 Docker 실배포: 실제로 이미지를 빌드하고 컨테이너를 띄운다.
                 url = dockerDeploy(log, d, spec, mat, image, ns);
             } else {
-                // 2. 이미지 빌드
+                // 2. 이미지 빌드 — Kaniko 인클러스터 빌드(호스트 docker.sock 미사용, rootless)
                 d.setStatus(DeploymentStatus.BUILDING);
-                if (props.isReal() && mat.workDir() != null) {
-                    if (!run(log, List.of("docker", "build", "-t", image, "."), new File(mat.workDir()), 600).ok())
-                        throw new DeployException("docker build 실패");
-                    run(log, List.of("docker", "push", image), null, 600);
+                if (props.isReal()) {
+                    String buildNs = props.buildNamespace();
+                    String jobYaml = renderer.renderKanikoJob(spec, image, req.repoUrl(), req.branch(), buildNs);
+                    Path jf = Files.createTempFile("edu-kaniko-", ".yaml");
+                    Files.writeString(jf, jobYaml, StandardCharsets.UTF_8);
+                    run(log, List.of("kubectl", "delete", "job", "build-" + spec.slug(),
+                            "-n", buildNs, "--ignore-not-found"), null, 60);
+                    if (!run(log, List.of("kubectl", "apply", "-f", jf.toString()), null, 60).ok())
+                        throw new DeployException("Kaniko 빌드 Job 생성 실패");
+                    line(log, "Kaniko 빌드 시작 · " + image + " (ns=" + buildNs + ", docker.sock 미사용)");
+                    CommandRunner.Result wait = run(log, List.of("kubectl", "wait", "--for=condition=complete",
+                            "job/build-" + spec.slug(), "-n", buildNs, "--timeout=600s"), null, 640);
+                    if (!wait.ok()) throw new DeployException("Kaniko 빌드 실패(시간초과 또는 오류)");
+                    line(log, "Kaniko 빌드·푸시 완료 · " + image);
                 } else {
-                    line(log, "[simulate] docker build -t " + image + " " + safeDir(mat.workDir()));
-                    line(log, "[simulate] docker push " + image);
+                    line(log, "[simulate] Kaniko 빌드 Job 생성 → " + image + " (docker.sock 미사용)");
+                    line(log, "[simulate] kubectl wait job/build-" + spec.slug() + " --for=condition=complete");
                 }
 
                 // 3. 매니페스트 렌더링
@@ -241,8 +251,6 @@ public class DeploymentService {
         }
         return r;
     }
-
-    private String safeDir(String dir) { return dir == null ? "." : dir; }
 
     private void line(StringBuilder sb, String s) { sb.append("- ").append(s).append('\n'); }
 

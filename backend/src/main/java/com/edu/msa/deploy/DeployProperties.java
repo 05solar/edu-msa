@@ -11,6 +11,7 @@ public class DeployProperties {
     @Value("${edu.deploy.namespace-public:edu-services-public}") private String namespacePublic; // 외부(비신뢰)
     @Value("${edu.deploy.ingress-host:edu.internal}") private String ingressHost;
     @Value("${edu.deploy.registry:registry.edu.internal}") private String registry;
+    @Value("${edu.deploy.build-namespace:edu-platform}") private String buildNamespace; // Kaniko 빌드 실행 ns
     @Value("${edu.deploy.replicas:1}")         private int replicas;
     @Value("${edu.deploy.cpu-limit:500m}")     private String cpuLimit;
     @Value("${edu.deploy.memory-limit:512Mi}") private String memoryLimit;
@@ -29,6 +30,7 @@ public class DeployProperties {
     public String namespacePublic() { return namespacePublic; }
     public String ingressHost() { return ingressHost; }
     public String registry() { return registry; }
+    public String buildNamespace() { return buildNamespace; }
     public int replicas() { return replicas; }
     public String cpuLimit() { return cpuLimit; }
     public String memoryLimit() { return memoryLimit; }

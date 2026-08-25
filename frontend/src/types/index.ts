@@ -88,3 +88,7 @@ export interface NavItem {
 
 export type ViewId =
   | 'home' | 'list' | 'ai' | 'register' | 'my' | 'admin' | 'detail'
+
+/* 로그인 전 인증 화면 전환 */
+export type AuthView = 'login' | 'signup' | 'find-id' | 'find-pw'
+

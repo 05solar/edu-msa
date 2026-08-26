@@ -46,6 +46,18 @@ export function Detail() {
     }
   }, [detailId])
 
+  // 배포가 진행 중이면(대기·검증·빌드·배포) 완료(running/failed)될 때까지 상태를 폴링해
+  // "배포 중…"이 자동으로 "웹에서 바로 사용"으로 바뀌게 한다.
+  useEffect(() => {
+    const s = deploy?.status
+    if (!USE_API || !detailId || !s) return
+    if (!['pending', 'validating', 'building', 'deploying'].includes(s)) return
+    const t = window.setInterval(() => {
+      api.deploymentOf(detailId).then((d) => setDeploy(d ?? null)).catch(() => { /* 일시 오류 무시 */ })
+    }, 3000)
+    return () => window.clearInterval(t)
+  }, [detailId, deploy?.status])
+
   const p = detailId ? progOf(detailId) : null
   if (!p) {
     return (
@@ -106,6 +118,14 @@ export function Detail() {
                 <a className="btn btn-lg btn-primary" href={deploy.url} target="_blank" rel="noreferrer">
                   <Icon name="external" size={16} /> 웹에서 바로 사용
                 </a>
+              ) : deploy && ['pending', 'validating', 'building', 'deploying'].includes(deploy.status) ? (
+                <button className="btn btn-lg btn-primary is-deploying" disabled>
+                  <span className="spin" aria-hidden /> 배포 중… (곧 사용 가능)
+                </button>
+              ) : deploy?.status === 'failed' ? (
+                <button className="btn btn-lg btn-primary" onClick={() => openModal(<RunModal p={p} />)}>
+                  <Icon name="warn" size={16} /> 배포 실패 · 다시 시도
+                </button>
               ) : (
                 <button className="btn btn-lg btn-primary" onClick={() => openModal(<RunModal p={p} />)}>
                   <Icon name="web" size={16} /> 바로 사용하기
@@ -114,7 +134,13 @@ export function Detail() {
               <button className={`btn ${fav ? 'btn-ok' : ''}`} onClick={() => toggleFav(p.id)}>
                 <Icon name={fav ? 'star-filled' : 'star'} size={15} /> {fav ? '즐겨찾기 됨' : '즐겨찾기'}
               </button>
-              <div className="dh-hint">내부망 전용 · 개인정보 처리 시 주의</div>
+              <div className="dh-hint">
+                {deploy && ['pending', 'validating', 'building', 'deploying'].includes(deploy.status)
+                  ? '배포가 끝나면 자동으로 "웹에서 바로 사용"으로 바뀝니다. (레포 수집·빌드에 수십 초~수 분 소요)'
+                  : deploy?.status === 'failed'
+                    ? '배포에 실패했습니다. 레포 규격(service.yaml·Dockerfile)을 확인한 뒤 다시 시도하세요.'
+                    : '내부망 전용 · 개인정보 처리 시 주의'}
+              </div>
             </div>
           </div>
           <div className="tabs">

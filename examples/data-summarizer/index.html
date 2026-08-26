@@ -1,0 +1,102 @@
+<!doctype html><html lang=ko><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width, initial-scale=1"><title>표 데이터 통계 요약·차트 생성기</title>
+<style>
+:root{--line:#e2e8f0;--ink:#1e293b;--mut:#64748b;--blue:#2563eb;--bg:#f8fafc}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,'Malgun Gothic',sans-serif;color:var(--ink);background:var(--bg)}
+header{background:#fff;border-bottom:1px solid var(--line);padding:16px 24px}header h1{font-size:20px;margin:0}header p{margin:4px 0 0;color:var(--mut);font-size:13px}
+.wrap{max-width:1120px;margin:0 auto;padding:20px 24px}
+.panel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}.panel h2{font-size:14px;margin:0 0 10px}
+label{font-size:12px;color:var(--mut);display:block;margin:10px 0 4px}
+textarea,input,select{font:14px system-ui,'Malgun Gothic',sans-serif;padding:8px 10px;border:1px solid var(--line);border-radius:8px;color:var(--ink);background:#fff}
+textarea{width:100%;min-height:120px;resize:vertical;font-family:ui-monospace,Consolas,monospace;font-size:13px}
+button{font:inherit;padding:8px 14px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);cursor:pointer}
+.btn-primary{background:var(--blue);color:#fff;border-color:var(--blue);font-weight:600}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}th{color:var(--mut);font-size:11px;background:#f8fafc}
+.badge{display:inline-block;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700}
+.b-num{background:#dbeafe;color:#1e40af}.b-cat{background:#e0e7ff;color:#3730a3}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.card{border:1px solid var(--line);border-radius:10px;padding:10px 12px}.card .nm{font-weight:700;margin-bottom:4px}.card .kv{font-size:12px;color:#475569;line-height:1.7}
+.empty-hint{color:#94a3b8;text-align:center;padding:30px}
+.scroll{overflow-x:auto}
+#chartImg{max-width:100%;border:1px solid var(--line);border-radius:10px}
+</style></head><body>
+<header><h1>표 데이터 통계 요약·차트 생성기</h1><p>CSV·엑셀 표를 올리면 열별 요약 통계를 계산하고 막대·분포·원 차트 이미지를 만들어 드립니다. (개인 단발 사용 도구)</p></header>
+<div class="wrap">
+  <div class="panel">
+    <h2>데이터 입력</h2>
+    <div class="toolbar">
+      <button onclick="document.getElementById('file').click()">CSV/엑셀 파일 열기</button>
+      <input id="file" type="file" accept=".csv,.xlsx,.xlsm,.xls,text/csv" style="display:none" onchange="pickFile(event)">
+      <span id="fname" style="color:#64748b;font-size:13px"></span>
+      <button onclick="loadSample()">예시</button>
+    </div>
+    <label>또는 CSV 붙여넣기 (엑셀에서 복사 후 붙여넣기)</label>
+    <textarea id="csv" placeholder="반,점수,성별&#10;1반,88,남&#10;1반,92,여"></textarea>
+    <div class="toolbar"><button class="btn-primary" onclick="analyze()">분석하기</button></div>
+  </div>
+  <div id="out"></div>
+</div>
+<script>
+let currentFile=null, currentHeaders=[];
+function pickFile(e){const f=e.target.files[0];if(!f)return;currentFile=f;document.getElementById('fname').textContent=f.name;document.getElementById('csv').value='';}
+function getFile(){
+  if(currentFile)return currentFile;
+  const text=document.getElementById('csv').value.trim();
+  if(!text)return null;
+  return new File([text],'data.csv',{type:'text/csv'});
+}
+function analyze(){
+  const f=getFile();
+  if(!f){alert('CSV/엑셀 파일을 열거나 데이터를 붙여넣으세요.');return;}
+  currentFile=f;
+  const fd=new FormData();fd.append('file',f);
+  fetch('/api/analyze',{method:'POST',body:fd}).then(r=>r.json().then(d=>({ok:r.ok,d}))).then(x=>{
+    if(!x.ok){alert('오류: '+(x.d.error?x.d.error.message:''));return;}
+    render(x.d);
+  });
+}
+function render(d){
+  currentHeaders=d.headers;
+  let h='<div class="panel"><h2>개요</h2><div>행 <b>'+d.rowCount+'</b> · 열 <b>'+d.colCount+'</b></div>';
+  h+='<div class="scroll" style="margin-top:10px"><table><thead><tr>'+d.headers.map(x=>'<th>'+esc(x)+'</th>').join('')+'</tr></thead><tbody>';
+  for(const row of d.preview)h+='<tr>'+row.map(c=>'<td>'+esc(c==null?'':c)+'</td>').join('')+'</tr>';
+  h+='</tbody></table></div></div>';
+  h+='<div class="panel"><h2>열별 요약</h2><div class="stats">';
+  for(const c of d.columns){
+    h+='<div class="card"><div class="nm">'+esc(c.name)+' <span class="badge '+(c.type==='numeric'?'b-num':'b-cat')+'">'+(c.type==='numeric'?'수치':'범주')+'</span></div><div class="kv">';
+    const s=c.stats;
+    if(c.type==='numeric')h+='건수 '+s.count+' · 결측 '+s.missing+'<br>평균 '+fmt(s.mean)+' · 표준편차 '+fmt(s.std)+'<br>최소 '+fmt(s.min)+' · 중앙 '+fmt(s.median)+' · 최대 '+fmt(s.max)+'<br>합계 '+fmt(s.sum);
+    else{h+='건수 '+s.count+' · 결측 '+s.missing+' · 고유값 '+s.unique+'<br>';h+=(s.top||[]).map(t=>esc(t.value)+' ('+t.count+')').join(', ');}
+    h+='</div></div>';
+  }
+  h+='</div></div>';
+  // 차트
+  h+='<div class="panel"><h2>차트 생성</h2><div class="toolbar">';
+  h+='<select id="chartCol">'+d.headers.map(x=>'<option>'+esc(x)+'</option>').join('')+'</select>';
+  h+='<select id="chartKind"><option value="auto">자동</option><option value="bar">막대</option><option value="hist">분포(히스토그램)</option><option value="pie">원(구성비)</option></select>';
+  h+='<button class="btn-primary" onclick="makeChart()">차트 만들기</button><button id="chartDl" onclick="dlChart()" style="display:none">PNG 다운로드</button></div>';
+  h+='<div id="chartBox" style="margin-top:12px"></div></div>';
+  document.getElementById('out').innerHTML=h;
+}
+let chartUrl=null;
+function makeChart(){
+  if(!currentFile){alert('먼저 분석하세요.');return;}
+  const fd=new FormData();fd.append('file',currentFile);
+  fd.append('column',document.getElementById('chartCol').value);
+  fd.append('kind',document.getElementById('chartKind').value);
+  fetch('/api/chart',{method:'POST',body:fd}).then(r=>{if(!r.ok)return r.json().then(d=>{throw new Error(d.error?d.error.message:'오류');});return r.blob();})
+    .then(b=>{if(chartUrl)URL.revokeObjectURL(chartUrl);chartUrl=URL.createObjectURL(b);
+      document.getElementById('chartBox').innerHTML='<img id="chartImg" src="'+chartUrl+'">';
+      document.getElementById('chartDl').style.display='inline-block';})
+    .catch(e=>alert('오류: '+e.message));
+}
+function dlChart(){if(!chartUrl)return;const a=document.createElement('a');a.href=chartUrl;a.download='차트.png';a.click();}
+function fmt(v){return v==null?'-':Number(v).toLocaleString('ko');}
+function esc(s){return (''+s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function loadSample(){
+  currentFile=null;document.getElementById('fname').textContent='';
+  document.getElementById('csv').value=['반,점수,성별','1반,88,남','1반,92,여','2반,75,남','2반,81,여','3반,95,남','3반,68,여','1반,79,남','2반,84,여','3반,90,남'].join('\n');
+}
+</script></body></html>

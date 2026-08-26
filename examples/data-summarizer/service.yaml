@@ -1,0 +1,14 @@
+name: 표 데이터 통계 요약·차트 생성기
+slug: data-summarizer
+category: data
+purposes:
+  - analyze
+  - summary
+tech:
+  - Python
+summary: CSV·엑셀 표를 올리면 열별 요약 통계를 계산하고 막대·분포·원 차트 이미지를 만들어 주는 개인용 단발 도구.
+port: 8080
+health: /healthz
+resources:
+  cpu: 400m
+  memory: 512Mi

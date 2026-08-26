@@ -440,15 +440,112 @@ fun main() {
     embeddedServer(Netty, port = port, host = "0.0.0.0", module = Application::module).start(wait = true)
 }
 
-const val INDEX = """<!doctype html><html lang=ko><meta charset=utf-8>
-<title>통계·보고 관리 · report-hub</title>
-<style>body{font-family:system-ui,'Malgun Gothic',sans-serif;max-width:820px;margin:32px auto;padding:0 16px;color:#1e293b}
-h1{font-size:22px}code{background:#eef2f8;padding:2px 6px;border-radius:5px}li{margin:5px 0}</style>
-<h1>통계/보고 자료 관리 (report-hub)</h1>
-<p>보고 항목 정의 → 수집(기관별 제출) → 집계 → 승인 → 공개 흐름을 관리합니다.</p><ul>
-<li><code>GET /healthz</code></li>
-<li><code>GET /api/reports?status=&category=&q=&page=&size=</code></li>
-<li><code>POST /api/reports</code> 보고 생성(fields 정의) · <code>PATCH</code> 수정</li>
-<li><code>POST /api/reports/{id}/open|submit|close|approve|publish|reopen</code></li>
-<li><code>GET /api/reports/{id}/aggregate|submissions|history|export</code> · <code>GET /api/stats</code></li>
-</ul><p>집계는 항목별 합계·평균·최소·최대·건수 자동 산출. 샘플 3건 시드. 배포 경로 <code>/svc/report-hub</code>.</p></html>"""
+const val INDEX = """<!doctype html><html lang=ko><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width, initial-scale=1"><title>통계·보고 자료 관리</title>
+<style>
+:root{--line:#e2e8f0;--ink:#1e293b;--mut:#64748b;--blue:#2563eb;--bg:#f8fafc}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,'Malgun Gothic',sans-serif;color:var(--ink);background:var(--bg)}
+header{background:#fff;border-bottom:1px solid var(--line);padding:16px 24px}header h1{font-size:20px;margin:0}header p{margin:4px 0 0;color:var(--mut);font-size:13px}
+.wrap{max-width:1160px;margin:0 auto;padding:20px 24px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px}.card .lbl{font-size:12px;color:var(--mut)}.card .val{font-size:22px;font-weight:800;margin-top:4px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+input,select,button,textarea{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}button{cursor:pointer}.btn-primary{background:var(--blue);color:#fff;border-color:var(--blue);font-weight:600}.btn-sm{padding:4px 8px;font-size:12px}
+table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line)}th{background:#f1f5f9;color:var(--mut);font-size:11px}tr:last-child td{border-bottom:none}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700}
+.s-DRAFT{background:#e2e8f0;color:#475569}.s-COLLECTING{background:#fef3c7;color:#92400e}.s-AGGREGATED{background:#dbeafe;color:#1e40af}.s-APPROVED{background:#cffafe;color:#155e75}.s-PUBLISHED{background:#dcfce7;color:#166534}
+.miss{color:#dc2626;font-size:12px}
+dialog{border:none;border-radius:14px;max-width:600px;width:94%;padding:0}form,.dlg{padding:20px}h3{margin:0 0 14px}.fld{margin-bottom:10px}.fld label{display:block;font-size:12px;color:var(--mut);margin-bottom:4px}.fld input,.fld select,.fld textarea{width:100%;font:inherit}.rw{display:flex;gap:8px}.rw>*{flex:1}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.mini{background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:10px}
+</style></head><body>
+<header><h1>통계·보고 자료 관리</h1><p>항목 정의 → 수집(기관별 제출) → 집계 → 승인 → 공개</p></header>
+<div class="wrap">
+<div class="stats" id="stats"></div>
+<div class="toolbar"><input id="q" placeholder="보고명 검색" style="min-width:200px">
+<select id="fstatus"><option value="">전체 상태</option></select><button data-a="reload">조회</button>
+<span style="flex:1"></span><button class="btn-primary" data-a="open-reg">+ 보고 생성</button></div>
+<table><thead><tr><th>보고명</th><th>분류</th><th>기간</th><th>상태</th><th>제출률</th><th>처리</th></tr></thead><tbody id="rows"></tbody></table>
+</div>
+<dialog id="reg"><form id="regform"><h3>보고 생성</h3>
+<div class="fld"><label>보고명 *</label><input id="r-title" required></div>
+<div class="rw"><div class="fld"><label>분류</label><input id="r-cat" placeholder="학사/시설/안전 등"></div><div class="fld"><label>기간</label><input id="r-period" placeholder="2026-09"></div></div>
+<div class="fld"><label>마감일</label><input id="r-due" type="date"></div>
+<div class="fld"><label>수집 항목 * (한 줄에 하나: 키:이름 또는 키:이름:avg)</label><textarea id="r-fields" rows=3 placeholder="boys:남학생&#10;girls:여학생&#10;score:만족도:avg" required></textarea></div>
+<div class="fld"><label>대상 기관 (쉼표 구분, 선택)</label><input id="r-orgs" placeholder="A학교, B학교, C학교"></div>
+<div class="modal-actions"><button type="button" data-a="close-reg">취소</button><button class="btn-primary" type="submit">생성</button></div>
+</form></dialog>
+<dialog id="det"><div class="dlg" id="detBody"></div></dialog>
+<script>
+var STS={DRAFT:'초안',COLLECTING:'수집중',AGGREGATED:'집계',APPROVED:'승인',PUBLISHED:'공개'};
+function esc(s){s=s==null?'':(''+s);return s.replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+function opt(sel,obj){for(var k in obj){var o=document.createElement('option');o.value=k;o.textContent=obj[k];sel.appendChild(o);}}
+opt(document.getElementById('fstatus'),STS);
+function jget(u){return fetch(u).then(function(r){return r.json();});}
+function jpost(u,b){return fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})}).then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d};});});}
+function actBtns(o){var arr=[];var id=o.id;
+ arr.push(['상세','detail',id]);
+ if(o.status==='DRAFT')arr.push(['수집개시','op:open',id]);
+ else if(o.status==='COLLECTING')arr.push(['마감','op:close',id]);
+ else if(o.status==='AGGREGATED'){arr.push(['승인','op:approve',id]);arr.push(['재개','rs:reopen',id]);}
+ else if(o.status==='APPROVED'){arr.push(['공개','op:publish',id]);arr.push(['재개','rs:reopen',id]);}
+ else if(o.status==='PUBLISHED')arr.push(['정정재공개','rs:reopen',id]);
+ return arr.map(function(a){return '<button class="btn-sm" data-a="'+a[1]+'" data-id="'+a[2]+'">'+a[0]+'</button>';}).join(' ');}
+function load(){
+ var q=new URLSearchParams();var qq=document.getElementById('q').value.trim();if(qq)q.set('q',qq);
+ var st=document.getElementById('fstatus').value;if(st)q.set('status',st);q.set('size','100');
+ jget('/api/reports?'+q).then(function(d){var rows=document.getElementById('rows');rows.innerHTML='';
+  if(!d.items.length)rows.innerHTML='<tr><td colspan=6 style="text-align:center;color:#94a3b8;padding:30px">보고가 없습니다.</td></tr>';
+  d.items.forEach(function(o){var tr=document.createElement('tr');
+   var rate=(o.targetOrgs&&o.targetOrgs.length)?(o.submissionRate+'% ('+o.submissionCount+'/'+o.targetOrgs.length+')'):(o.submissionCount+'건');
+   tr.innerHTML='<td><b>'+esc(o.title)+'</b></td><td>'+esc(o.category||'')+'</td><td>'+esc(o.period||'')+'</td>'+
+    '<td><span class="badge s-'+o.status+'">'+STS[o.status]+'</span></td><td>'+rate+'</td><td>'+actBtns(o)+'</td>';
+   rows.appendChild(tr);});});
+ jget('/api/stats').then(function(s){var bs=s.byStatus||{};document.getElementById('stats').innerHTML=
+  card('전체',s.total+'건')+card('수집중',(bs.COLLECTING||0)+'건')+card('공개',(bs.PUBLISHED||0)+'건')+card('총 제출',s.totalSubmissions+'건');});
+}
+function card(l,v){return '<div class="card"><div class="lbl">'+l+'</div><div class="val">'+v+'</div></div>';}
+function op(id,kind){jpost('/api/reports/'+id+'/'+kind,{actor:'담당자'}).then(function(r){if(!r.ok)alert('오류: '+(r.d.error?r.d.error.message:''));load();if(document.getElementById('det').open)detail(id);});}
+function rs(id,kind){var reason=prompt('사유(정정 등)');jpost('/api/reports/'+id+'/'+kind,{reason:reason||'',actor:'담당자'}).then(function(r){if(!r.ok)alert('오류: '+(r.d.error?r.d.error.message:''));load();if(document.getElementById('det').open)detail(id);});}
+function agRow(f,ag){var a=ag[f.key]||{};var main=f.type==='avg'?('평균 '+(a.avg!=null?a.avg:'-')+(a.weightedAvg!=null?(' / 가중 '+a.weightedAvg):'')):('합계 '+(a.sum!=null?a.sum:'-'));
+ return '<tr><td>'+esc(f.label)+'</td><td>'+(a.count||0)+'</td><td>'+main+'</td><td>'+(a.min!=null?a.min:'-')+'</td><td>'+(a.max!=null?a.max:'-')+'</td></tr>';}
+function detail(id){jget('/api/reports/'+id).then(function(o){
+ var h='<h3>'+esc(o.title)+' <span class="badge s-'+o.status+'">'+STS[o.status]+'</span></h3>';
+ h+='<p style="color:#64748b;font-size:13px;margin:0 0 8px">'+esc(o.category||'')+' · '+esc(o.period||'')+(o.dueDate?(' · 마감 '+o.dueDate):'')+'</p>';
+ if(o.targetOrgs&&o.targetOrgs.length){h+='<p style="font-size:13px;margin:0 0 8px">제출률 <b>'+o.submissionRate+'%</b> ('+o.submissionCount+'/'+o.targetOrgs.length+')';
+  if(o.missingOrgs&&o.missingOrgs.length)h+=' <span class="miss">미제출: '+o.missingOrgs.map(esc).join(', ')+'</span>';h+='</p>';}
+ h+='<div style="font-weight:700;font-size:13px;margin:10px 0 4px">집계</div>';
+ h+='<table><thead><tr><th>항목</th><th>건수</th><th>집계</th><th>최소</th><th>최대</th></tr></thead><tbody>';
+ o.fields.forEach(function(f){h+=agRow(f,o.aggregate||{});});h+='</tbody></table>';
+ if(o.status==='COLLECTING'){h+='<div class="mini"><div style="font-weight:700;font-size:13px;margin-bottom:6px">기관 제출 입력</div>';
+  h+='<input id="sf-org" placeholder="기관명" style="width:100%;margin-bottom:6px">';
+  o.fields.forEach(function(f){h+='<div class="rw" style="align-items:center;margin-bottom:4px"><label style="flex:1;font-size:12px;color:#64748b">'+esc(f.label)+' ('+f.type+')</label><input id="sf-'+f.key+'" type="number" step="any" style="flex:1"></div>';});
+  h+='<button class="btn-primary btn-sm" data-a="submit" data-id="'+id+'">제출 등록</button></div>';}
+ h+='<div style="font-weight:700;font-size:13px;margin:12px 0 4px">제출 기관 ('+o.submissionCount+')</div>';
+ if(!o.submissions||!o.submissions.length)h+='<p style="color:#94a3b8;font-size:13px;margin:0">제출 없음</p>';
+ else h+='<p style="font-size:13px;margin:0">'+o.submissions.map(function(s){return esc(s.org);}).join(', ')+'</p>';
+ h+='<div class="modal-actions"><a href="/api/reports/'+id+'/export" style="text-decoration:none"><button type="button">CSV</button></a><button type="button" data-a="close-det">닫기</button></div>';
+ document.getElementById('detBody').innerHTML=h;window._rid=id;window._fields=o.fields;if(!document.getElementById('det').open)det.showModal();});}
+function doSubmit(id){var org=document.getElementById('sf-org').value.trim();if(!org){alert('기관명을 입력하세요');return;}
+ var values={};var fields=window._fields||[];for(var i=0;i<fields.length;i++){var el=document.getElementById('sf-'+fields[i].key);if(el&&el.value!=='')values[fields[i].key]=parseFloat(el.value);}
+ jpost('/api/reports/'+id+'/submit',{org:org,values:values,actor:org}).then(function(r){if(!r.ok){alert('오류: '+(r.d.error?r.d.error.message:''));return;}detail(id);load();});}
+function submitReg(){
+ var lines=document.getElementById('r-fields').value.split('\n');var fields=[];
+ for(var i=0;i<lines.length;i++){var t=lines[i].trim();if(!t)continue;var p=t.split(':');if(p.length<2)continue;var fo={key:p[0].trim(),label:p[1].trim()};if(p[2]&&p[2].trim())fo.type=p[2].trim();fields.push(fo);}
+ if(!fields.length){alert('수집 항목을 1개 이상 입력하세요 (키:이름)');return;}
+ var orgsStr=document.getElementById('r-orgs').value.trim();var orgs=orgsStr?orgsStr.split(',').map(function(x){return x.trim();}).filter(Boolean):[];
+ jpost('/api/reports',{title:document.getElementById('r-title').value,category:document.getElementById('r-cat').value,period:document.getElementById('r-period').value,dueDate:document.getElementById('r-due').value,fields:fields,targetOrgs:orgs}).then(function(r){
+  if(!r.ok){alert('오류: '+(r.d.error?r.d.error.message:''));return;}reg.close();document.getElementById('r-title').value='';document.getElementById('r-fields').value='';load();});}
+document.addEventListener('click',function(e){var t=e.target.closest('[data-a]');if(!t)return;var a=t.getAttribute('data-a');var id=t.getAttribute('data-id');
+ if(a==='reload')load();
+ else if(a==='open-reg')reg.showModal();
+ else if(a==='close-reg')reg.close();
+ else if(a==='close-det')det.close();
+ else if(a==='detail')detail(id);
+ else if(a==='submit')doSubmit(id);
+ else if(a.indexOf('op:')===0)op(id,a.slice(3));
+ else if(a.indexOf('rs:')===0)rs(id,a.slice(3));});
+document.getElementById('regform').addEventListener('submit',function(e){e.preventDefault();submitReg();});
+load();
+</script></body></html>"""

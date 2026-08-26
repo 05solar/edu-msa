@@ -533,19 +533,94 @@ async fn stats(State(db): State<Db>) -> Json<Value> {
     }))
 }
 
-const INDEX: &str = r#"<!doctype html><html lang=ko><meta charset=utf-8>
-<title>학교 안전점검 · safety-check</title>
-<style>body{font-family:system-ui,'Malgun Gothic',sans-serif;max-width:820px;margin:32px auto;padding:0 16px;color:#1e293b}
-h1{font-size:22px}code{background:#eef2f8;padding:2px 6px;border-radius:5px}li{margin:5px 0}</style>
-<h1>학교 안전점검 (safety-check)</h1>
-<p>점검계획 → 수행(체크리스트) → 지적사항 → 개선조치 → 완료 흐름을 관리합니다.</p><ul>
-<li><code>GET /healthz</code></li>
-<li><code>GET /api/inspections?status=&type=&area=&inspector=&q=&page=&size=</code></li>
-<li><code>POST /api/inspections</code> 계획수립 · <code>PATCH /api/inspections/{id}</code> 수정</li>
-<li><code>POST /api/inspections/{id}/start|check|findings|complete|cancel</code></li>
-<li><code>POST /api/inspections/{id}/findings/{fid}/resolve|reopen</code> 개선조치·재개</li>
-<li><code>GET /api/inspections/{id}/history</code> · <code>GET /api/stats</code></li>
-</ul><p>FAIL 항목은 지적사항 자동 생성, 미조치 지적이 있으면 완료 불가. 샘플 3건 시드. 배포 경로 <code>/svc/safety-check</code>.</p></html>"#;
+const INDEX: &str = r#"<!doctype html><html lang=ko><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width, initial-scale=1"><title>학교 안전점검</title>
+<style>
+:root{--line:#e2e8f0;--ink:#1e293b;--mut:#64748b;--blue:#2563eb;--bg:#f8fafc}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,'Malgun Gothic',sans-serif;color:var(--ink);background:var(--bg)}
+header{background:#fff;border-bottom:1px solid var(--line);padding:16px 24px}header h1{font-size:20px;margin:0}header p{margin:4px 0 0;color:var(--mut);font-size:13px}
+.wrap{max-width:1160px;margin:0 auto;padding:20px 24px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px}.card .lbl{font-size:12px;color:var(--mut)}.card .val{font-size:22px;font-weight:800;margin-top:4px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+input,select,button{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}button{cursor:pointer}.btn-primary{background:var(--blue);color:#fff;border-color:var(--blue);font-weight:600}.btn-sm{padding:4px 8px;font-size:12px}
+table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line)}th{background:#f1f5f9;color:var(--mut);font-size:11px}tr:last-child td{border-bottom:none}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700}
+.s-PLANNED{background:#e0e7ff;color:#3730a3}.s-IN_PROGRESS{background:#fef3c7;color:#92400e}.s-COMPLETED{background:#dcfce7;color:#166534}.s-CANCELED{background:#e2e8f0;color:#475569}
+.r-PASS{background:#dcfce7;color:#166534}.r-FAIL{background:#fee2e2;color:#991b1b}.r-NA{background:#e2e8f0;color:#475569}.r-{background:#f1f5f9;color:#94a3b8}
+.ovd{color:#dc2626;font-weight:700}
+dialog{border:none;border-radius:14px;max-width:560px;width:94%;padding:0}form,.dlg{padding:20px}h3{margin:0 0 14px}.fld{margin-bottom:10px}.fld label{display:block;font-size:12px;color:var(--mut);margin-bottom:4px}.fld input,.fld select{width:100%;font:inherit}.rw{display:flex;gap:8px}.rw>*{flex:1}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.itm{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px}.itm .lb{flex:1}
+</style></head><body>
+<header><h1>학교 안전점검</h1><p>계획 → 수행(체크리스트) → 지적사항 → 개선조치 → 완료</p></header>
+<div class="wrap">
+<div class="stats" id="stats"></div>
+<div class="toolbar"><input id="q" placeholder="점검명·구역 검색" style="min-width:200px">
+<select id="fstatus"><option value="">전체 상태</option></select><select id="ftype"><option value="">전체 유형</option></select><button onclick="load()">조회</button>
+<span style="flex:1"></span><button class="btn-primary" onclick="reg.showModal()">+ 점검 계획</button></div>
+<table><thead><tr><th>점검명</th><th>유형</th><th>구역</th><th>예정일</th><th>상태</th><th>지적</th><th>처리</th></tr></thead><tbody id="rows"></tbody></table>
+</div>
+<dialog id="reg"><form onsubmit="return submitReg(event)"><h3>점검 계획 수립</h3>
+<div class="fld"><label>점검명 *</label><input id="r-title" required></div>
+<div class="rw"><div class="fld"><label>유형 *</label><select id="r-type"></select></div><div class="fld"><label>구역 *</label><input id="r-area" required></div></div>
+<div class="rw"><div class="fld"><label>예정일 *</label><input id="r-date" type="date" required></div><div class="fld"><label>점검자</label><input id="r-insp"></div></div>
+<p style="font-size:12px;color:#64748b;margin:2px 0 0">유형별 표준 체크리스트가 자동 구성됩니다.</p>
+<div class="modal-actions"><button type="button" onclick="reg.close()">취소</button><button class="btn-primary" type="submit">등록</button></div>
+</form></dialog>
+<dialog id="det"><div class="dlg" id="detBody"></div></dialog>
+<script>
+var TYPES=['소방','전기','가스','승강기','석면','시설','급식위생'];
+var STS={PLANNED:'계획',IN_PROGRESS:'진행중',COMPLETED:'완료',CANCELED:'취소'};
+var RS={PASS:'적합',FAIL:'부적합',NA:'해당없음','':'미판정'};
+function esc(s){s=s==null?'':(''+s);return s.replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+function opt(sel,arr,lbl){for(var i=0;i<arr.length;i++){var o=document.createElement('option');o.value=arr[i];o.textContent=lbl?(lbl[arr[i]]||arr[i]):arr[i];sel.appendChild(o);}}
+opt(document.getElementById('fstatus'),Object.keys(STS),STS);opt(document.getElementById('ftype'),TYPES);opt(document.getElementById('r-type'),TYPES);
+function jget(u){return fetch(u).then(function(r){return r.json();});}
+function jpost(u,b){return fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})}).then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d};});});}
+function acts(o){var b=function(t,f){return '<button class="btn-sm" onclick="'+f+'">'+t+'</button> ';};var id=o.id;
+ var det=b('상세',"detail("+id+")");
+ if(o.status==='PLANNED')return b('시작',"act("+id+",'start')")+det+b('취소',"reason("+id+",'cancel')");
+ if(o.status==='IN_PROGRESS')return det+b('완료',"act("+id+",'complete')");
+ return det;}
+function load(){
+ var q=new URLSearchParams();var qq=document.getElementById('q').value.trim();if(qq)q.set('q',qq);
+ var st=document.getElementById('fstatus').value;if(st)q.set('status',st);var tp=document.getElementById('ftype').value;if(tp)q.set('type',tp);q.set('size','100');
+ jget('/api/inspections?'+q).then(function(d){var rows=document.getElementById('rows');rows.innerHTML='';
+  if(!d.items.length)rows.innerHTML='<tr><td colspan=7 style="text-align:center;color:#94a3b8;padding:30px">점검 계획이 없습니다.</td></tr>';
+  d.items.forEach(function(o){var tr=document.createElement('tr');var of=o.openFindings||0;
+   tr.innerHTML='<td><b>'+esc(o.title)+'</b></td><td>'+o.kind+'</td><td>'+esc(o.area)+'</td><td>'+(o.scheduledDate||'')+'</td>'+
+    '<td><span class="badge s-'+o.status+'">'+STS[o.status]+'</span></td><td>'+(of>0?'<span class=ovd>'+of+'건</span>':'0')+'</td><td>'+acts(o)+'</td>';
+   rows.appendChild(tr);});});
+ jget('/api/stats').then(function(s){var bs=s.byStatus||{};document.getElementById('stats').innerHTML=
+  card('전체',s.total+'건')+card('진행중',(bs.IN_PROGRESS||0)+'건')+card('미조치 지적',s.openFindings+'건')+card('기한초과 지적',s.overdueFindings+'건');});
+}
+function card(l,v){return '<div class="card"><div class="lbl">'+l+'</div><div class="val">'+v+'</div></div>';}
+function act(id,kind){jpost('/api/inspections/'+id+'/'+kind,{actor:'안전관리자'}).then(function(r){if(!r.ok)alert('오류: '+(r.d.error?r.d.error.message:''));load();if(document.getElementById('det').open)detail(id);});}
+function reason(id,kind){var r=prompt('사유');if(!r)return;jpost('/api/inspections/'+id+'/'+kind,{reason:r,actor:'안전관리자'}).then(function(x){if(!x.ok)alert('오류: '+(x.d.error?x.d.error.message:''));load();});}
+function check(id,code,result){jpost('/api/inspections/'+id+'/check',{code:code,result:result,actor:'점검자'}).then(function(r){if(!r.ok)alert('오류: '+(r.d.error?r.d.error.message:''));detail(id);load();});}
+function resolve(id,fid){var m=prompt('개선조치 내용');if(!m)return;jpost('/api/inspections/'+id+'/findings/'+fid+'/resolve',{resolution:m,actor:'담당자'}).then(function(r){if(!r.ok)alert('오류: '+(r.d.error?r.d.error.message:''));detail(id);load();});}
+function reopenF(id,fid){jpost('/api/inspections/'+id+'/findings/'+fid+'/reopen',{actor:'담당자'}).then(function(r){if(!r.ok)alert('오류');detail(id);load();});}
+function detail(id){jget('/api/inspections/'+id).then(function(o){var running=o.status==='IN_PROGRESS';
+ var h='<h3>'+esc(o.title)+' <span class="badge s-'+o.status+'">'+STS[o.status]+'</span></h3>';
+ h+='<p style="color:#64748b;font-size:13px;margin:0 0 10px">'+o.kind+' · '+esc(o.area)+' · 예정 '+(o.scheduledDate||'')+'</p>';
+ h+='<div style="font-weight:700;font-size:13px;margin:8px 0 4px">체크리스트</div>';
+ (o.items||[]).forEach(function(it){h+='<div class="itm"><span class="lb">'+esc(it.label)+' <span style=color:#94a3b8>('+it.code+')</span></span>'+
+   '<span class="badge r-'+it.result+'">'+RS[it.result]+'</span>'+
+   (running?' <button class="btn-sm r-PASS" onclick="check('+id+",'"+it.code+"','PASS')\">적합</button> <button class=\"btn-sm r-FAIL\" onclick=\"check("+id+",'"+it.code+"','FAIL')\">부적합</button>":'')+'</div>';});
+ h+='<div style="font-weight:700;font-size:13px;margin:12px 0 4px">지적사항</div>';
+ if(!(o.findings||[]).length)h+='<p style="color:#94a3b8;font-size:13px;margin:0">지적사항 없음</p>';
+ (o.findings||[]).forEach(function(f){h+='<div class="itm"><span class="lb">'+esc(f.description)+' <span style=color:#94a3b8>['+f.severity+']</span> '+
+   (f.overdue?'<span class=ovd>기한초과</span>':'')+'</span><span class="badge '+(f.status==='OPEN'?'r-FAIL':'r-PASS')+'">'+(f.status==='OPEN'?'미조치':'조치완료')+'</span>'+
+   (f.status==='OPEN'?' <button class="btn-sm" onclick="resolve('+id+','+f.id+')">조치</button>':' <button class="btn-sm" onclick="reopenF('+id+','+f.id+')">재개</button>')+'</div>';});
+ h+='<div class="modal-actions"><button onclick="det.close()">닫기</button></div>';
+ document.getElementById('detBody').innerHTML=h;if(!document.getElementById('det').open)det.showModal();});}
+function submitReg(e){e.preventDefault();
+ jpost('/api/inspections',{title:document.getElementById('r-title').value,type:document.getElementById('r-type').value,area:document.getElementById('r-area').value,scheduledDate:document.getElementById('r-date').value,inspector:document.getElementById('r-insp').value}).then(function(r){
+  if(!r.ok){alert('오류: '+(r.d.error?r.d.error.message:''));return;}reg.close();document.getElementById('r-title').value='';load();});return false;}
+load();
+</script></body></html>"#;
 
 #[tokio::main]
 async fn main() {

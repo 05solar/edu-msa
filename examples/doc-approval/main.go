@@ -631,27 +631,75 @@ func (s *Server) stats(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-const indexHTML = `<!doctype html><html lang="ko"><meta charset="utf-8">
-<title>공문 결재 · doc-approval</title>
-<style>body{font-family:system-ui,"Malgun Gothic",sans-serif;max-width:820px;margin:32px auto;padding:0 16px;color:#1e293b}
-h1{font-size:22px}code{background:#eef2f8;padding:2px 6px;border-radius:5px}li{margin:5px 0}</style>
-<h1>공문/업무요청 결재 워크플로 (doc-approval)</h1>
-<p>기안 → 상신 → 결재선 검토/승인 → 승인/반려 흐름을 처리하는 서비스입니다.</p>
-<ul>
-<li><code>GET /healthz</code> 상태</li>
-<li><code>GET /api/documents?status=&q=&page=&size=</code> 목록·검색·페이지</li>
-<li><code>POST /api/documents</code> 기안 등록</li>
-<li><code>GET /api/documents/{id}</code> 상세</li>
-<li><code>PATCH /api/documents/{id}</code> 수정 (기안/반려/회수 문서 → 재상신 가능)</li>
-<li><code>POST /api/documents/{id}/submit</code> 상신</li>
-<li><code>POST /api/documents/{id}/approve</code> 승인 (본문 <code>actor</code>=결재자)</li>
-<li><code>POST /api/documents/{id}/reject</code> 반려 (comment 필수)</li>
-<li><code>POST /api/documents/{id}/withdraw</code> 회수 (기안자)</li>
-<li><code>GET /api/documents/{id}/audit</code> 감사이력</li>
-<li><code>GET /api/stats</code> 통계</li>
-</ul>
-<p>샘플 문서 3건이 시드되어 있습니다.</p>
-</html>`
+const indexHTML = `<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>공문/업무요청 결재</title>
+<style>
+:root{--line:#e2e8f0;--ink:#1e293b;--mut:#64748b;--blue:#2563eb;--bg:#f8fafc}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,'Malgun Gothic',sans-serif;color:var(--ink);background:var(--bg)}
+header{background:#fff;border-bottom:1px solid var(--line);padding:16px 24px}header h1{font-size:20px;margin:0}header p{margin:4px 0 0;color:var(--mut);font-size:13px}
+.wrap{max-width:1080px;margin:0 auto;padding:20px 24px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px}.card .lbl{font-size:12px;color:var(--mut)}.card .val{font-size:22px;font-weight:800;margin-top:4px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+input,select,button{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}button{cursor:pointer}.btn-primary{background:var(--blue);color:#fff;border-color:var(--blue);font-weight:600}.btn-sm{padding:4px 8px;font-size:12px}
+table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line)}th{background:#f1f5f9;color:var(--mut);font-size:11px;text-transform:uppercase}tr:last-child td{border-bottom:none}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700}
+.s-DRAFT{background:#e2e8f0;color:#475569}.s-IN_REVIEW{background:#fef3c7;color:#92400e}.s-APPROVED{background:#dcfce7;color:#166534}.s-REJECTED{background:#fee2e2;color:#991b1b}.s-WITHDRAWN{background:#e0e7ff;color:#3730a3}
+dialog{border:none;border-radius:14px;max-width:440px;width:92%;padding:0}form{padding:20px}form h3{margin:0 0 14px}.fld{margin-bottom:10px}.fld label{display:block;font-size:12px;color:var(--mut);margin-bottom:4px}.fld input{width:100%}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+</style></head><body>
+<header><h1>공문/업무요청 결재</h1><p>기안 → 상신 → 결재선(검토/승인/전결) → 승인/반려</p></header>
+<div class="wrap">
+<div class="stats" id="stats"></div>
+<div class="toolbar"><input id="q" placeholder="제목·기안자 검색" style="min-width:200px">
+<select id="fstatus"><option value="">전체 상태</option></select><button onclick="load()">조회</button>
+<span style="flex:1"></span><button class="btn-primary" onclick="reg.showModal()">+ 기안 작성</button></div>
+<table><thead><tr><th>제목</th><th>유형</th><th>기안자</th><th>상태</th><th>현재 결재자</th><th>처리</th></tr></thead><tbody id="rows"></tbody></table>
+</div>
+<dialog id="reg"><form onsubmit="return submitReg(event)"><h3>기안 작성</h3>
+<div class="fld"><label>제목 *</label><input id="r-title" required></div>
+<div class="fld"><label>기안자 *</label><input id="r-drafter" required></div>
+<div class="fld"><label>결재선(쉼표로 구분, 마지막=승인) *</label><input id="r-approvers" placeholder="박서준, 정우성" required></div>
+<div class="modal-actions"><button type="button" onclick="reg.close()">취소</button><button class="btn-primary" type="submit">등록</button></div>
+</form></dialog>
+<script>
+var STS={DRAFT:'기안',IN_REVIEW:'결재중',APPROVED:'승인',REJECTED:'반려',WITHDRAWN:'회수'};
+function esc(s){s=s||'';return s.replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+function opt(sel,arr){for(var i=0;i<arr.length;i++){var o=document.createElement('option');o.value=arr[i];o.textContent=STS[arr[i]]||arr[i];sel.appendChild(o);}}
+opt(document.getElementById('fstatus'),Object.keys(STS));
+function jget(u){return fetch(u).then(function(r){return r.json();});}
+function jpost(u,b){return fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})}).then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d};});});}
+function curApprover(d){if(!d.line)return '-';for(var i=0;i<d.line.length;i++){if(d.line[i].order===d.currentStep)return esc(d.line[i].approver)+' ('+d.line[i].role+')';}return '-';}
+function acts(d){var b=function(t,f){return '<button class="btn-sm" onclick="'+f+'">'+t+'</button> ';};
+ if(d.status==='DRAFT')return b('상신',"act('"+d.id+"','submit')");
+ if(d.status==='IN_REVIEW')return b('승인',"decide("+d.id+",'approve')")+b('반려',"decide("+d.id+",'reject')");
+ return '-';}
+function load(){
+ var q=new URLSearchParams();var qq=document.getElementById('q').value.trim();if(qq)q.set('q',qq);
+ var st=document.getElementById('fstatus').value;if(st)q.set('status',st);q.set('size','100');
+ jget('/api/documents?'+q).then(function(d){
+  var rows=document.getElementById('rows');rows.innerHTML='';
+  if(!d.items.length)rows.innerHTML='<tr><td colspan=6 style="text-align:center;color:#94a3b8;padding:30px">문서가 없습니다.</td></tr>';
+  d.items.forEach(function(x){var tr=document.createElement('tr');
+   tr.innerHTML='<td><b>'+esc(x.title)+'</b></td><td>'+x.docType+'</td><td>'+esc(x.drafter)+'</td>'+
+    '<td><span class="badge s-'+x.status+'">'+STS[x.status]+'</span></td><td>'+curApprover(x)+'</td><td>'+acts(x)+'</td>';
+   rows.appendChild(tr);});
+ });
+ jget('/api/stats').then(function(s){document.getElementById('stats').innerHTML=
+  card('전체',s.total+'건')+card('결재중',(s.byStatus.IN_REVIEW||0)+'건')+card('승인',(s.byStatus.APPROVED||0)+'건')+card('긴급',s.urgent+'건');});
+}
+function card(l,v){return '<div class="card"><div class="lbl">'+l+'</div><div class="val">'+v+'</div></div>';}
+function act(id,kind){var b={actor:'담당자'};jpost('/api/documents/'+id+'/'+kind,b).then(function(r){if(!r.ok)alert('오류: '+(r.d.error?r.d.error.message:''));load();});}
+function decide(id,kind){var who=prompt('결재자 이름');if(!who)return;var b={actor:who};if(kind==='reject'){var c=prompt('반려 사유');if(!c)return;b.comment=c;}else{b.comment=prompt('의견(선택)')||'';}
+ jpost('/api/documents/'+id+'/'+kind,b).then(function(r){if(!r.ok)alert('오류: '+(r.d.error?r.d.error.message:''));load();});}
+function submitReg(e){e.preventDefault();
+ var ap=document.getElementById('r-approvers').value.split(',').map(function(s){return s.trim();}).filter(Boolean);
+ jpost('/api/documents',{title:document.getElementById('r-title').value,drafter:document.getElementById('r-drafter').value,approvers:ap}).then(function(r){
+  if(!r.ok){alert('오류: '+(r.d.error?r.d.error.message:''));return;}reg.close();document.getElementById('r-title').value='';load();});
+ return false;}
+load();
+</script></body></html>`
 
 func (s *Server) index(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {

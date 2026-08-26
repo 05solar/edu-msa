@@ -431,20 +431,77 @@ async def stats():
                 "totalCost": total_cost, "costByCategory": cost_by_category}
 
 
-INDEX = """<!doctype html><html lang=ko><meta charset=utf-8>
-<title>시설 유지보수 · facility-maint</title>
-<style>body{font-family:system-ui,"Malgun Gothic",sans-serif;max-width:820px;margin:32px auto;padding:0 16px;color:#1e293b}
-h1{font-size:22px}code{background:#eef2f8;padding:2px 6px;border-radius:5px}li{margin:5px 0}</style>
-<h1>학교 시설 유지보수 관리 (facility-maint)</h1>
-<p>접수 → 배정 → 작업시작 → 완료(보류/재개/반려) 흐름과 SLA·통계를 제공합니다.</p>
-<ul>
-<li><code>GET /healthz</code></li>
-<li><code>GET /api/orders?status=&category=&priority=&assignee=&q=&page=&size=</code></li>
-<li><code>POST /api/orders</code> 접수 · <code>PATCH /api/orders/{id}</code> 수정</li>
-<li><code>POST /api/orders/{id}/assign|start|hold|resume|complete|reject|reopen</code></li>
-<li><code>GET /api/orders/{id}/history</code> · <code>GET /api/stats</code></li>
-</ul>
-<p>샘플 정비요청 3건이 시드되어 있습니다. 배포 경로 <code>/svc/facility-maint</code>.</p></html>"""
+INDEX = """<!doctype html><html lang=ko><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width, initial-scale=1"><title>시설 유지보수 관리</title>
+<style>
+:root{--line:#e2e8f0;--ink:#1e293b;--mut:#64748b;--blue:#2563eb;--bg:#f8fafc}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,'Malgun Gothic',sans-serif;color:var(--ink);background:var(--bg)}
+header{background:#fff;border-bottom:1px solid var(--line);padding:16px 24px}header h1{font-size:20px;margin:0}header p{margin:4px 0 0;color:var(--mut);font-size:13px}
+.wrap{max-width:1100px;margin:0 auto;padding:20px 24px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px}.card .lbl{font-size:12px;color:var(--mut)}.card .val{font-size:22px;font-weight:800;margin-top:4px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+input,select,button{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}button{cursor:pointer}.btn-primary{background:var(--blue);color:#fff;border-color:var(--blue);font-weight:600}.btn-sm{padding:4px 8px;font-size:12px}
+table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line)}th{background:#f1f5f9;color:var(--mut);font-size:11px;text-transform:uppercase}tr:last-child td{border-bottom:none}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700}
+.s-RECEIVED{background:#e0e7ff;color:#3730a3}.s-ASSIGNED{background:#dbeafe;color:#1e40af}.s-IN_PROGRESS{background:#fef3c7;color:#92400e}.s-ON_HOLD{background:#e2e8f0;color:#475569}.s-DONE{background:#dcfce7;color:#166534}.s-REJECTED{background:#fee2e2;color:#991b1b}
+.pri-URGENT{color:#dc2626;font-weight:700}.pri-HIGH{color:#ea580c;font-weight:600}.ovd{color:#dc2626;font-size:11px;font-weight:700}
+dialog{border:none;border-radius:14px;max-width:440px;width:92%;padding:0}form{padding:20px}form h3{margin:0 0 14px}.fld{margin-bottom:10px}.fld label{display:block;font-size:12px;color:var(--mut);margin-bottom:4px}.fld input,.fld select{width:100%}.rw{display:flex;gap:8px}.rw>*{flex:1}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+</style></head><body>
+<header><h1>학교 시설 유지보수 관리</h1><p>접수 → 배정 → 작업 → 완료(보류/반려) · 우선순위별 SLA</p></header>
+<div class="wrap">
+<div class="stats" id="stats"></div>
+<div class="toolbar"><input id="q" placeholder="제목·위치 검색" style="min-width:200px">
+<select id="fstatus"><option value="">전체 상태</option></select><button onclick="load()">조회</button>
+<span style="flex:1"></span><button class="btn-primary" onclick="reg.showModal()">+ 정비 접수</button></div>
+<table><thead><tr><th>제목</th><th>분류</th><th>우선순위</th><th>상태</th><th>담당자</th><th>기한</th><th>처리</th></tr></thead><tbody id="rows"></tbody></table>
+</div>
+<dialog id="reg"><form onsubmit="return submitReg(event)"><h3>정비 접수</h3>
+<div class="fld"><label>제목 *</label><input id="r-title" required></div>
+<div class="rw"><div class="fld"><label>요청자 *</label><input id="r-req" required></div><div class="fld"><label>위치 *</label><input id="r-loc" required></div></div>
+<div class="rw"><div class="fld"><label>분류</label><select id="r-cat"></select></div><div class="fld"><label>우선순위</label><select id="r-pri"></select></div></div>
+<div class="modal-actions"><button type="button" onclick="reg.close()">취소</button><button class="btn-primary" type="submit">접수</button></div>
+</form></dialog>
+<script>
+var CATS=['전기','배관','냉난방','목공','도장','기타'],PRIS=['LOW','NORMAL','HIGH','URGENT'];
+var STS={RECEIVED:'접수',ASSIGNED:'배정',IN_PROGRESS:'작업중',ON_HOLD:'보류',DONE:'완료',REJECTED:'반려'};
+function esc(s){s=s||'';return s.replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+function opt(sel,arr,lbl){for(var i=0;i<arr.length;i++){var o=document.createElement('option');o.value=arr[i];o.textContent=lbl?(lbl[arr[i]]||arr[i]):arr[i];sel.appendChild(o);}}
+opt(document.getElementById('fstatus'),Object.keys(STS),STS);opt(document.getElementById('r-cat'),CATS);opt(document.getElementById('r-pri'),PRIS);
+function jget(u){return fetch(u).then(function(r){return r.json();});}
+function jpost(u,b){return fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})}).then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d};});});}
+function acts(o){var b=function(t,f){return '<button class="btn-sm" onclick="'+f+'">'+t+'</button> ';};var id=o.id;
+ if(o.status==='RECEIVED')return b('배정',"assign("+id+")")+b('반려',"reason("+id+",'reject')");
+ if(o.status==='ASSIGNED')return b('작업시작',"act("+id+",'start')")+b('보류',"reason("+id+",'hold')");
+ if(o.status==='IN_PROGRESS')return b('완료',"complete("+id+")")+b('보류',"reason("+id+",'hold')");
+ if(o.status==='ON_HOLD')return b('재개',"act("+id+",'resume')");
+ if(o.status==='DONE')return b('재오픈',"reason("+id+",'reopen')");
+ return '-';}
+function load(){
+ var q=new URLSearchParams();var qq=document.getElementById('q').value.trim();if(qq)q.set('q',qq);
+ var st=document.getElementById('fstatus').value;if(st)q.set('status',st);q.set('size','100');
+ jget('/api/orders?'+q).then(function(d){var rows=document.getElementById('rows');rows.innerHTML='';
+  if(!d.items.length)rows.innerHTML='<tr><td colspan=7 style="text-align:center;color:#94a3b8;padding:30px">요청이 없습니다.</td></tr>';
+  d.items.forEach(function(o){var tr=document.createElement('tr');
+   tr.innerHTML='<td><b>'+esc(o.title)+'</b><br><span style=color:#94a3b8;font-size:11px>'+esc(o.location)+'</span></td><td>'+o.category+'</td>'+
+    '<td class="pri-'+o.priority+'">'+o.priority+'</td><td><span class="badge s-'+o.status+'">'+STS[o.status]+'</span></td>'+
+    '<td>'+esc(o.assignee||'-')+'</td><td>'+(o.overdue?'<span class=ovd>기한초과</span>':(o.dueDate||'').slice(5,10))+'</td><td>'+acts(o)+'</td>';
+   rows.appendChild(tr);});});
+ jget('/api/stats').then(function(s){document.getElementById('stats').innerHTML=
+  card('전체',s.total+'건')+card('작업중',(s.byStatus.IN_PROGRESS||0)+'건')+card('완료',(s.byStatus.DONE||0)+'건')+card('기한초과',s.overdue+'건');});
+}
+function card(l,v){return '<div class="card"><div class="lbl">'+l+'</div><div class="val">'+v+'</div></div>';}
+function act(id,kind){jpost('/api/orders/'+id+'/'+kind,{actor:'담당자'}).then(function(r){if(!r.ok)alert('오류: '+(r.d.error?r.d.error.message:''));load();});}
+function assign(id){var a=prompt('담당자');if(!a)return;jpost('/api/orders/'+id+'/assign',{assignee:a,actor:'관리자'}).then(function(r){if(!r.ok)alert('오류');load();});}
+function complete(id){var n=prompt('완료 내용');if(!n)return;var c=prompt('비용(원, 없으면 0)','0');jpost('/api/orders/'+id+'/complete',{completionNote:n,cost:Number(c)||0,actor:'담당자'}).then(function(r){if(!r.ok)alert('오류');load();});}
+function reason(id,kind){var r=prompt('사유');if(!r)return;jpost('/api/orders/'+id+'/'+kind,{reason:r,actor:'담당자'}).then(function(x){if(!x.ok)alert('오류: '+(x.d.error?x.d.error.message:''));load();});}
+function submitReg(e){e.preventDefault();
+ jpost('/api/orders',{title:document.getElementById('r-title').value,requester:document.getElementById('r-req').value,location:document.getElementById('r-loc').value,category:document.getElementById('r-cat').value,priority:document.getElementById('r-pri').value}).then(function(r){
+  if(!r.ok){alert('오류: '+(r.d.error?r.d.error.message:''));return;}reg.close();document.getElementById('r-title').value='';load();});return false;}
+load();
+</script></body></html>"""
 
 
 @app.get("/", response_class=HTMLResponse)

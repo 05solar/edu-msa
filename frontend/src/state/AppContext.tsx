@@ -335,7 +335,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // ---- API 모드 연동 (VITE_USE_API=true) ----
   const refreshPrograms = useCallback(async () => {
-    try { setPrograms(await api.listAll()) } catch { toast('프로그램을 불러오지 못했습니다.', 'warn') }
+    // 공개 카탈로그(기본 서비스 포함)는 로그인한 모든 사용자가 볼 수 있어야 하므로 /api/programs 로 로드.
+    try { setPrograms(await api.list()) }
+    catch { toast('프로그램을 불러오지 못했습니다.', 'warn'); return }
+    // 운영 관리자면 대기·비공개까지 포함한 전체로 교체(검토용). 비관리자는 403 → 무시.
+    try { setPrograms(await api.listAll()) } catch { /* 비관리자는 접근 불가(정상) */ }
   }, [toast])
   const refreshLogs = useCallback(async () => {
     try { setAdminLog(await api.reviewLogs()) } catch { /* noop */ }

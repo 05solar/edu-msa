@@ -79,6 +79,9 @@ function fromDetail(d: DetailDto): Program {
 }
 
 export const api = {
+  // 공개 카탈로그(역할 필터·PUBLIC) — 로그인한 모든 사용자 접근 가능
+  list: () => req<SummaryDto[]>('/programs').then((xs) => xs.map(fromSummary)),
+  // 전체(대기·비공개 포함) — 운영 관리자(ADMIN) 전용
   listAll: () => req<SummaryDto[]>('/programs/all').then((xs) => xs.map(fromSummary)),
   detail: (id: number) => req<DetailDto>(`/programs/${id}`).then(fromDetail),
   create: (body: {

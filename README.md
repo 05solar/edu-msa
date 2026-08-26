@@ -190,10 +190,20 @@ npm run dev                               # http://localhost:5173
 - `EDU_JWT_SECRET` 미설정 시 compose 가 기동을 거부한다(의도된 안전장치). 배포 서비스는 Traefik(:80)이
   `<slug>.localhost` Host 로 각 컨테이너에 라우팅한다.
 
+### Kubernetes 로 한 번에 (kind 로컬 / 실서버 겸용)
+
+```bash
+./deploy/bootstrap.sh up            # 또는:  make up   (kind 자동 생성 → 이미지 빌드/푸시 → 코어+운영스택)
+# 접속: http://edu.localhost
+```
+실서버(GPU 박스 포함)·GPU 테넌트 설정은 **[DEPLOY.md](DEPLOY.md)** 참고.
+
 ## 문서 안내 (문서 지도)
 
 | 문서 | 내용 |
 | --- | --- |
+| [DEPLOY.md](DEPLOY.md) | **원커맨드 배포 & GPU 서버 안내** (K8s 한 번에·실서버·GPU) |
+| [deploy/PRODUCTION.md](deploy/PRODUCTION.md) | 실서버(k3s·Calico·레지스트리·도메인/TLS·CNPG·시크릿·GPU) 상세 가이드 |
 | [docs/VIBE_CODING_GUIDE.md](docs/VIBE_CODING_GUIDE.md) | 바이브 코더가 먼저 읽는 사람용 안내 |
 | [docs/MSA_SERVICE_SPEC.md](docs/MSA_SERVICE_SPEC.md) | 표준 서비스 규격(기술 계약) |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 전체 아키텍처 설계 |

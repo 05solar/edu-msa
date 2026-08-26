@@ -96,10 +96,13 @@
   .band{font-size:14px;font-weight:800}
   svg text{font-family:inherit}
   /* ===== 흐름 애니메이션 ===== */
-  @keyframes flowdash{to{stroke-dashoffset:-34}}
-  .flow{stroke-dasharray:10 8;animation:flowdash 1s linear infinite}
-  .flow.slow{animation-duration:1.8s}
-  @media (prefers-reduced-motion: reduce){.flow{animation:none}.mvdot{display:none}}
+  @keyframes flowdash{from{stroke-dashoffset:0}to{stroke-dashoffset:-36}}
+  .flow{stroke-dasharray:10 8;animation:flowdash .9s linear infinite}
+  .flow.slow{animation-duration:1.7s}
+  .mvdot{filter:drop-shadow(0 0 3px rgba(0,0,0,.25))}
+  /* 접근성: OS '애니메이션 효과 끄기'에서도 흐름이 보이도록 이동 점은 유지하고
+     반복 대시만 완만하게 늦춘다(정지하지 않음). */
+  @media (prefers-reduced-motion: reduce){.flow{animation-duration:2.6s}}
 </style>
 </head>
 <body>
@@ -534,10 +537,10 @@
             <rect x="788" y="42" width="152" height="62" rx="11" fill="#fff" stroke="#0d9488"/><text x="864" y="70">Kaniko 빌드</text><text x="864" y="89" class="s">docker.sock 미사용</text>
             <rect x="974" y="42" width="130" height="62" rx="11" fill="#fff" stroke="#0d9488"/><text x="1039" y="78">registry push</text>
           </g>
-          <g stroke="#0d9488" stroke-width="2.6" fill="none" class="flow">
-            <path d="M166 73 H200" marker-end="url(#ar2)"/><path d="M346 73 H380" marker-end="url(#ar2)"/>
-            <path d="M536 73 H570" marker-end="url(#ar2)"/><path d="M754 73 H788" marker-end="url(#ar2)"/>
-            <path d="M940 73 H974" marker-end="url(#ar2)"/>
+          <g stroke="#0d9488" stroke-width="2.6" fill="none">
+            <path class="flow" d="M166 73 H200" marker-end="url(#ar2)"/><path class="flow" d="M346 73 H380" marker-end="url(#ar2)"/>
+            <path class="flow" d="M536 73 H570" marker-end="url(#ar2)"/><path class="flow" d="M754 73 H788" marker-end="url(#ar2)"/>
+            <path class="flow" d="M940 73 H974" marker-end="url(#ar2)"/>
           </g>
           <path d="M1039 104 V142 H150 V174" stroke="#0d9488" stroke-width="2.2" fill="none" marker-end="url(#ar2)"/>
           <g class="n">
@@ -547,9 +550,9 @@
             <rect x="722" y="174" width="172" height="62" rx="11" fill="#fff" stroke="#04785a"/><text x="808" y="202">노드 pull · 기동</text><text x="808" y="221" class="s">digest 일치</text>
             <rect x="928" y="174" width="176" height="62" rx="11" fill="#fff" stroke="#04785a"/><text x="1016" y="202">웹에서 바로 사용</text><text x="1016" y="221" class="s">서비스 공개</text>
           </g>
-          <g stroke="#0d9488" stroke-width="2.6" fill="none" class="flow">
-            <path d="M232 205 H266" marker-end="url(#ar2)"/><path d="M428 205 H462" marker-end="url(#ar2)"/>
-            <path d="M688 205 H722" marker-end="url(#ar2)"/><path d="M894 205 H928" marker-end="url(#ar2)"/>
+          <g stroke="#0d9488" stroke-width="2.6" fill="none">
+            <path class="flow" d="M232 205 H266" marker-end="url(#ar2)"/><path class="flow" d="M428 205 H462" marker-end="url(#ar2)"/>
+            <path class="flow" d="M688 205 H722" marker-end="url(#ar2)"/><path class="flow" d="M894 205 H928" marker-end="url(#ar2)"/>
           </g>
         </g>
       </svg>

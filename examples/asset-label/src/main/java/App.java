@@ -46,6 +46,11 @@ public class App {
         server.createContext("/healthz", ex -> respond(ex, 200, "application/json",
                 "{\"status\":\"ok\",\"service\":\"asset-label\"}".getBytes(StandardCharsets.UTF_8)));
         server.createContext("/api/labels", App::handleLabels);
+        server.createContext("/og.png", ex -> {
+            try (InputStream in = App.class.getResourceAsStream("/og.png")) {
+                respond(ex, 200, "image/png", in.readAllBytes());
+            }
+        });
         server.createContext("/", App::handleRoot);
         server.setExecutor(java.util.concurrent.Executors.newFixedThreadPool(8));
         server.start();

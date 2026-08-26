@@ -9,6 +9,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
 COPY --from=build /app/publish ./
 COPY index.html ./index.html
+COPY og.png ./og.png
 ENV PORT=8080
 # .NET 8 aspnet 이미지 내장 비루트 사용자(app, uid 1654)
 USER app

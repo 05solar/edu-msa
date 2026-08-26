@@ -4,7 +4,7 @@ from urllib.parse import quote
 
 import pandas as pd
 from fastapi import FastAPI, UploadFile, File, Form
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, FileResponse
 
 import matplotlib
 matplotlib.use("Agg")
@@ -167,6 +167,11 @@ async def chart(file: UploadFile = File(...), column: str = Form(...), kind: str
 
 
 INDEX = open(os.path.join(os.path.dirname(__file__), "index.html"), encoding="utf-8").read()
+
+
+@app.get("/og.png")
+def og():
+    return FileResponse(os.path.join(os.path.dirname(__file__), "og.png"), media_type="image/png")
 
 
 @app.get("/", response_class=HTMLResponse)

@@ -154,8 +154,12 @@ app.post('/api/timetable', async (req, reply) => {
 })
 
 const html = readFileSync(join(__dirname, 'index.html'), 'utf-8')
+const ogImg = readFileSync(join(__dirname, 'og.png'))
 app.get('/', async (_req, reply) => {
   reply.type('text/html; charset=utf-8').send(html)
+})
+app.get('/og.png', async (_req, reply) => {
+  reply.type('image/png').send(ogImg)
 })
 
 app.listen({ port: PORT, host: '0.0.0.0' }).then(() => {

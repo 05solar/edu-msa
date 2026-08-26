@@ -1,5 +1,13 @@
 INDEX = r"""<!doctype html><html lang=ko><head><meta charset=utf-8>
 <meta name=viewport content="width=device-width, initial-scale=1"><title>학생 자리배치 생성기</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjYjQzODFmIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjZTA1NTNmIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iOCIgZmlsbD0idXJsKCNnKSIvPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQgNCkiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxyZWN0IHg9IjMiIHk9IjQiIHdpZHRoPSI3IiBoZWlnaHQ9IjciIHJ4PSIxLjUiLz48cmVjdCB4PSIxNCIgeT0iNCIgd2lkdGg9IjciIGhlaWdodD0iNyIgcng9IjEuNSIvPjxyZWN0IHg9IjMiIHk9IjE0IiB3aWR0aD0iNyIgaGVpZ2h0PSI3IiByeD0iMS41Ii8+PHJlY3QgeD0iMTQiIHk9IjE0IiB3aWR0aD0iNyIgaGVpZ2h0PSI3IiByeD0iMS41Ii8+PC9nPjwvc3ZnPg==">
+<meta name="description" content="명단과 조건으로 좌석 배치를 만들어 엑셀·인쇄로 내보내는 개인용 단발 도구">
+<meta property="og:type" content="website">
+<meta property="og:title" content="학생 자리배치 생성기">
+<meta property="og:description" content="명단과 조건으로 좌석 배치를 만들어 엑셀·인쇄로 내보내는 개인용 단발 도구">
+<meta property="og:image" content="http://seat-maker.localhost/og.png">
+<meta property="og:url" content="http://seat-maker.localhost/">
+<meta name="twitter:card" content="summary_large_image">
 <style>
 :root{--accent:#b4381f;--accent-2:#e0553f;--line:#e6eaf1;--line-2:#eef1f6;--ink:#0f172a;--mut:#5b6b86;--faint:#9aa7bd;--blue:var(--accent);--bg:#eef1f8;--card:#fff;--ok:#0b7a4b;--danger:#dc2626}
 *{box-sizing:border-box}body{margin:0;font-family:system-ui,'Malgun Gothic',sans-serif;color:var(--ink);background:var(--bg)}

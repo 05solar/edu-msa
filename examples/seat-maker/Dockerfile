@@ -4,7 +4,7 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app.py ui.py ./
+COPY app.py ui.py og.png ./
 
 # 비루트 실행
 RUN useradd -u 1001 -m appuser

@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -10,6 +11,9 @@ import (
 	"strings"
 	"time"
 )
+
+//go:embed og.png
+var ogPNG []byte
 
 // ---- 규칙 정의 (오프라인·규칙기반) ----
 
@@ -246,6 +250,10 @@ func main() {
 		writeJSON(w, 200, map[string]string{"status": "ok", "service": "doc-proofreader", "time": time.Now().Format(time.RFC3339)})
 	})
 	mux.HandleFunc("/api/check", checkHandler)
+	mux.HandleFunc("/og.png", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/png")
+		w.Write(ogPNG)
+	})
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)

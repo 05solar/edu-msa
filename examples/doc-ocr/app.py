@@ -2,7 +2,7 @@ import io
 import os
 
 from fastapi import FastAPI, UploadFile, File, Form
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from PIL import Image, ImageOps
 import pytesseract
 
@@ -63,6 +63,11 @@ async def ocr(file: UploadFile = File(...), lang: str = Form("kor+eng")):
 
 
 INDEX = open(os.path.join(os.path.dirname(__file__), "index.html"), encoding="utf-8").read()
+
+
+@app.get("/og.png")
+def og():
+    return FileResponse(os.path.join(os.path.dirname(__file__), "og.png"), media_type="image/png")
 
 
 @app.get("/", response_class=HTMLResponse)

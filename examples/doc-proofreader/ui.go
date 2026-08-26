@@ -2,6 +2,14 @@ package main
 
 const indexHTML = `<!doctype html><html lang=ko><head><meta charset=utf-8>
 <meta name=viewport content="width=device-width, initial-scale=1"><title>공문서 오타·맞춤법 검사기</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMWQ0ZWQ4Ii8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjM2I4MmY2Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iOCIgZmlsbD0idXJsKCNnKSIvPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQgNCkiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0xNCAzSDdhMiAyIDAgMCAwLTIgMnYxNGEyIDIgMCAwIDAgMiAyaDEwYTIgMiAwIDAgMCAyLTJWOHoiLz48cGF0aCBkPSJNMTQgM3Y1aDUiLz48cGF0aCBkPSJtOSAxNSAyIDIgNC00Ii8+PC9nPjwvc3ZnPg==">
+<meta name="description" content="맞춤법·띄어쓰기·행정용어 오류를 찾아 교정본을 만드는 개인용 단발 도구">
+<meta property="og:type" content="website">
+<meta property="og:title" content="공문서 오타·맞춤법 검사기">
+<meta property="og:description" content="맞춤법·띄어쓰기·행정용어 오류를 찾아 교정본을 만드는 개인용 단발 도구">
+<meta property="og:image" content="http://doc-proofreader.localhost/og.png">
+<meta property="og:url" content="http://doc-proofreader.localhost/">
+<meta name="twitter:card" content="summary_large_image">
 <style>
 :root{--accent:#1d4ed8;--accent-2:#3b82f6;--line:#e6eaf1;--line-2:#eef1f6;--ink:#0f172a;--mut:#5b6b86;--faint:#9aa7bd;--blue:var(--accent);--bg:#eef1f8;--card:#fff;--ok:#0b7a4b;--danger:#dc2626}
 *{box-sizing:border-box}body{margin:0;font-family:system-ui,'Malgun Gothic',sans-serif;color:var(--ink);background:var(--bg)}

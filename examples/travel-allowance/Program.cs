@@ -29,6 +29,9 @@ app.MapGet("/healthz", () => Results.Json(new { status = "ok", service = "travel
 string indexHtml = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "index.html"));
 app.MapGet("/", () => Results.Content(indexHtml, "text/html; charset=utf-8"));
 
+byte[] ogBytes = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "og.png"));
+app.MapGet("/og.png", () => Results.Bytes(ogBytes, "image/png"));
+
 app.MapPost("/api/calc", async (HttpRequest req) =>
 {
     CalcReq? r;

@@ -3,6 +3,7 @@ FROM golang:1.22-alpine AS build
 WORKDIR /src
 COPY go.mod ./
 COPY *.go ./
+COPY og.png ./
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/app .
 
 # run (distroless, 비루트 uid 65532)

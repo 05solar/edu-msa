@@ -1,10 +1,11 @@
 import io
+import os
 import random
 from typing import List, Optional
 from urllib.parse import quote
 
 from fastapi import FastAPI, UploadFile, File
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, FileResponse
 from pydantic import BaseModel
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Border, Side, Font, PatternFill
@@ -252,6 +253,11 @@ def export_xlsx(req: ExportReq):
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename*=UTF-8''{fname}"},
     )
+
+
+@app.get("/og.png")
+def og():
+    return FileResponse(os.path.join(os.path.dirname(__file__), "og.png"), media_type="image/png")
 
 
 @app.get("/", response_class=HTMLResponse)

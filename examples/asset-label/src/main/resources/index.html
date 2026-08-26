@@ -1,0 +1,71 @@
+<!doctype html><html lang=ko><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width, initial-scale=1"><title>비품 QR 라벨 시트 생성기</title>
+<style>
+:root{--line:#e2e8f0;--ink:#1e293b;--mut:#64748b;--blue:#2563eb;--bg:#f8fafc}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,'Malgun Gothic',sans-serif;color:var(--ink);background:var(--bg)}
+header{background:#fff;border-bottom:1px solid var(--line);padding:16px 24px}header h1{font-size:20px;margin:0}header p{margin:4px 0 0;color:var(--mut);font-size:13px}
+.wrap{max-width:1080px;margin:0 auto;padding:20px 24px}
+.grid2{display:grid;grid-template-columns:380px 1fr;gap:18px}@media(max-width:860px){.grid2{grid-template-columns:1fr}}
+.panel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px}.panel h2{font-size:14px;margin:0 0 10px}
+label{font-size:12px;color:var(--mut);display:block;margin:10px 0 4px}
+textarea,input,select{width:100%;font:14px system-ui,'Malgun Gothic',sans-serif;padding:8px 10px;border:1px solid var(--line);border-radius:8px;color:var(--ink);background:#fff}
+textarea{min-height:200px;resize:vertical;font-family:ui-monospace,Consolas,monospace;font-size:13px}
+.row{display:flex;gap:8px}.row>div{flex:1}
+button{font:inherit;padding:8px 14px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);cursor:pointer}
+.btn-primary{background:var(--blue);color:#fff;border-color:var(--blue);font-weight:600}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:center}
+.hintbox{background:#f1f5f9;border-radius:8px;padding:10px;font-size:12px;color:#475569;line-height:1.7}
+.empty-hint{color:#94a3b8;text-align:center;padding:36px}
+iframe{width:100%;height:560px;border:1px solid var(--line);border-radius:10px;background:#fff}
+</style></head><body>
+<header><h1>비품 QR 라벨 시트 생성기</h1><p>비품 목록을 입력하면 각 품목의 QR 코드가 담긴 A4 라벨 시트 PDF를 만들어 바로 인쇄할 수 있습니다. (개인 단발 사용 도구)</p></header>
+<div class="wrap"><div class="grid2">
+  <div class="panel">
+    <h2>비품 목록</h2>
+    <div class="hintbox">한 줄에 한 품목, 쉼표로 구분:<br><b>관리번호,품명</b><br>예) A-2026-001,노트북<br>엑셀에서 두 열을 복사해 붙여넣어도 됩니다.</div>
+    <textarea id="src" placeholder="A-2026-001,노트북&#10;A-2026-002,빔프로젝터&#10;A-2026-003,실물화상기"></textarea>
+    <div class="row"><div><label>가로 칸수</label><select id="cols"><option>2</option><option selected>3</option><option>4</option></select></div>
+      <div><label>세로 칸수</label><select id="rows"><option>6</option><option selected>8</option><option>10</option></select></div></div>
+    <label>QR 내용</label>
+    <select id="qrContent"><option value="codename">관리번호 + 품명</option><option value="code">관리번호만</option></select>
+    <label>시트 제목(선택)</label>
+    <input id="title" placeholder="예) 2026년 정보화기기 라벨">
+    <div class="toolbar"><button class="btn-primary" onclick="gen()">라벨 PDF 생성</button><button onclick="loadSample()">예시</button><button id="dl" onclick="dl()" style="display:none">PDF 다운로드</button></div>
+  </div>
+  <div class="panel">
+    <h2>미리보기</h2>
+    <div id="preview"><div class="empty-hint">왼쪽에 비품 목록을 입력하고 [라벨 PDF 생성]을 누르세요.</div></div>
+  </div>
+</div></div>
+<script>
+let lastUrl=null;
+function parse(){
+  const out=[];
+  for(const raw of document.getElementById('src').value.split('\n')){
+    const line=raw.trim();if(!line)continue;
+    const p=line.split(/[,\t]/).map(s=>s.trim());
+    out.push({code:p[0]||'',name:p[1]||''});
+  }
+  return out;
+}
+function gen(){
+  const assets=parse();
+  if(!assets.length){alert('비품 목록을 입력하세요. (관리번호,품명)');return;}
+  const body={assets,cols:+document.getElementById('cols').value,rows:+document.getElementById('rows').value,
+    qrContent:document.getElementById('qrContent').value,title:document.getElementById('title').value};
+  fetch('/api/labels',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+    .then(r=>{if(!r.ok)return r.json().then(d=>{throw new Error(d.error?d.error.message:'오류');});return r.blob();})
+    .then(b=>{
+      if(lastUrl)URL.revokeObjectURL(lastUrl);
+      lastUrl=URL.createObjectURL(b);
+      document.getElementById('preview').innerHTML='<iframe src="'+lastUrl+'"></iframe>';
+      document.getElementById('dl').style.display='inline-block';
+    })
+    .catch(e=>alert('오류: '+e.message));
+}
+function dl(){if(!lastUrl)return;const a=document.createElement('a');a.href=lastUrl;a.download='비품라벨.pdf';a.click();}
+function loadSample(){
+  document.getElementById('src').value=['A-2026-001,노트북','A-2026-002,빔프로젝터','A-2026-003,실물화상기','A-2026-004,전자칠판','A-2026-005,공기청정기','A-2026-006,문서세단기'].join('\n');
+  document.getElementById('title').value='2026년 정보화기기 라벨';
+}
+</script></body></html>

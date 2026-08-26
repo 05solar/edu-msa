@@ -1,0 +1,13 @@
+name: 비품 QR 라벨 시트 생성기
+slug: asset-label
+category: facil
+purposes:
+  - gen
+tech:
+  - Java
+summary: 비품 목록(관리번호·품명)을 입력하면 각 품목의 QR 코드가 담긴 A4 라벨 시트 PDF를 만들어 주는 개인용 단발 도구.
+port: 8080
+health: /healthz
+resources:
+  cpu: 300m
+  memory: 384Mi

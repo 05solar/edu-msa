@@ -338,9 +338,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // 공개 카탈로그(기본 서비스 포함)는 로그인한 모든 사용자가 볼 수 있어야 하므로 /api/programs 로 로드.
     try { setPrograms(await api.list()) }
     catch { toast('프로그램을 불러오지 못했습니다.', 'warn'); return }
-    // 운영 관리자면 대기·비공개까지 포함한 전체로 교체(검토용). 비관리자는 403 → 무시.
-    try { setPrograms(await api.listAll()) } catch { /* 비관리자는 접근 불가(정상) */ }
-  }, [toast])
+    // 운영 관리자만 대기·비공개까지 포함한 전체로 교체(검토용). role 이 deps 라 권한 전환 시 재로드된다.
+    if (role === 'admin') {
+      try { setPrograms(await api.listAll()) } catch { /* noop */ }
+    }
+  }, [role, toast])
   const refreshLogs = useCallback(async () => {
     try { setAdminLog(await api.reviewLogs()) } catch { /* noop */ }
   }, [])

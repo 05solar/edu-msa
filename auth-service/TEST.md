@@ -44,6 +44,16 @@ cd deploy && cp .env.example .env && docker compose up --build -d
 - [ ] `ADMIN` 계정으로 `/accounts` 200
 - [ ] 권한 부여(`PATCH /accounts/{username}/role`)는 `ADMIN` 만 가능
 
+### 상향 권한 신청·승인
+- [ ] 가입 시 `requestRole=coder` 를 보내도 생성된 계정 `role` 은 `user` (신청만 접수)
+- [ ] 로그인 후 `POST /api/auth/role-request {requestRole,requestReason}` → 200, 계정은 `user` 유지·"승인 대기"
+- [ ] 신청 후 `/me` 응답에 신청 상태(요청 역할·사유)가 포함
+- [ ] 본인 `DELETE /api/auth/role-request` → 승인 전 신청 취소, 대기 목록에서 사라짐
+- [ ] `USER` 로 `GET /api/auth/role-requests` 403, `ADMIN` 은 200(대기 목록 노출)
+- [ ] `ADMIN` `POST /accounts/{username}/role-request/approve` → 계정 `role` 이 신청 권한으로 상향, 대기 해소
+- [ ] `ADMIN` `POST /accounts/{username}/role-request/reject` → 계정 `role` 은 `user` 유지, 대기 해소
+- [ ] 자가 가입·자가 신청만으로는 권한이 상승하지 않는다(승인 없이는 항상 `user`)
+
 ### 플랫폼 backend 연동
 - [ ] `GET /api/whoami` 에 Access Token 을 실으면 200 이며 role 이 일치
 - [ ] 토큰 없이 호출하면 401

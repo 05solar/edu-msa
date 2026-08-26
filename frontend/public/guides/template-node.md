@@ -1,6 +1,7 @@
 # Node.js 스택 템플릿 (교육청 플랫폼 배포용)
 
 `AI_BUILD_SPEC.md` 와 함께 사용하세요. 아래 파일을 저장소 루트에 만들면 바로 배포됩니다.
+배포·승인되면 서비스는 `http://<slug>.localhost` 주소(서브도메인)로 열립니다.
 
 ## service.yaml
 ```yaml

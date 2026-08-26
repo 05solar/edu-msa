@@ -4,9 +4,11 @@
 
 ```
 deploy/
-├── docker-compose.yml     # 로컬: postgres + backend (docker 실배포 모드 지원)
+├── docker-compose.yml     # 로컬: postgres·auth-db·auth-service·traefik·backend (docker 실배포 모드)
+├── .env.example           # 시크릿 주입 예시(EDU_JWT_SECRET·EDU_SEED_PASSWORD 등)
 └── k8s/
     ├── namespaces.yaml            # 기본 네임스페이스
+    ├── auth/                      # 인증 계층(auth-db·auth-service·edu-auth-jwt Secret)
     ├── platform/                  # 플랫폼(postgres/backend/frontend/ingress/rbac)
     ├── service-template.yaml      # 서비스 1개당 렌더링 템플릿(보안 컨텍스트 포함)
     ├── hardening/                 # 멀티테넌트 보안 하드닝(PodSecurity/Quota/NetPol/RuntimeClass/Kaniko)
@@ -21,10 +23,11 @@ deploy/
 
 ## 진행 이력 (Change Log)
 
+- 2026-08-26 — 인증 계층 추가: auth-service(자체 DB auth-db·BCrypt·HS256 JWT, 로컬 :8089) 분리, backend는 동일 `EDU_JWT_SECRET`으로 토큰 자체 검증(role 기반 RBAC). k8s/auth/(auth-db·auth-service·`edu-auth-jwt` Secret), docker-compose에 auth-db·auth-service·traefik 추가, apply 순서에 auth-db→auth-service(backend 앞) 반영.
 - 2026-08-24 — docker-compose(postgres+backend) 작성, K8s 매니페스트(namespace·플랫폼·서비스 템플릿·RBAC) 추가.
 - 2026-08-25 — docker 실배포 모드용 docker.sock/examples 마운트, 백엔드 이미지에 git/docker/kubectl.
 - 2026-08-25 — 로컬 kind 리허설: Go 서비스가 Pod+Service로 기동·응답 검증. deploy/k8s/README를 K8s 배포 가이드로 리뉴얼.
-- 2026-08-25 — P3-4 레지스트리 pull 경로: kind를 containerd certs.d 패턴으로 재생성(kind-with-registry.yaml) + kind-registry(127.0.0.1:5001→5000, kind net 연결) + 노드 hosts.toml(localhost:5001→kind-registry:5000). registry/ 자산(setup 스크립트/README). end-to-end 검증: Kaniko(hostAlias kind-registry) 빌드→kind-registry:5000/workdays:v1 push → localhost:5001/workdays:v1 배포 imagePullPolicy:Always → kubelet pull 221ms(digest 일치) → 파드 Running → 서비스 / ·/healthz 200. 서브에이전트 PASS. 주의: 재생성으로 관측성/보안 스택은 제거됨(각 README helm 명령으로 재설치 가능).
+- 2026-08-25 — P3-4 레지스트리 pull 경로: kind를 containerd certs.d 패턴으로 재생성(kind-with-registry.yaml) + kind-registry(127.0.0.1:5001→5000, kind net 연결) + 노드 hosts.toml(localhost:5001→kind-registry:5000). registry/ 자산(setup 스크립트/README). end-to-end 검증: Kaniko(hostAlias kind-registry) 빌드→kind-registry:5000/doc-proofreader:v1 push → localhost:5001/doc-proofreader:v1 배포 imagePullPolicy:Always → kubelet pull 221ms(digest 일치) → 파드 Running → 서비스 / ·/healthz 200. 서브에이전트 PASS. 주의: 재생성으로 관측성/보안 스택은 제거됨(각 README helm 명령으로 재설치 가능).
 - 2026-08-25 — P3-2 트레이싱: Tempo(모놀리식, OTLP 4317/4318) 설치, tracing/ 자산 + Grafana Tempo 데이터소스(tracesToLogsV2→loki) + Loki derivedFields(→tempo). kind 검증: telemetrygen 20 트레이스 전송→Tempo `/api/search` 20건 조회(rootServiceName=edu-trace-test), 사이드카 로드. 서브에이전트 PASS — 로그→트레이스 provisioning url `${...}`→`$${...}` 이스케이프 결함 수정. 관측성 3축 완성.
 - 2026-08-25 — P3-3 알림: Alertmanager 활성화(helm upgrade), PrometheusRule(monitoring/prometheus-rules.yaml: EduBackendDown/PodCrashLooping/HighMemory, release: kps) + README 알림 섹션. kind 검증: 규칙 4종 로드, 테스트 알림 Prometheus firing→Alertmanager active 수신, 이후 테스트 알림 비활성 재적용(실규칙 3종). 서브에이전트 PASS(job 라벨/limit 미설정 주의 반영).
 - 2026-08-25 — P3-2 로그 수집: loki-stack(Loki+Promtail) 설치(helm), logging/ 자산 + Grafana Loki 데이터소스 ConfigMap(사이드카 자동 로드) + README. kind 검증: 테스트 토큰 로그→LogQL `{namespace="default"} |= "..."` status=success 5줄 매칭, 라벨 정상, 사이드카 provisioning 로드 확인. 서브에이전트 PASS(loki-stack deprecated·검증 emptyDir 반영).

@@ -61,8 +61,10 @@ edu-msa/
      auth-db             platform-db
 ```
 
-역할은 `USER`(외부 사용자) · `CODER`(내부 직원) · `ADMIN`(운영 관리자) 세 가지이며,
-회원가입 기본값은 `USER` 이고 나머지는 운영 관리자가 부여한다.
+역할은 `USER`(외부 사용자) · `CODER`(내부 직원) · `ADMIN`(운영 관리자) 세 가지다.
+**회원가입은 항상 `USER`(최소 권한)로 생성**되고, 상향 권한(`CODER`/`ADMIN`)은 가입 시
+`requestRole` 또는 로그인 후 마이페이지에서 **신청**만 접수된다. 실제 부여는 운영 관리자가
+신청(`role-request`)을 승인해야 이뤄지므로, **자가 가입/신청만으로는 권한이 오르지 않는다.**
 자세한 내용은 [auth-service/README.md](auth-service/README.md) 참고.
 
 ### 현재 구현된 인증 경로
@@ -178,12 +180,12 @@ docker compose -f deploy/docker-compose.yml up --build -d
 # 2) 프론트엔드 (백엔드 연동 모드)
 cd frontend
 npm install
-$env:VITE_USE_API="true"; npm run dev     # PowerShell 기준. http://localhost:5173
-# (VITE_USE_API 미설정 시 목업 데이터로 동작하는 오프라인 데모)
+npm run dev                               # http://localhost:5173
+# VITE_USE_API 기본값은 true(백엔드 API 모드). false 로 두면 목업만으로 도는 오프라인 데모.
 ```
 
 - 접속: **플랫폼** http://localhost:5173 (로그인 또는 데모 로그인 후 이용) ·
-  **배포된 기본 서비스** http://&lt;slug&gt;.localhost (예: `http://doc-proofreader.localhost`).
+  **배포된 기본 서비스** `http://<slug>.localhost` (예: `http://doc-proofreader.localhost`).
 - 프론트 개발 서버 프록시: `/api/auth` → auth-service(`localhost:8089`), `/api` → backend(`localhost:8088`).
 - `EDU_JWT_SECRET` 미설정 시 compose 가 기동을 거부한다(의도된 안전장치). 배포 서비스는 Traefik(:80)이
   `<slug>.localhost` Host 로 각 컨테이너에 라우팅한다.

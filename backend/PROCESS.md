@@ -4,7 +4,8 @@
 
 1. 도메인 설계 → 엔티티/리포지토리 → 서비스 → 컨트롤러/DTO.
 2. Docker 멀티스테이지 빌드로 컴파일·테스트.
-3. compose(postgres+backend) 기동 후 엔드포인트 검증.
+3. compose(db + auth-db + auth-service + traefik + backend) 기동 후, 로그인 토큰으로
+   RBAC 등급별 엔드포인트 검증.
 4. 본 이력과 관련 문서 갱신.
 
 ## 진행 이력 (Change Log)

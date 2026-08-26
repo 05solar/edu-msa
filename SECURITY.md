@@ -12,7 +12,26 @@
 
 핵심 원칙: **한 서비스가 플랫폼·DB·다른 서비스·노드에 손댈 수 없어야 한다.**
 
-## 2. 적용한 것 (deploy/k8s/hardening/)
+## 2. 인증·인가 (auth-service)
+
+계정·토큰·권한은 별도 마이크로서비스 `auth-service`(자체 `auth-db`)가 단일 소스로 관리한다.
+
+- **JWT 자체 검증**: 로그인 시 발급한 HS256 JWT 를 각 자원 서버(backend 등)가 동일한
+  `EDU_JWT_SECRET` 으로 직접 검증한다. 요청마다 auth-service 를 동기 호출하지 않으므로
+  인증 서비스가 단일 장애점·병목이 되지 않는다.
+- **토큰 보관**: Access 토큰은 응답 본문(프론트 메모리)에만 두고, Refresh 토큰은
+  `HttpOnly` 쿠키(`edu_refresh`, `path=/api/auth`, 회전)로만 내려 XSS 로 탈취되지 않게 한다.
+- **RBAC**: backend `SecurityConfig` 가 경로별 역할을 강제한다 — 공개(`/api/health`·
+  `/api/catalog/**`) / 로그인(`/api/programs`) / `CODER` 이상(`POST /api/programs`) /
+  `ADMIN`(`/api/programs/all`·`*/deploy`·`/api/users`).
+- **최소 권한 + 승인**: 회원가입은 **항상 `USER`** 로 생성된다. 상향 권한(`CODER`/`ADMIN`)은
+  신청(가입 시 `requestRole` 또는 로그인 후 `role-request`)만 접수되고, 운영 관리자가
+  승인해야 실제로 부여된다. **자가 가입/신청만으로는 권한이 오르지 않는다.**
+- **서명 키**: `EDU_JWT_SECRET`(≥32B)은 발급/검증 공용 키라 노출 시 토큰 위조가 가능하다.
+  로컬은 `deploy/.env`, K8s 는 `edu-auth-jwt` Secret 으로 주입하며, 프로덕션은 Vault/Sealed
+  Secrets 로 관리·회전한다(6절).
+
+## 3. 적용한 것 (deploy/k8s/hardening/)
 
 | 파일 | 내용 | 목적 |
 | --- | --- | --- |
@@ -38,14 +57,14 @@
 - **ResourceQuota/LimitRange**: 한 서비스가 CPU/메모리/파드 수를 독식하지 못하게.
 - **Kaniko 빌드**: 호스트 도커 소켓(=사실상 루트) 노출 없이 사용자 공간에서 이미지 빌드.
 
-## 3. 검증 (로컬 kind)
+## 4. 검증 (로컬 kind)
 
 - `edu-services-public`(restricted)에 루트 busybox 생성 시도 → **PodSecurity가 거부**
   (allowPrivilegeEscalation/capabilities/runAsNonRoot/seccompProfile 위반 명시).
-- 내부 tier의 비루트 서비스(`workdays`, Go)는 정상 Running 유지.
+- 내부 tier의 비루트 테스트 서비스(Go)는 정상 Running 유지.
 - ResourceQuota/LimitRange/NetworkPolicy/RuntimeClass 오브젝트 정상 생성.
 
-## 4. 적용 순서
+## 5. 적용 순서
 
 ```bash
 kubectl apply -f deploy/k8s/hardening/00-namespaces-tiers.yaml
@@ -55,10 +74,12 @@ kubectl apply -f deploy/k8s/hardening/30-runtimeclass-gvisor.yaml   # 노드에 
 # 빌드가 필요할 때 40-kaniko-build-job.template.yaml 을 렌더링해 Job 생성
 ```
 
-## 5. 프로덕션에서 반드시 채워야 할 것 (아직 아님)
+## 6. 프로덕션에서 반드시 채워야 할 것 (아직 아님)
 
 - **gVisor/Kata 노드 설치**: `30-runtimeclass` 사용 전 노드 런타임 준비.
 - **감사로그/실 OTel 계측**: 로그에 trace_id 표준화, 앱 자동/수동 계측, 감사로그 별도 보존.
+- **JWT 서명 키 관리**: `EDU_JWT_SECRET` 을 Vault/Sealed Secrets 로 이관·주기적 회전(현재는
+  `.env`/K8s `edu-auth-jwt` Secret 주입). 노출 시 토큰 위조가 가능하므로 최우선 항목.
 
 ### 완료된 항목 (구현·검증)
 - **레지스트리 pull 경로** (P3-4): kind-local-registry(containerd certs.d). Kaniko push 이미지를

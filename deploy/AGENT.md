@@ -14,12 +14,14 @@
 4. **빌드에 docker.sock 금지(프로덕션)**: 인클러스터 빌드는 **Kaniko/BuildKit(rootless)**
    + 레지스트리. 호스트 도커 소켓 마운트는 로컬 개발 전용.
 5. **자원 상한 필수**: 네임스페이스마다 ResourceQuota + LimitRange.
-6. **시크릿은 매니페스트에 평문 금지**: Secret/외부 시크릿 매니저 사용.
+6. **시크릿은 매니페스트에 평문 금지**: Secret/외부 시크릿 매니저 사용. JWT 서명키
+   `EDU_JWT_SECRET`(≥32B)는 `edu-auth-jwt` Secret 한 곳에서 관리하고 auth-service(발급)·
+   backend(검증)가 **같은 값**을 공유한다. 로컬은 `deploy/.env`(커밋 금지).
 
 ## 배포 모드
 
 - `simulate`(기본·데모) / `docker`(로컬 실배포) / `real`(K8s). 자세한 내용은
-  [k8s/README.md](k8s/README.md), 하드닝 설계는 [../SECURITY.md](../SECURITY.md).
+  [INFRA.md](INFRA.md)·[k8s/README.md](k8s/README.md), 하드닝 설계는 [../SECURITY.md](../SECURITY.md).
 
 ## 작업 후 갱신할 문서
 

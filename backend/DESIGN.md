@@ -10,8 +10,19 @@
 - `program` — 프로그램과 그 하위(이력/파일/댓글/기능/readme/태그/기능유형/기술/제공방식).
 - `review` — 승인/반려/중지/재개 처리와 이력.
 - `notification` — 알림 생성/조회/읽음.
-- `user` — 사용자·권한(데모, 실제 인증은 Phase 이후).
+- `user` — 사용자·권한의 표시용 데이터. 인가 판단에는 쓰지 않는다(계정의 단일 소스는 auth-service).
 - `catalog` — 분류 체계(정적 데이터) 제공.
+- `deploy` — 소스 검증·이미지 빌드·배포. 작업 큐(`DeployJob`)와 워커로 비동기 처리.
+- `security` — auth-service가 발급한 JWT 자체 검증과 RBAC(인가). 인증 자체는 담당하지 않는다.
+
+## 인증·인가
+
+- 인증(로그인·토큰 발급)은 auth-service의 책임. backend는 **자원 서버**로서 요청의
+  JWT를 동일한 `EDU_JWT_SECRET`으로 검증하고 `role` 클레임으로만 인가한다(요청마다
+  auth-service 호출 없음).
+- 접근 규칙은 `security.SecurityConfig` 한 곳에 모은다: 헬스·분류는 공개, 조회는 로그인,
+  프로그램 등록은 CODER 이상, 검토·권한·배포·사용자 관리는 ADMIN. CORS도 시큐리티
+  필터 체인으로 단일화한다.
 
 ## 데이터 모델
 

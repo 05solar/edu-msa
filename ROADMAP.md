@@ -8,7 +8,7 @@
 
 - [x] **P0-1 오토스케일** — HPA + PodDisruptionBudget (완료·검증)
   - 구현: `deploy/k8s/platform/autoscale.yaml`(backend/frontend HPA+PDB), 서비스 템플릿에 HPA 추가(동적 서비스 자동확장).
-  - 검증(kind): metrics-server 설치, workdays HPA가 `cpu: 1%/70%` 메트릭 정상 판독, PDB 활성. (Cluster Autoscaler는 실서버 노드풀 필요)
+  - 검증(kind): metrics-server 설치, 테스트 서비스 HPA가 `cpu: 1%/70%` 메트릭 정상 판독, PDB 활성. (Cluster Autoscaler는 실서버 노드풀 필요)
 - [x] **P0-2 배포 오케스트레이션 분리** — DB 작업 큐 + 워커 (완료·검증)
   - 구현: `DeployJob` 엔티티/큐, `DeployJobService`(claimNext = `FOR UPDATE SKIP LOCKED` 행잠금),
     `DeployWorker`(@Scheduled 폴링, 재시도), 승인/등록은 큐에 적재(비동기 202). @EnableScheduling.
@@ -22,7 +22,7 @@
 - [x] **P1-1 안전 빌드 + 신뢰도별 네임스페이스 자동배치** (완료)
   - [x] 네임스페이스 자동배치 — CODER/ADMIN→`edu-services`, USER/익명/불명→`edu-services-public`(fail-closed, 서브에이전트 PASS). 검증: 내부/외부 소유자 매니페스트 namespace 분기 확인.
   - [x] Kaniko 인클러스터 빌드(docker.sock 제거) — real 모드가 host `docker build` 대신 Kaniko Job(kubectl apply + wait)으로 이미지 빌드. 미신뢰 업로더 입력(repoUrl/branch) 정규식 검증으로 인자 주입 차단.
-    검증: kind에서 Kaniko Job이 실제 GitHub 레포(test-code, Go)를 docker.sock 없이 빌드→인클러스터 레지스트리 push 성공(카탈로그 `{"repositories":["workdays"]}`), 서브에이전트 리뷰 PASS(보안 지적 반영).
+    검증: kind에서 Kaniko Job이 실제 GitHub 레포(test-code, Go)를 docker.sock 없이 빌드→인클러스터 레지스트리 push 성공(카탈로그 `{"repositories":["test-svc"]}`), 서브에이전트 리뷰 PASS(보안 지적 반영).
     남은 인프라: 노드가 pull 가능한 레지스트리 엔드포인트(kind-local-registry 패턴 또는 사내 레지스트리) 구성 — 문서화.
 - [x] **P1-2 NetworkPolicy 강제** — Calico 도입 (완료·검증)
   - 구현: kind를 `disableDefaultCNI`로 재생성 + Calico v3.28 설치, hardening NetworkPolicy 적용.
@@ -30,6 +30,10 @@
 - [x] **P1-3 가용성** — 테넌트 서비스 템플릿에 무중단 롤링(maxUnavailable:0/maxSurge:1), PDB(maxUnavailable:1), AZ 분산(topologySpread ScheduleAnyway)+노드 안티어피니티(soft) 추가.
   검증(kind): 2-replica 앱에 롤링 업데이트 2회 중 220요청 실패 1(99.5%), 롤아웃 내내 2 Ready 유지. PDB ALLOWED DISRUPTIONS=1. 서브에이전트 PASS.
   주의: maxUnavailable:0는 서지(+1) 파드가 필요 → 네임스페이스 ResourceQuota가 N+1 허용해야 롤아웃 정체 없음.
+- [x] **P1-4 인증·인가 계층** — auth-service 분리 (완료)
+  - 구현: 계정 단일 소스 `auth-service`(자체 `auth-db`) + BCrypt 해시·HS256 JWT. **각 자원 서버가 동일한 `EDU_JWT_SECRET`으로 JWT 를 자체 검증**(요청마다 인증 서비스 동기 호출 없음 → 단일 장애점·병목 회피). Access=응답 본문/프론트 메모리, Refresh=`HttpOnly` 쿠키(회전). backend `SecurityConfig` 로 경로별 USER/CODER/ADMIN 인가(RBAC).
+  - 최소 권한: **회원가입은 항상 USER**, 상향 권한(CODER/ADMIN)은 신청→운영 관리자 승인만으로 부여(**자가 가입/신청으로 권한 상승 불가**).
+  - 남은 인프라: `EDU_JWT_SECRET` 시크릿 관리(Vault/Sealed Secrets·주기적 회전), 교육청 SSO 연동(토큰 형태 동일 → 자원 서버 무변경).
 
 ## P2 (운영 성숙도)
 
@@ -58,7 +62,7 @@
   검증(kind): 규칙 로드, 테스트 알림 Prometheus **firing** → Alertmanager **active** 수신 확인(파이프라인). 서브에이전트 PASS.
   남음: 수신처(Slack/Email) 라우팅, 억제/그룹핑, SLO 규칙 확장.
 - [x] **P3-4 레지스트리 pull 경로** — kind-local-registry(containerd certs.d) 자산(`deploy/k8s/platform/registry/`).
-  검증(kind, end-to-end): Kaniko가 test-code(Go)를 docker.sock 없이 빌드→`kind-registry:5000/workdays:v1` push(digest a3c56d8…) → `localhost:5001/workdays:v1` 배포(imagePullPolicy: Always) → kubelet **레지스트리 pull(221ms), Image ID digest 일치**, 파드 1/1 Running, 서비스 `/`·`/healthz` 200. 서브에이전트 PASS.
+  검증(kind, end-to-end): Kaniko가 test-code(Go)를 docker.sock 없이 빌드→`kind-registry:5000/test-svc:v1` push(digest a3c56d8…) → `localhost:5001/test-svc:v1` 배포(imagePullPolicy: Always) → kubelet **레지스트리 pull(221ms), Image ID digest 일치**, 파드 1/1 Running, 서비스 `/`·`/healthz` 200. 서브에이전트 PASS.
   즉 **GitHub 레포 → 인클러스터 빌드 → 레지스트리 → 노드 pull → 서비스 기동** 전 구간 완결.
 
 ## 진행 이력
@@ -70,6 +74,7 @@
 - 2026-08-25 — P1-1 진행: 신뢰도별 네임스페이스 자동배치 구현·검증(내부→edu-services, 외부→edu-services-public, fail-closed, 서브에이전트 PASS).
 - 2026-08-25 — P1-1 완료: Kaniko 인클러스터 빌드(docker.sock 제거) 배선 + repoUrl/branch 주입 검증. kind에서 실제 GitHub 레포 빌드→레지스트리 push 검증, 서브에이전트 PASS.
 - 2026-08-25 — P1-3 완료: 서비스 템플릿에 무중단 롤링+PDB+AZ분산/안티어피니티. kind에서 롤링 무중단(220/220-1) + PDB 검증, 서브에이전트 PASS.
+- 2026-08-25 — P1-4 완료: 인증·인가 계층(auth-service 분리, JWT 자체 검증, RBAC, HttpOnly refresh 쿠키, 회원가입 최소권한+승인). 남음: EDU_JWT_SECRET 시크릿 관리(Vault/Sealed Secrets)·교육청 SSO 연동.
 - 2026-08-25 — P2-1 완료: scale-to-zero(KEDA HTTP add-on). kind에서 유휴 0축소→요청 시 0→1 콜드스타트(HTTP 200) 검증.
 - 2026-08-25 — P2-2 완료: 관측성(kube-prometheus-stack). 백엔드 Prometheus 메트릭 노출 + ServiceMonitor. kind에서 스크레이프·디스커버리 검증, 서브에이전트 PASS.
 - 2026-08-25 — P2-3 완료: 엣지(ingress-nginx + ModSecurity/OWASP CRS). kind에서 TLS·WAF 차단(XSS/SQLi/traversal 403)·rate-limit(503) 검증, 서브에이전트 PASS. **P0·P1·P2 로드맵 전체 완료.**

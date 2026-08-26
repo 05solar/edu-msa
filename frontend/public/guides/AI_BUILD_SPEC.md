@@ -26,6 +26,11 @@
 플랫폼은 언어를 모르기 때문에, "이건 무슨 프로그램인가(`service.yaml`)"와 "어떻게
 실행하나(`Dockerfile`)"를 표준 방식으로 알려 줘야 합니다.
 
+배포되면 서비스는 포트가 아니라 **서브도메인** `http://<slug>.localhost` 로 열립니다
+(리버스 프록시가 `slug` 로 라우팅). 플랫폼은 컨테이너 `/healthz` 가 정상 응답할 때까지
+기다렸다가 "실행 중"으로 표시하므로, 첫 접속에서 오류가 나지 않게 하려면 헬스체크를
+꼭 구현하세요.
+
 ## 2. 배포 계약 (반드시 지킬 것 · 테스트 가능한 조건)
 
 1. 저장소 **루트**에 `service.yaml` 존재. `name`·`slug`·`category`·`port` 필수.
@@ -93,6 +98,21 @@ def healthz():
 ```js
 // Express
 app.get("/healthz", (req, res) => res.send("ok"));
+```
+
+### 5-3. 오류는 통일된 형식(JSON)으로
+
+API 성격의 응답에서 오류를 낼 때는 다음 형식을 씁니다(HTTP 상태 코드도 함께 설정).
+
+```json
+{ "error": { "code": "BAD_INPUT", "message": "사람이 읽을 설명" } }
+```
+
+```python
+# FastAPI
+from fastapi.responses import JSONResponse
+def err(code, message, status=400):
+    return JSONResponse({"error": {"code": code, "message": message}}, status_code=status)
 ```
 
 ---
@@ -351,4 +371,4 @@ curl localhost:8080/healthz     # → ok  (이게 나와야 성공)
 
 이 6가지가 모두 충족되면, 저장소 주소를 플랫폼 "프로그램 등록"에 입력 →
 **레포 규격 검증** → **등록 요청** → 운영 관리자 승인 시 자동으로 컨테이너가 떠서
-서비스가 공개됩니다.
+`http://<slug>.localhost` 주소로 서비스가 공개됩니다.

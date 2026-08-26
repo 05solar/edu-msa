@@ -30,12 +30,12 @@ P3-4는 그 이미지를 **노드(kubelet/containerd)가 실제로 pull해 파�
 - 백엔드 real 모드는 이미 `edu.deploy.registry`로 대상 레지스트리를 주입한다(P1-1).
 
 ## 동작 검증 (kind, 2026-08-25) — end-to-end
-1. Kaniko가 실제 GitHub 레포(test-code, Go)를 docker.sock 없이 빌드 →
-   `kind-registry:5000/workdays:v1` push 성공(digest `sha256:a3c56d8…`).
-2. `localhost:5001/workdays:v1` 참조 Deployment(imagePullPolicy: Always) 적용 →
-   kubelet **"Successfully pulled image localhost:5001/workdays:v1 in 221ms"**,
+1. Kaniko가 실제 GitHub 레포(Go 서비스)를 docker.sock 없이 빌드 →
+   `kind-registry:5000/doc-proofreader:v1` push 성공(digest `sha256:a3c56d8…`).
+2. `localhost:5001/doc-proofreader:v1` 참조 Deployment(imagePullPolicy: Always) 적용 →
+   kubelet **"Successfully pulled image localhost:5001/doc-proofreader:v1 in 221ms"**,
    Image ID digest가 **push한 digest와 동일**, 파드 1/1 Running.
-3. 서비스 호출: `GET /` → 200(근무일수 계산기 HTML), `GET /healthz` → 200.
+3. 서비스 호출: `GET /` → 200(서비스 HTML), `GET /healthz` → 200.
 - 결론: GitHub 레포 → 인클러스터 빌드 → 레지스트리 → 노드 pull → 서비스 기동 전 구간 확인.
 
 ## 참고: 재생성 시 다른 스택

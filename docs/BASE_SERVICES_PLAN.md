@@ -1,47 +1,37 @@
-# 기본 서비스 재구성 계획 (7개 업무 서비스)
+# 기본 내장 서비스 계획 · 검증 현황 (개인용 단발 도구 7개)
 
-교육청 실제 업무에 활용 가능한 수준의 기본 서비스 7개를, 서로 다른 업무 분야 × 서로 다른 언어로
-구현한다. 기존 examples/의 단순 데모 8종은 정리하고 아래 7종만 남긴다.
+교육청 전 직원용 플랫폼의 기본 내장 서비스는 **개인이 필요할 때 접속해 한 번에 끝내는 단발 도구**다.
+여러 사용자가 상호작용하며 상태를 관리·보고하는 협업 시스템은 이 플랫폼에 두지 않는다.
+7개 업무 분야(category)에 각각 하나의 서비스를 두며, 언어는 도구 특성에 맞춰 선택한다.
 
-## 기존 정리 대상 (전부 삭제 → 대체)
-budget-rate, civil-reply, class-hours, data-summary, doc-formatter, facility-check,
-sample-service(travel-settlement), score-stats — 모두 Python 70~100줄 단순 계산/데모.
-함께 정리: seed/programs.json 참조, deploy-samples/travel-settlement, README/PROCESS/문서 참조.
+## 설계 원칙
+- **개인 단발 사용**: 접속 → 입력/업로드 → 처리(검사·변환·생성·계산·추출) → 저장/인쇄 → 종료.
+- **무상태**: 서버에 사용자 데이터를 저장·공유하지 않는다(요청 처리 후 폐기).
+- **카테고리별 1개**: doc / student / curri / budget / facil / data / civil.
+- **서브도메인 접속**: "웹에서 바로 사용" → `http://<slug>.localhost` (Traefik, 포트 노출 없음).
 
-## 확정된 7개 서비스
+## 서비스 목록 · 검증 현황
 
-| # | slug | 업무 분야 | 언어 / 프레임워크 | 핵심 업무 흐름 |
-|---|------|----------|-------------------|----------------|
-| 1 | doc-approval | 공문/업무요청 결재 | Go / net/http | 기안→상신→검토→승인/반려, 결재선·감사이력 |
-| 2 | facility-maint | 학교 시설 유지보수 | Python / FastAPI | 접수→분류→배정→작업→완료, 우선순위·SLA |
-| 3 | staff-trip | 교직원 출장·복무 | Java / Javalin | 출장신청→승인→정산(여비 계산)→지급 |
-| 4 | civil-desk | 학생·학부모 민원 | TypeScript / Fastify | 접수→분류→배정→답변→종결, 기한·에스컬레이션 |
-| 5 | asset-mgr | 교육 기자재·자산 | C# / .NET minimal API | 등록→불출→이관→수리→폐기, 감가·재물조사 |
-| 6 | safety-check | 학교 안전점검 | Rust / axum | 점검계획→수행→지적사항→개선조치→완료 |
-| 7 | report-hub | 통계/보고 자료 | Kotlin / Ktor | 자료수집→집계→보고서 생성→승인→공개 |
+| # | category | slug | 서비스 | 언어 | 핵심 기능 | 빌드 | 기능검증 | 서브도메인 | 프론트노출 |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | doc | doc-proofreader | 공문서 오타·맞춤법 검사기 | Go | 맞춤법·띄어쓰기·행정용어 규칙 교정, 동음이의 표시, 교정본 | ✅ | ✅ | ✅ | ✅ |
+| 2 | student | seat-maker | 학생 자리배치 생성기 | Python | 명단 엑셀 입출력, 남녀균형·인접금지, 좌석표 | ✅ | ✅ | ✅ | ✅ |
+| 3 | curri | timetable-checker | 시간표 충돌 검사·이미지 생성기 | TypeScript | 교사/교실/학급 충돌 검출, 주간 시간표 SVG | ✅ | ✅ | ✅ | ✅ |
+| 4 | budget | travel-allowance | 국내출장 여비 계산기 | C# | 일비·식비·숙박·운임 규정 계산, 내역서·CSV | ✅ | ✅ | ✅ | ✅ |
+| 5 | facil | asset-label | 비품 QR 라벨 시트 생성기 | Java | 관리번호·품명 QR, A4 라벨 PDF(한글 폰트) | ✅ | ✅ | ✅ | ✅ |
+| 6 | data | data-summarizer | 표 데이터 통계 요약·차트 생성기 | Python | CSV·엑셀 요약통계, 막대·분포·원 차트 PNG | ✅ | ✅ | ✅ | ✅ |
+| 7 | civil | doc-ocr | 문서 이미지 OCR 추출기 | Python | 한글/영문 OCR, 텍스트 추출·복사·다운로드 | ✅ | ✅ | ✅ | ✅ |
 
-- 업무 분야 7개 상호 중복 없음. 구현 언어 7개 중복 없음.
-- 각 서비스는 실제 업무 흐름(상태 전이)을 완결하며 단순 CRUD가 아님.
+언어 사용: Go, Python(×3: seat/data/ocr — 엑셀·차트·OCR 라이브러리 특성상), TypeScript, C#, Java.
 
-## 공통 규격 (모든 서비스)
-독립 실행 · 독립 Dockerfile · 비루트 실행 · `/healthz` · readiness/liveness 대응 ·
-환경변수(PORT) 설정 · 통일된 오류 응답 · 입력 검증 · 로그 · 샘플(seed) 데이터 ·
-README · `/svc/<slug>` 경로 대응 · `local://examples/<slug>` 로 local/docker/real 모드 사용 ·
-PodSecurity/securityContext(restricted, 비루트) 호환.
+## 검증 절차(서비스마다 반복)
+1. 소스 구현(독립 Dockerfile·비루트·`/healthz`·통일 오류 응답·입력 검증).
+2. `docker build` → 컨테이너 기동 → `/healthz` 200.
+3. 핵심 기능 실테스트(정상·경계·오류 입력) — 조작하지 않고 실제 응답으로 검증.
+4. 플랫폼 배포(`POST /api/programs/{id}/deploy`, docker 모드) → `edu-svc-<slug>` 기동.
+5. 프론트 목록 노출 확인 + "웹에서 바로 사용" **서브도메인 실접속**(UI·API 동작) 확인.
+6. 하나 완료 후 다음 서비스로 진행. 7개 완료 후 전체 재검증.
 
-## 진행 방식
-서비스 1개씩 순차: 분석 → 설계 → 구현 → docker build/run → API 테스트(정상/오류/미존재/상태전이) →
-서브에이전트 업무적합성 검증 → 미흡 시 재개발 → 통과 시 Seed 등록 → 다음 서비스.
-
-## 검증 상태 기록
-(각 서비스 완료 시 아래에 결과를 갱신한다.)
-
-| 서비스 | build | /healthz | 핵심 API | 서브에이전트 | Seed |
-|---|---|---|---|---|---|
-| doc-approval | ✅ Go/distroless | ✅ 200 | ✅ 상태전이·403/409/400/404·검색·통계·전결·재상신 | ✅ 업무 사용 가능(고도화 반영) | ✅ programs.json |
-| facility-maint | ✅ Python/FastAPI | ✅ 200 | ✅ 상태전이·SLA·보류/재개·재오픈·비용집계·정렬·첨부 | ✅ 업무 사용 가능(고도화 반영) | ✅ programs.json |
-| staff-trip | ✅ Java/Javalin | ✅ 200 | ✅ 여비 자동계산·승인/정산/지급·반려/취소/반송·관내출장·무료숙박 | ✅ 업무 사용 가능(고도화 반영) | ✅ programs.json |
-| civil-desk | ✅ TS/Fastify | ✅ 200 | ✅ 접수·배정·답변·종결·반려·에스컬레이션·재개/취하·만족도·통지·마스킹 | ✅ 업무 사용 가능(고도화 반영) | ✅ programs.json |
-| asset-mgr | ✅ C#/.NET | ✅ 200 | ✅ 생애주기·감가상각·재물조사·재발견·물품대장필드·CSV | ✅ 업무 사용 가능(고도화 반영) | ✅ programs.json |
-| safety-check | ✅ Rust/axum | ✅ 200 | ✅ 점검-지적-조치 상태기계·FAIL자동지적·점검주기·기한초과·템플릿·재개 | ✅ 업무 사용 가능(고도화 반영) | ✅ programs.json |
-| report-hub | ✅ Kotlin/Ktor | ✅ 200 | ✅ 수집→집계→승인→공개·항목집계·대상기관 제출율·가중평균·CSV·정정재공개 | ✅ 업무 사용 가능(고도화 반영) | ✅ programs.json |
+## 최종 상태
+- `examples/` 에 정확히 7개(위 slug). seed `programs.json` 에 7개 등록(내부 계정 소유, status public).
+- 전체 재검증: 7개 컨테이너 running · Traefik 라우터 7개 · 프론트 노출 · 서브도메인 healthz 200 + UI = **ALL PASS**.

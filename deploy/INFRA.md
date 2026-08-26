@@ -80,20 +80,32 @@ GitHub 레포 URL
 
 ---
 
-## 3-1. 기본 내장 서비스 (7개 · 7개 언어)
+## 3-1. 기본 내장 서비스 (7개 · 카테고리별 1개 · 개인용 단발 도구)
 
-플랫폼에 동봉되는 실제 업무 서비스 7개(`examples/`). seed(`programs.json`)에 **내부 계정 소유**로
-등록되어 배포 시 신뢰 네임스페이스 `edu-services`로 배치된다. 소스는 `local://examples/<slug>`.
+플랫폼에 동봉되는 **개인용 단발 도구 7개**(`examples/`). 교육청 전 직원이 필요할 때 접속해
+한 번의 작업(검사·변환·생성·계산·추출)을 처리하고 끝내는 도구이며, 여러 사용자가 상호작용하며
+상태를 관리·보고하는 협업 시스템이 아니다. 7개 업무 분야(category)에 각각 하나씩 존재한다.
+seed(`programs.json`)에 **내부 계정 소유**로 등록되고 소스는 `local://examples/<slug>`.
 
-| slug | 업무 분야 | 언어 | slug | 업무 분야 | 언어 |
-|---|---|---|---|---|---|
-| doc-approval | 공문 결재 | Go | asset-mgr | 자산 관리 | C# |
-| facility-maint | 시설 유지보수 | Python | safety-check | 안전점검 | Rust |
-| staff-trip | 출장·복무 | Java | report-hub | 통계·보고 | Kotlin |
-| civil-desk | 민원 처리 | TypeScript | | | |
+| category | slug | 서비스 | 언어 |
+|---|---|---|---|
+| doc 문서·공문 | doc-proofreader | 공문서 오타·맞춤법 검사기 | Go |
+| student 학생·성적 | seat-maker | 학생 자리배치 생성기 | Python |
+| curri 교육과정 | timetable-checker | 시간표 충돌 검사·이미지 생성기 | TypeScript |
+| budget 예산·회계 | travel-allowance | 국내출장 여비 계산기 | C# |
+| facil 시설·안전 | asset-label | 비품 QR 라벨 시트 생성기 | Java |
+| data 데이터 | data-summarizer | 표 데이터 통계 요약·차트 생성기 | Python |
+| civil 민원 | doc-ocr | 문서 이미지 OCR 추출기 | Python |
 
-모두 비루트·`/healthz`·상태기계 워크플로. 검증: docker 모드 배포 시 `edu-svc-<slug>` 컨테이너 기동→`/healthz 200`.
-상세는 [../examples/README.md](../examples/README.md).
+모두 비루트·`/healthz`·개인 단발형(상태 저장·공유 없음). 검증: docker 모드 배포 시 `edu-svc-<slug>`
+컨테이너 기동→`/healthz 200`→서브도메인 실접속. 상세는 [../examples/README.md](../examples/README.md).
+
+### 서브도메인 라우팅 (Traefik)
+"웹에서 바로 사용"은 포트가 아니라 **서브도메인** `http://<slug>.localhost` 로 열린다.
+브라우저가 `*.localhost` 를 127.0.0.1로 처리 → 호스트 :80의 Traefik이 Host 헤더로 라우팅.
+배포 시 백엔드(`DeploymentService`)가 컨테이너를 `eduproxy` 네트워크에 합류시키고 Traefik
+파일 프로바이더 라우트(`/dynamic/<slug>.yml`, `<slug>.localhost → http://edu-svc-<slug>:<port>`)를
+기록한다. 컨테이너 `/healthz` 응답까지 대기(readiness)한 뒤 `running`으로 표시해 첫 접속 502를 방지.
 
 ## 4. 멀티테넌트 보안 (hardening/)
 

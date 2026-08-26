@@ -38,7 +38,7 @@ edu-msa/
 │   └── src/main/java/com/edu/auth/…
 ├── examples/                  # 기본 업무 서비스 7개(카테고리별 1개, 각 폴더 = 배포 가능한 레포)
 └── deploy/
-    ├── docker-compose.yml     # postgres + backend + auth-db + auth-service
+    ├── docker-compose.yml     # postgres + auth-db + auth-service + traefik(서브도메인) + backend
     ├── .env.example           # 시크릿 주입 예시 (EDU_JWT_SECRET 등)
     └── k8s/                   # namespace · 플랫폼 · 인증 · 서비스 템플릿 · RBAC
 ```
@@ -141,19 +141,24 @@ K8s 매니페스트(Deployment/Service/Ingress) 렌더링·적용 → 헬스 통
 
 - 표준 규격: [docs/MSA_SERVICE_SPEC.md](docs/MSA_SERVICE_SPEC.md)
 - K8s 매니페스트: [deploy/k8s/](deploy/k8s/) (namespace·플랫폼·서비스 템플릿·RBAC)
-- **기본 서비스 7개**: [examples/](examples/) — 실제 교육청 업무를 **7개 서로 다른 언어**로 구현(단순 데모 아님).
+- **기본 서비스 7개**: [examples/](examples/) — 교육청 업무 분야(category)별 **개인용 단발 도구** 1개씩.
+  개인이 접속해 한 번의 작업(검사·변환·생성·계산·추출)을 처리하고 끝내는 도구이며(멀티유저 협업·상태
+  관리 시스템 아님), 언어는 도구 특성에 맞게 선택했다.
 
-  | 서비스 | 업무 분야 | 언어 | 배포 경로 |
+  | 서비스 | 업무 분야 | 언어 | 접속(웹에서 바로 사용) |
   |---|---|---|---|
-  | doc-approval | 공문/업무요청 결재 | Go | `/svc/doc-approval` |
-  | facility-maint | 학교 시설 유지보수 | Python(FastAPI) | `/svc/facility-maint` |
-  | staff-trip | 교직원 출장·복무 | Java(Javalin) | `/svc/staff-trip` |
-  | civil-desk | 학생·학부모 민원 | TypeScript(Fastify) | `/svc/civil-desk` |
-  | asset-mgr | 교육 기자재·자산 | C#(.NET) | `/svc/asset-mgr` |
-  | safety-check | 학교 안전점검 | Rust(axum) | `/svc/safety-check` |
-  | report-hub | 통계/보고 자료 | Kotlin(Ktor) | `/svc/report-hub` |
+  | doc-proofreader | 공문서 오타·맞춤법 검사 | Go | `http://doc-proofreader.localhost` |
+  | seat-maker | 학생 자리배치(엑셀 입출력) | Python | `http://seat-maker.localhost` |
+  | timetable-checker | 시간표 충돌 검사·이미지 | TypeScript | `http://timetable-checker.localhost` |
+  | travel-allowance | 국내출장 여비 계산 | C# | `http://travel-allowance.localhost` |
+  | asset-label | 비품 QR 라벨 시트(PDF) | Java | `http://asset-label.localhost` |
+  | data-summarizer | 표 데이터 통계·차트 | Python | `http://data-summarizer.localhost` |
+  | doc-ocr | 문서 이미지 OCR 추출 | Python | `http://doc-ocr.localhost` |
 
-  모두 비루트·`/healthz`·통일 오류포맷·상태기계 워크플로. seed(`programs.json`)에 내부 계정 소유로 등록 → 배포 시 `edu-services`.
+  모두 비루트·`/healthz`·통일 오류포맷·개인 단발형(상태 저장·공유 없음). seed(`programs.json`)에 내부
+  계정 소유로 등록 → 배포 시 `edu-services`. "웹에서 바로 사용"은 포트가 아니라 **서브도메인**
+  (`http://<slug>.localhost`)으로 열린다(로컬은 Traefik 리버스 프록시가 Host 헤더로 라우팅).
+  각 서비스·플랫폼에는 링크 미리보기(OG) 이미지와 파비콘이 포함된다.
 - 백엔드 배포 API: `POST /api/deploy/validate`, `POST /api/programs/{id}/deploy`
 - 배포 모드(`EDU_DEPLOY_MODE`): `simulate`(매니페스트 렌더만·기본) · `docker`(호스트 Docker로 **실제 컨테이너 기동**) · `real`(K8s `kubectl apply`)
 - 레포 주소 형식: `https://github.com/…`(실제) · `local://examples/<slug>`(플랫폼 동봉 기본 서비스)
@@ -164,17 +169,24 @@ K8s 매니페스트(Deployment/Service/Ingress) 렌더링·적용 → 헬스 통
 ## 전체 스택 한 번에 실행
 
 ```bash
-# 백엔드 + PostgreSQL (Docker)
-docker compose -f deploy/docker-compose.yml up --build -d   # 백엔드 http://localhost:8088
+# 0) 시크릿 준비 — auth-service 발급/백엔드 검증 공용 서명 키(≥32B)
+cp deploy/.env.example deploy/.env        # EDU_JWT_SECRET 등 값 채우기
 
-# 프론트엔드 (백엔드 연동 모드)
+# 1) 백엔드 스택 (Docker): postgres · auth-db · auth-service(:8089) · traefik(:80) · backend(:8088)
+docker compose -f deploy/docker-compose.yml up --build -d
+
+# 2) 프론트엔드 (백엔드 연동 모드)
 cd frontend
 npm install
 $env:VITE_USE_API="true"; npm run dev     # PowerShell 기준. http://localhost:5173
 # (VITE_USE_API 미설정 시 목업 데이터로 동작하는 오프라인 데모)
 ```
 
-프론트엔드 개발 서버는 `/api` 요청을 백엔드(기본 `localhost:8088`)로 프록시한다.
+- 접속: **플랫폼** http://localhost:5173 (로그인 또는 데모 로그인 후 이용) ·
+  **배포된 기본 서비스** http://&lt;slug&gt;.localhost (예: `http://doc-proofreader.localhost`).
+- 프론트 개발 서버 프록시: `/api/auth` → auth-service(`localhost:8089`), `/api` → backend(`localhost:8088`).
+- `EDU_JWT_SECRET` 미설정 시 compose 가 기동을 거부한다(의도된 안전장치). 배포 서비스는 Traefik(:80)이
+  `<slug>.localhost` Host 로 각 컨테이너에 라우팅한다.
 
 ## 문서 안내 (문서 지도)
 

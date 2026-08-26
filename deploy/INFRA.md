@@ -21,12 +21,16 @@
 
 ```
 deploy/
-├─ docker-compose.yml            # 로컬 개발(backend + postgres, docker 모드)
+├─ docker-compose.yml            # 로컬 개발: postgres·auth-db·auth-service·traefik·backend (docker 배포 모드)
+├─ .env.example                  # 시크릿 주입 예시(EDU_JWT_SECRET·EDU_SEED_PASSWORD 등, .env 는 커밋 안 함)
 ├─ INFRA.md · PROCESS.md · AGENT.md
 └─ k8s/
    ├─ namespaces.yaml            # edu-platform, edu-services
    ├─ service-template.yaml      # 테넌트 서비스 1개당 렌더 대상(Deploy/Svc/Ingress/HPA/PDB)
    ├─ scale-to-zero-template.yaml# HTTPScaledObject 템플릿(KEDA)
+   ├─ auth/                      # 인증 계층
+   │  ├─ auth-db.yaml            # 인증 전용 DB(계정 단일 소스)
+   │  └─ auth-service.yaml       # 인증 API(JWT 발급) · edu-auth-jwt Secret
    ├─ hardening/                 # 멀티테넌트 보안
    │  ├─ 00-namespaces-tiers.yaml   # 신뢰등급별 ns + PodSecurity
    │  ├─ 10-resourcequota-limits.yaml
@@ -57,6 +61,28 @@ deploy/
 - **DB**: `postgres-ha.yaml`(CloudNativePG Cluster 3-인스턴스, 자동 장애조치) / 개발은 `postgres.yaml`.
 - **ingress**(`platform/ingress.yaml`): 플랫폼 UI/API 진입.
 - **RBAC**(`platform/rbac.yaml`): `edu-deployer` SA가 `edu-services`에 Deploy/Svc/Ingress만 CRUD(파드는 read).
+
+---
+
+## 2-1. 인증 계층 (auth-service · JWT)
+
+계정 정보의 **단일 소스**를 플랫폼 backend 와 분리한 인증 마이크로서비스(`auth-service/`).
+
+- **auth-service**: 회원가입·로그인·데모로그인·토큰 발급/갱신/폐기. 자체 DB(`auth-db`, `eduauth`)로
+  플랫폼 DB와 분리. BCrypt 비밀번호 해시 · HS256 JWT. 로컬 `:8089`, K8s `k8s/auth/`.
+- **토큰 검증은 각 서비스가 자체 수행**: 로그인 시 발급된 JWT를 backend 가 **동일한 `EDU_JWT_SECRET`**
+  으로 직접 검증한다(요청마다 auth-service를 호출하지 않음 → 자원 서버 무상태).
+- **backend 인가(RBAC · `com.edu.msa.security.SecurityConfig`)**: JWT의 role 클레임으로 판단.
+  `/api/health`·`/api/catalog/**` 공개 · `/api/programs/*/deploy`·`/api/programs/all`·`/api/users` 는
+  **ADMIN** · 프로그램 등록(POST `/api/programs`)은 **CODER 이상** · 그 외는 로그인 필요.
+- **토큰 운반**: Access Token 은 응답 본문(프론트는 메모리 보관), Refresh Token 은 `HttpOnly` 쿠키
+  (`edu_refresh`, 경로 `/api/auth`)로만 오간다. 프론트는 새로고침 시 `/api/auth/refresh` 로 세션 복구.
+- **인증 경로**: LOCAL(자체 ID/PW)·DEMO(비밀번호 없는 시연 로그인) 구현. 교육청 **SSO** 는 이 서비스
+  안에 추가 예정 — 자원 서버가 보는 토큰 형태가 같아 backend 는 바뀌지 않는다.
+- **시크릿**: `EDU_JWT_SECRET`(≥32B)를 auth-service(발급)와 backend(검증)가 **공유**. 로컬은
+  `deploy/.env`(예시 `deploy/.env.example`), K8s는 `edu-auth-jwt` Secret 한 곳에서 관리.
+- **로컬 프록시**: 프론트(:5173)가 `/api/auth`→auth-service(:8089), `/api`→backend(:8088)로 분기
+  (`frontend/vite.config.ts`). 배포(nginx)는 `frontend/nginx.conf` 가 동일 규칙으로 라우팅.
 
 ---
 
@@ -143,19 +169,36 @@ CNI는 **Calico**(NetworkPolicy 강제; kindnet은 미강제). 검증: 공개 ti
 
 ```
 사용자 →(HTTPS)→ ingress-nginx [TLS 종료 · rate-limit · WAF(ModSecurity/CRS)]
-   ├─ 플랫폼 UI/API → frontend / backend(edu-platform)
+   ├─ 로그인 → auth-service(JWT 발급, Refresh 쿠키) → 이후 플랫폼 API 는 Bearer 토큰
+   ├─ 플랫폼 UI/API → frontend / backend(edu-platform) · backend 가 JWT 자체 검증(role 기반 RBAC)
    └─ 배포된 서비스 → 신뢰도별 라우팅
         ├─ 내부(edu-services)         : baseline, 사설망 egress 허용
         └─ 공개(edu-services-public)  : restricted, 사설망 차단, (선택)gVisor, KEDA scale-to-zero
 ```
 
+> 로컬(docker-compose): 배포된 서비스는 Traefik(:80)이 `<slug>.localhost` Host 로 라우팅(§3-1),
+> 플랫폼 UI는 Vite(:5173) → `/api/auth`=auth-service(:8089)·`/api`=backend(:8088) 프록시.
+
 ---
 
-## 7. 브링업 순서 (실서버 기준)
+## 7. 브링업 순서
+
+### 로컬(docker-compose · docker 배포 모드)
+```bash
+cp deploy/.env.example deploy/.env      # EDU_JWT_SECRET 등 값 채우기(≥32B)
+docker compose -f deploy/docker-compose.yml up -d --build   # db·auth-db·auth-service·traefik·backend
+cd frontend && npm install && npm run dev                   # 프론트(:5173)
+# 접속: 플랫폼 http://localhost:5173 (로그인 후) · 배포 서비스 http://<slug>.localhost
+```
+기동 순서는 compose 의존성으로 자동 보장(db/auth-db healthy → auth-service·backend). `EDU_JWT_SECRET`
+미설정 시 compose 가 실패하며 알려준다. backend 는 `eduproxy` 네트워크로 배포 컨테이너와 통신한다.
+
+### 실서버(K8s)
 
 1. 클러스터 + CNI(Calico) + (kind는 `registry/setup-local-registry.sh`).
 2. `k8s/namespaces.yaml`, `hardening/*` 적용(신뢰등급/PSA/쿼터/NetworkPolicy).
-3. `platform/rbac.yaml`, `postgres-ha.yaml`(CNPG), `backend.yaml`/`frontend.yaml`/`ingress.yaml`.
+3. `platform/rbac.yaml`, `postgres-ha.yaml`(CNPG), `auth/auth-db.yaml` → `auth/auth-service.yaml`
+   (backend 보다 먼저 — `edu-auth-jwt` Secret 생성) → `backend.yaml`/`frontend.yaml`/`ingress.yaml`.
 4. 운영 스택(helm): metrics-server → kube-prometheus-stack → KEDA → ingress-nginx →
    cert-manager → Loki → Tempo (각 README의 helm 명령).
 5. `monitoring/`·`logging/`·`tracing/` 데이터소스/규칙/ServiceMonitor 적용.

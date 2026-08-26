@@ -116,6 +116,7 @@
       <div class="chip"><i class="dotc" style="background:var(--teal)"></i>Kaniko 안전빌드 · 로컬 레지스트리</div>
       <div class="chip"><i class="dotc" style="background:var(--violet)"></i>KEDA · Prometheus · Loki · Tempo</div>
       <div class="chip"><i class="dotc" style="background:var(--rose)"></i>ingress-nginx WAF · cert-manager</div>
+      <div class="chip"><i class="dotc" style="background:var(--green)"></i>auth-service JWT · 서브도메인 라우팅</div>
     </div>
     <div class="hint">아래로 스크롤하며 순서대로 읽으면 된다 · 상단 바가 전체 진행도를 표시</div>
   </div>
@@ -616,6 +617,42 @@
     </div>
   </div>
   <div class="foot">14 / 15 · 운영 스택</div>
+</section>
+
+<!-- 13-A 인증·서브도메인 -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">부록 · 인증 계층 &amp; 접속</div>
+    <h2 class="stitle">로그인은 <span>auth-service</span>가, 접속은 <span>서브도메인</span>이</h2>
+    <p class="lead">계정의 단일 소스를 플랫폼 backend와 분리한 인증 마이크로서비스가 JWT를 발급하고,
+      각 서비스는 <b>같은 EDU_JWT_SECRET</b>으로 토큰을 자체 검증한다. 배포된 기본 서비스는
+      포트가 아니라 <b>서브도메인</b>으로 연다.</p>
+    <div class="grid2">
+      <div class="tier int">
+        <h3><span class="dotc" style="background:var(--green)"></span>인증 · auth-service (JWT)</h3>
+        <div class="lab">회원가입 · 로그인 · 데모 로그인</div>
+        <ul>
+          <li>자체 DB <span class="k">auth-db</span> · BCrypt 해시 · HS256 JWT</li>
+          <li>Access=응답 본문(메모리) · Refresh=<span class="k">HttpOnly</span> 쿠키</li>
+          <li>backend가 role 클레임으로 <span class="k">RBAC</span> 인가(요청마다 호출 안 함)</li>
+          <li>교육청 SSO는 이 서비스에 추가 예정 — 토큰 형태 같아 backend 무변경</li>
+        </ul>
+      </div>
+      <div class="tier pub">
+        <h3><span class="dotc" style="background:var(--blue)"></span>접속 · 서브도메인 라우팅</h3>
+        <div class="lab">http://&lt;slug&gt;.localhost</div>
+        <ul>
+          <li>Traefik(:80)이 <span class="k">Host</span> 헤더로 각 컨테이너에 라우팅</li>
+          <li>배포 시 backend가 <span class="k">/dynamic/&lt;slug&gt;.yml</span> 라우트 기록</li>
+          <li>같은 <span class="k">eduproxy</span> 네트워크 DNS로 컨테이너명 해소</li>
+          <li>/healthz 준비까지 대기 후 running → 첫 접속 502 방지</li>
+        </ul>
+      </div>
+    </div>
+    <p class="lead" style="margin-top:14px">기본 내장 서비스는 업무 분야(doc·student·curri·budget·facil·data·civil)별
+      <b>개인용 단발 도구 7개</b> — 개인이 접속해 검사·변환·생성·계산·추출을 한 번에 끝내는 도구다.</p>
+  </div>
+  <div class="foot">부록 · 인증 · 서브도메인 · edu-msa</div>
 </section>
 
 <!-- 14 검증 현황 -->

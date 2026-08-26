@@ -1,0 +1,13 @@
+name: 공문서 오타·맞춤법 검사기
+slug: doc-proofreader
+category: doc
+purposes:
+  - verify
+tech:
+  - Go
+summary: 공문·안내문 텍스트의 맞춤법·띄어쓰기·행정용어 오류를 찾아 교정본을 만들어 주는 개인용 단발 도구.
+port: 8080
+health: /healthz
+resources:
+  cpu: 250m
+  memory: 128Mi

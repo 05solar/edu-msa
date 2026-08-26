@@ -1,0 +1,219 @@
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"regexp"
+	"strings"
+	"time"
+)
+
+// ---- 규칙 정의 (오프라인·규칙기반) ----
+
+type corr struct{ W, R, Rule string }
+
+// 자주 틀리는 맞춤법·행정 오탈자 (명백히 교정 가능한 것만 수록)
+var corrections = []corr{
+	{"몇일", "며칠", "맞춤법"}, {"오랫만", "오랜만", "맞춤법"}, {"오랜동안", "오랫동안", "맞춤법"},
+	{"금새", "금세", "맞춤법"}, {"역활", "역할", "맞춤법"}, {"희안", "희한", "맞춤법"},
+	{"웬지", "왠지", "맞춤법"}, {"왠일", "웬일", "맞춤법"}, {"곰곰히", "곰곰이", "맞춤법"},
+	{"일일히", "일일이", "맞춤법"}, {"깨끗히", "깨끗이", "맞춤법"}, {"도데체", "도대체", "맞춤법"},
+	{"어의없", "어이없", "맞춤법"}, {"할려고", "하려고", "맞춤법"}, {"갈려고", "가려고", "맞춤법"},
+	{"됬", "됐", "맞춤법"}, {"뵈요", "봬요", "맞춤법"}, {"어떻해", "어떡해", "맞춤법"},
+	{"설레임", "설렘", "맞춤법"}, {"연애인", "연예인", "맞춤법"}, {"문안하게", "무난하게", "맞춤법"},
+	{"읍니다", "습니다", "맞춤법"}, {"있읍니다", "있습니다", "맞춤법"}, {"없읍니다", "없습니다", "맞춤법"},
+	{"안되겠", "안 되겠", "띄어쓰기"}, {"할수있", "할 수 있", "띄어쓰기"}, {"할수없", "할 수 없", "띄어쓰기"},
+	{"및및", "및", "오탈자"}, {"그리고그리고", "그리고", "오탈자"},
+	{"제출바랍니다", "제출 바랍니다", "띄어쓰기"}, {"협조바랍니다", "협조 바랍니다", "띄어쓰기"},
+	{"참고바랍니다", "참고 바랍니다", "띄어쓰기"}, {"확인바랍니다", "확인 바랍니다", "띄어쓰기"},
+}
+
+// 문맥 확인이 필요한 동음이의 행정용어 (자동교정하지 않고 표시만)
+type homo struct{ Word, Note string }
+
+var homonyms = []homo{
+	{"결제", "결재(승인)/결제(대금 지불) 문맥 확인"},
+	{"지양", "지양(하지 않음)/지향(추구) 문맥 확인"},
+	{"갱신", "갱신(고쳐 새로)/경신(기록 깸) 문맥 확인"},
+	{"제고", "제고(끌어올림)/재고(다시 고려/재고품) 문맥 확인"},
+	{"계발", "계발(능력)/개발(새로 만듦) 문맥 확인"},
+}
+
+type issue struct {
+	Original   string `json:"original"`
+	Suggestion string `json:"suggestion"`
+	Rule       string `json:"rule"`
+	Kind       string `json:"kind"` // correction | review
+	Count      int    `json:"count"`
+	Context    string `json:"context"`
+}
+
+var (
+	reMultiSpace  = regexp.MustCompile(`[ \t]{2,}`)
+	reSpaceBefore = regexp.MustCompile(` +([,.!?;:)\]}])`)
+	reTrailing    = regexp.MustCompile(`[ \t]+\n`)
+)
+
+// 첫 등장 위치 주변 문맥 (해당 표현을 《》로 표시)
+func contextOf(text, sub string) string {
+	rs := []rune(text)
+	ss := []rune(sub)
+	idx := runeIndex(rs, ss)
+	if idx < 0 {
+		return ""
+	}
+	from := idx - 14
+	if from < 0 {
+		from = 0
+	}
+	to := idx + len(ss) + 14
+	if to > len(rs) {
+		to = len(rs)
+	}
+	pre := strings.ReplaceAll(string(rs[from:idx]), "\n", " ")
+	mid := string(rs[idx : idx+len(ss)])
+	post := strings.ReplaceAll(string(rs[idx+len(ss):to]), "\n", " ")
+	lead, tail := "", ""
+	if from > 0 {
+		lead = "…"
+	}
+	if to < len(rs) {
+		tail = "…"
+	}
+	return lead + pre + "《" + mid + "》" + post + tail
+}
+
+func runeIndex(hay, needle []rune) int {
+	if len(needle) == 0 || len(needle) > len(hay) {
+		return -1
+	}
+	for i := 0; i+len(needle) <= len(hay); i++ {
+		match := true
+		for j := range needle {
+			if hay[i+j] != needle[j] {
+				match = false
+				break
+			}
+		}
+		if match {
+			return i
+		}
+	}
+	return -1
+}
+
+func runCheck(text string) (map[string]interface{}, error) {
+	issues := []issue{}
+	c := text
+
+	for _, cr := range corrections {
+		if cr.W == cr.R {
+			continue
+		}
+		if n := strings.Count(c, cr.W); n > 0 {
+			issues = append(issues, issue{cr.W, cr.R, cr.Rule, "correction", n, contextOf(c, cr.W)})
+			c = strings.ReplaceAll(c, cr.W, cr.R)
+		}
+	}
+
+	// 공백 규칙
+	if n := len(reMultiSpace.FindAllString(c, -1)); n > 0 {
+		ex := reMultiSpace.FindString(c)
+		issues = append(issues, issue{fmt.Sprintf("연속 공백 %d칸", len(ex)), "공백 1칸", "공백", "correction", n, ""})
+		c = reMultiSpace.ReplaceAllString(c, " ")
+	}
+	if n := len(reSpaceBefore.FindAllString(c, -1)); n > 0 {
+		issues = append(issues, issue{"문장부호 앞 공백", "공백 제거", "공백", "correction", n, ""})
+		c = reSpaceBefore.ReplaceAllString(c, "$1")
+	}
+	if n := len(reTrailing.FindAllString(c, -1)); n > 0 {
+		issues = append(issues, issue{"줄 끝 공백", "공백 제거", "공백", "correction", n, ""})
+		c = reTrailing.ReplaceAllString(c, "\n")
+	}
+
+	// 동음이의어 확인(자동교정 없음)
+	for _, h := range homonyms {
+		if n := strings.Count(c, h.Word); n > 0 {
+			issues = append(issues, issue{h.Word, h.Note, "동음이의", "review", n, contextOf(c, h.Word)})
+		}
+	}
+
+	corrCount := 0
+	for _, is := range issues {
+		if is.Kind == "correction" {
+			corrCount += is.Count
+		}
+	}
+
+	return map[string]interface{}{
+		"issues":    issues,
+		"corrected": c,
+		"stats": map[string]interface{}{
+			"chars":       len([]rune(text)),
+			"issueGroups": len(issues),
+			"corrections": corrCount,
+			"changed":     c != text,
+		},
+	}, nil
+}
+
+// ---- HTTP ----
+
+func writeJSON(w http.ResponseWriter, code int, v interface{}) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(v)
+}
+
+func apiError(w http.ResponseWriter, code int, ecode, msg string) {
+	writeJSON(w, code, map[string]interface{}{"error": map[string]string{"code": ecode, "message": msg}})
+}
+
+func checkHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		apiError(w, 405, "METHOD", "POST 만 허용합니다.")
+		return
+	}
+	var body struct {
+		Text string `json:"text"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		apiError(w, 400, "INVALID_JSON", "요청 본문을 해석할 수 없습니다.")
+		return
+	}
+	if strings.TrimSpace(body.Text) == "" {
+		apiError(w, 400, "VALIDATION", "검사할 텍스트를 입력하세요.")
+		return
+	}
+	if len([]rune(body.Text)) > 50000 {
+		apiError(w, 400, "VALIDATION", "한 번에 5만 자까지 검사할 수 있습니다.")
+		return
+	}
+	res, _ := runCheck(body.Text)
+	writeJSON(w, 200, res)
+}
+
+func main() {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, 200, map[string]string{"status": "ok", "service": "doc-proofreader", "time": time.Now().Format(time.RFC3339)})
+	})
+	mux.HandleFunc("/api/check", checkHandler)
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Write([]byte(indexHTML))
+	})
+	log.Printf("doc-proofreader listening on :%s", port)
+	log.Fatal(http.ListenAndServe(":"+port, mux))
+}

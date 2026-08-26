@@ -1,8 +1,0 @@
-name: 학교 안전점검
-slug: safety-check
-category: safety
-purposes: [inspect, workflow]
-tech: [Rust, axum]
-summary: 학교 안전점검의 계획→수행(체크리스트)→지적사항→개선조치→완료 흐름과 통계를 관리합니다.
-port: 8080
-health: /healthz

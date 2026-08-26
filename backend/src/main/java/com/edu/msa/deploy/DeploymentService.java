@@ -205,8 +205,7 @@ public class DeploymentService {
             throw new DeployException("Dockerfile 이 없어 이미지를 빌드할 수 없습니다.");
         }
         String container = "edu-svc-" + spec.slug();
-        int hostPort = props.hostPortBase() + (int) (d.getId() % 2000);
-        d.setHostPort(hostPort);
+        String host = spec.slug() + "." + props.subdomainBase();   // 예: doc-proofreader.localhost
 
         d.setStatus(DeploymentStatus.BUILDING);
         if (!run(log, List.of("docker", "build", "-t", image, "."), new File(mat.workDir()), 600).ok()) {
@@ -216,9 +215,12 @@ public class DeploymentService {
         d.setStatus(DeploymentStatus.DEPLOYING);
         runner.run(List.of("docker", "rm", "-f", container), null, 30);   // 기존 컨테이너 정리(있으면)
         line(log, "$ docker rm -f " + container + "  (기존 컨테이너 정리)");
+        // 서브도메인 라우팅: 프록시 네트워크(eduproxy)에 합류시켜 Traefik이 컨테이너명 DNS로 접근. 호스트 포트 미발행.
         CommandRunner.Result runRes = run(log, List.of(
                 "docker", "run", "-d", "--name", container, "--restart", "unless-stopped",
-                "-e", "PORT=" + spec.port(), "-p", hostPort + ":" + spec.port(), image), null, 120);
+                "--network", props.proxyNetwork(),
+                "-e", "PORT=" + spec.port(),
+                image), null, 120);
         if (!runRes.ok()) {
             throw new DeployException("docker run 실패");
         }
@@ -226,9 +228,36 @@ public class DeploymentService {
         if (state.output() == null || !state.output().trim().startsWith("true")) {
             throw new DeployException("컨테이너가 정상 실행되지 않았습니다.");
         }
+        writeTraefikRoute(log, spec.slug(), host, container, spec.port());
         d.setManifest(renderer.render(spec, d.getImageTag(), ns));   // 매니페스트도 참고용으로 보관(네임스페이스 반영)
-        line(log, "컨테이너 실행 확인 · " + container + " (host 포트 " + hostPort + ")");
-        return "http://" + props.appHost() + ":" + hostPort;
+        line(log, "컨테이너 실행 확인 · " + container + " (서브도메인 " + host + ")");
+        return "http://" + host;
+    }
+
+    /** Traefik 파일 프로바이더용 라우트 파일을 써 넣는다. <slug>.localhost -> http://edu-svc-<slug>:port */
+    private void writeTraefikRoute(StringBuilder log, String slug, String host, String container, int port) {
+        String dir = props.dynamicDir();
+        if (dir == null || dir.isBlank()) return;   // 서브도메인 프록시 미사용 환경(테스트 등)
+        String yaml = ""
+                + "http:\n"
+                + "  routers:\n"
+                + "    " + slug + ":\n"
+                + "      rule: \"Host(`" + host + "`)\"\n"
+                + "      service: \"" + slug + "\"\n"
+                + "      entryPoints: [\"web\"]\n"
+                + "  services:\n"
+                + "    " + slug + ":\n"
+                + "      loadBalancer:\n"
+                + "        servers:\n"
+                + "          - url: \"http://" + container + ":" + port + "\"\n";
+        try {
+            java.nio.file.Path p = java.nio.file.Path.of(dir, slug + ".yml");
+            java.nio.file.Files.createDirectories(p.getParent());
+            java.nio.file.Files.writeString(p, yaml);
+            line(log, "Traefik 라우트 등록 · " + p + " (" + host + " -> " + container + ":" + port + ")");
+        } catch (Exception e) {
+            line(log, "경고: Traefik 라우트 파일 기록 실패 · " + e.getMessage());
+        }
     }
 
     private void publishLinkedProgram(Long programId, String actor, String url, Long deploymentId) {

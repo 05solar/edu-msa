@@ -111,9 +111,6 @@ export function Detail() {
                   <Icon name="web" size={16} /> 바로 사용하기
                 </button>
               )}
-              {deploy?.status === 'running' && deploy.url && (
-                <div className="dh-hint" style={{ color: 'var(--ok)' }}>실행 중 · {deploy.url}</div>
-              )}
               <button className={`btn ${fav ? 'btn-ok' : ''}`} onClick={() => toggleFav(p.id)}>
                 <Icon name={fav ? 'star-filled' : 'star'} size={15} /> {fav ? '즐겨찾기 됨' : '즐겨찾기'}
               </button>

@@ -19,12 +19,19 @@ public class DeployProperties {
     @Value("${edu.deploy.host-port-base:31000}") private int hostPortBase;
     @Value("${edu.deploy.app-host:localhost}")   private String appHost;
     @Value("${edu.deploy.auto-on-approve:true}") private boolean autoOnApprove;
+    // 서브도메인 리버스 프록시(Traefik) 배포용
+    @Value("${edu.deploy.subdomain-base:localhost}") private String subdomainBase;   // url = http://<slug>.<base>
+    @Value("${edu.deploy.proxy-network:eduproxy}")   private String proxyNetwork;    // 배포 컨테이너가 합류할 네트워크
+    @Value("${edu.deploy.dynamic-dir:}")             private String dynamicDir;      // Traefik 파일 프로바이더 라우트 경로
 
     public boolean isReal() { return "real".equalsIgnoreCase(mode); }
     public boolean isDocker() { return "docker".equalsIgnoreCase(mode); }
     public boolean autoOnApprove() { return autoOnApprove; }
     public int hostPortBase() { return hostPortBase; }
     public String appHost() { return appHost; }
+    public String subdomainBase() { return subdomainBase; }
+    public String proxyNetwork() { return proxyNetwork; }
+    public String dynamicDir() { return dynamicDir; }
     public String mode() { return mode; }
     public String namespace() { return namespace; }
     public String namespacePublic() { return namespacePublic; }

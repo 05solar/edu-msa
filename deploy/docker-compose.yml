@@ -17,6 +17,26 @@ services:
       timeout: 3s
       retries: 20
 
+  # 서브도메인 리버스 프록시: <slug>.localhost -> 해당 서비스 컨테이너로 Host 라우팅.
+  # 백엔드가 배포 시 /dynamic/<slug>.yml 라우트 파일을 써 넣고 Traefik 파일 프로바이더가 감시한다.
+  # (Docker Desktop 소켓 프로바이더 이슈 회피 · 컨테이너명은 eduproxy 네트워크 DNS로 해소)
+  traefik:
+    image: traefik:v3.1
+    command:
+      - --providers.file.directory=/dynamic
+      - --providers.file.watch=true
+      - --entrypoints.web.address=:80
+      - --api.dashboard=true
+      - --api.insecure=true
+    ports:
+      - "80:80"
+      - "8091:8080"
+    volumes:
+      - edu_dynamic:/dynamic
+    networks:
+      - eduproxy
+    restart: unless-stopped
+
   backend:
     build:
       context: ../backend
@@ -30,17 +50,30 @@ services:
       CORS_ORIGINS: http://localhost:5173
       EDU_SEED: "true"
       # simulate(기본) | docker(로컬 실배포, 호스트 docker로 컨테이너 기동) | real(K8s)
-      EDU_DEPLOY_MODE: ${EDU_DEPLOY_MODE:-simulate}
+      EDU_DEPLOY_MODE: ${EDU_DEPLOY_MODE:-docker}
       EDU_DEPLOY_APP_HOST: localhost
+      # 배포 서비스 접속용 서브도메인 베이스: url = http://<slug>.<base>
+      EDU_DEPLOY_SUBDOMAIN_BASE: localhost
+      # 배포 컨테이너가 합류할 프록시 네트워크(Traefik과 동일)
+      EDU_DEPLOY_PROXY_NETWORK: eduproxy
+      # Traefik 파일 프로바이더 라우트 파일을 써 넣을 경로(공유 볼륨)
+      EDU_DEPLOY_DYNAMIC_DIR: /dynamic
     ports:
       - "8088:8080"
     volumes:
       # docker 모드: 호스트 도커 데몬 사용 + 예제 소스(local:// 시험용) 마운트
       - /var/run/docker.sock:/var/run/docker.sock
       - ../examples:/app/examples:ro
+      # Traefik 동적 라우트 파일 공유(백엔드 write, traefik watch)
+      - edu_dynamic:/dynamic
     depends_on:
       db:
         condition: service_healthy
 
 volumes:
   edu_pgdata:
+  edu_dynamic:
+
+networks:
+  eduproxy:
+    name: eduproxy

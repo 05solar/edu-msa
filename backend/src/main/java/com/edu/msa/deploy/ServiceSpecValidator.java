@@ -14,8 +14,7 @@ public class ServiceSpecValidator {
 
     private static final Pattern SLUG = Pattern.compile("^[a-z][a-z0-9-]{1,38}$");
     private static final Set<String> CATEGORIES =
-            Set.of("doc", "student", "curri", "budget", "facil", "data", "civil",
-                    "hr", "asset", "safety", "report");
+            Set.of("doc", "student", "curri", "budget", "facil", "data", "civil");
 
     private final DeploymentRepository deployments;
 
@@ -40,7 +39,7 @@ public class ServiceSpecValidator {
             }
         }
         if (spec.category() == null || !CATEGORIES.contains(spec.category())) {
-            errors.add("service.yaml: category 값이 올바르지 않습니다. (doc|student|curri|budget|facil|data|civil|hr|asset|safety|report)");
+            errors.add("service.yaml: category 값이 올바르지 않습니다. (doc|student|curri|budget|facil|data|civil)");
         }
         if (spec.port() < 1024 || spec.port() > 65535) {
             errors.add("service.yaml: port 는 1024~65535 범위여야 합니다.");

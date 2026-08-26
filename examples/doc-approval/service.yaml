@@ -1,8 +1,0 @@
-name: 공문 결재 워크플로
-slug: doc-approval
-category: doc
-purposes: [approve, workflow]
-tech: [Go]
-summary: 공문·업무요청·품의의 기안→상신→결재선 검토/승인→승인/반려 흐름과 감사이력·통계를 처리합니다.
-port: 8080
-health: /healthz

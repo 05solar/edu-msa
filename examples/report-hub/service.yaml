@@ -1,8 +1,0 @@
-name: 통계·보고 자료 관리
-slug: report-hub
-category: report
-purposes: [aggregate, workflow]
-tech: [Kotlin, Ktor]
-summary: 학교·기관별 통계/보고 자료의 수집→집계→승인→공개 흐름과 항목별 자동 집계를 관리합니다.
-port: 8080
-health: /healthz

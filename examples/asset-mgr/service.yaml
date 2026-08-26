@@ -1,8 +1,0 @@
-name: 교육 기자재·자산 관리
-slug: asset-mgr
-category: asset
-purposes: [manage, workflow]
-tech: [CSharp, .NET]
-summary: 교육 기자재·자산의 등록→배치→이관→수리→폐기 생애주기와 감가상각·재물조사를 관리합니다.
-port: 8080
-health: /healthz

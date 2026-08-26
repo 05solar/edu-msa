@@ -1,8 +1,0 @@
-name: 학생·학부모 민원 처리
-slug: civil-desk
-category: civil
-purposes: [manage, workflow]
-tech: [TypeScript, Node, Fastify]
-summary: 학생·학부모 민원의 접수→배정→처리→답변→종결 흐름과 SLA·에스컬레이션·만족도를 관리합니다.
-port: 8080
-health: /healthz

@@ -18,7 +18,7 @@ button{font:inherit;padding:8px 14px;border:1px solid var(--line);border-radius:
 table{width:100%;border-collapse:collapse;font-size:13px}
 th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--mut);font-size:11px}
 .tag{display:inline-block;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700}
-.t-맞춤법{background:#fee2e2;color:#991b1b}.t-띄어쓰기{background:#fef3c7;color:#92400e}.t-공백{background:#e0e7ff;color:#3730a3}.t-오탈자{background:#fee2e2;color:#991b1b}.t-동음이의{background:#cffafe;color:#155e75}
+.t-맞춤법{background:#fee2e2;color:#991b1b}.t-띄어쓰기{background:#fef3c7;color:#92400e}.t-공백{background:#e0e7ff;color:#3730a3}.t-오탈자{background:#fee2e2;color:#991b1b}.t-동음이의{background:#cffafe;color:#155e75}.t-확인{background:#cffafe;color:#155e75}
 .o{color:#dc2626;text-decoration:line-through}.s{color:#166534;font-weight:600}
 .ctx{color:#64748b;font-size:12px;margin-top:2px}
 .empty{color:#94a3b8;text-align:center;padding:24px}
@@ -72,7 +72,7 @@ function render(d){
     corr.forEach(function(i){h+=row(i);});
     rev.forEach(function(i){h+=row(i);});
     h+='</tbody></table>';
-    if(rev.length)h+='<p style="color:#64748b;font-size:12px;margin-top:8px">※ 동음이의어는 자동 교정하지 않고 문맥 확인용으로만 표시합니다.</p>';
+    if(rev.length)h+='<p style="color:#64748b;font-size:12px;margin-top:8px">※ 파랑 표시(동음이의·확인) 항목은 자동 교정하지 않고 문맥 확인용으로만 안내합니다.</p>';
   }
   document.getElementById('result').innerHTML=h;
   var cp=document.getElementById('corrPanel');

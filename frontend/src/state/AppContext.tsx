@@ -355,17 +355,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     api.detail(id).then(mergeProgram).catch(() => { /* noop */ })
   }, [mergeProgram])
 
+  // 백엔드가 인증을 요구하므로 프로그램/로그/계정 로드는 반드시 "로그인 이후"에 (토큰 보유 상태로) 수행한다.
+  // (마운트 시점엔 아직 미로그인이라 401 → 예전엔 인증이 없어 동작하던 것이 auth 병합 후 비어 보였다)
   useEffect(() => {
-    if (!USE_API) return
+    if (!USE_API || !loggedIn) return
     refreshPrograms()
     refreshLogs()
-    api.users().then(setUsers).catch(() => { /* noop */ })
-  }, [refreshPrograms, refreshLogs])
+    api.users().then(setUsers).catch(() => { /* 비관리자는 403 → 무시 */ })
+  }, [loggedIn, refreshPrograms, refreshLogs])
 
   useEffect(() => {
-    if (!USE_API) return
-    refreshNotisFor(ROLE_USER[role].name)
-  }, [role, refreshNotisFor])
+    if (!USE_API || !loggedIn) return
+    refreshNotisFor(me.name)
+  }, [loggedIn, me.name, refreshNotisFor])
 
   const progOf = useCallback(
     (id: number) => programs.find((p) => p.id === id) ?? null,

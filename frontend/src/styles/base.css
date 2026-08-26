@@ -322,9 +322,7 @@ h1,h2,h3,h4,h5{margin:0;font-weight:700;letter-spacing:-.01em}
   display:flex;align-items:center;gap:9px;min-width:240px;
   animation:slidein .2s ease;
 }
-.toast.ok{border-left:3px solid #34C08A}
-.toast.warn{border-left:3px solid #E9B44C}
-.toast.info{border-left:3px solid #5B8AEE}
+/* 알림/토스트에는 좌측 색상 바(side marker)를 넣지 않는다. (DESIGN.md 금지 규칙) */
 @keyframes slidein{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}
 
 /* ---------- 다크 테마 개별 보정 (리터럴 색 잔여분) ---------- */

@@ -1,0 +1,14 @@
+name: 문서 이미지 OCR 추출기
+slug: doc-ocr
+category: civil
+purposes:
+  - gen
+  - analyze
+tech:
+  - Python
+summary: 스캔 문서·사진을 올리면 한글/영문 OCR로 글자를 인식해 편집 가능한 텍스트로 추출해 주는 개인용 단발 도구.
+port: 8080
+health: /healthz
+resources:
+  cpu: 500m
+  memory: 512Mi

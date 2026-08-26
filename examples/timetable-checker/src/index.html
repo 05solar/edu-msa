@@ -32,8 +32,8 @@ button{font:inherit;padding:8px 14px;border:1px solid var(--line);border-radius:
       <button class="btn-primary" style="margin-left:auto" onclick="check()">충돌 검사</button></div>
     <div id="ttmaker" style="display:none;margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
       <h2>시간표 이미지</h2>
-      <div class="row"><div><label>기준</label><select id="view" onchange="fillKeys()"><option value="klass">학급</option><option value="teacher">교사</option><option value="room">교실</option></select></div>
-        <div><label>대상</label><select id="key"></select></div></div>
+      <div class="row"><div><label>기준</label><select id="view" onchange="fillKeys()"><option value="">미선택</option><option value="klass">학급</option><option value="teacher">교사</option><option value="room">교실</option></select></div>
+        <div><label>대상 (직접 입력 · 목록에서 선택)</label><input id="key" list="keyList" autocomplete="off" placeholder="예) 3-1 / 김철수 / 201"><datalist id="keyList"></datalist></div></div>
       <div class="toolbar"><button class="btn-primary" onclick="makeImage()">시간표 생성</button><button id="dl" onclick="download()" style="display:none">이미지(SVG) 다운로드</button></div>
     </div>
   </div>
@@ -50,8 +50,9 @@ function parse(){
   for(const raw of document.getElementById('src').value.split('\n')){
     const line=raw.trim();if(!line)continue;
     const p=line.split(',').map(s=>s.trim());
-    if(p.length<4)continue;
-    out.push({day:p[0],period:parseInt(p[1],10),klass:p[2]||'',subject:p[3]||'',teacher:p[4]||'',room:p[5]||''});
+    if(p.length<3)continue;                 // 최소 요일,교시,과목
+    if(p.length===3)out.push({day:p[0],period:parseInt(p[1],10),klass:'',subject:p[2],teacher:'',room:''});
+    else out.push({day:p[0],period:parseInt(p[1],10),klass:p[2]||'',subject:p[3]||'',teacher:p[4]||'',room:p[5]||''});
   }
   return out;
 }
@@ -79,13 +80,14 @@ function render(d){
 }
 function fillKeys(){
   const view=document.getElementById('view').value;
-  const sel=document.getElementById('key');sel.innerHTML='';
-  (keys[view]||[]).forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=k;sel.appendChild(o);});
-  if(!(keys[view]||[]).length){const o=document.createElement('option');o.value='';o.textContent='(값 없음 — 입력에 '+({klass:'학급',teacher:'교사',room:'교실'}[view])+' 필요)';sel.appendChild(o);}
+  const dl=document.getElementById('keyList');dl.innerHTML='';
+  document.getElementById('key').value='';
+  (keys[view]||[]).forEach(k=>{const o=document.createElement('option');o.value=k;dl.appendChild(o);});
 }
 function makeImage(){
-  const view=document.getElementById('view').value, key=document.getElementById('key').value;
-  if(!key){alert('대상을 선택하세요.');return;}
+  const view=document.getElementById('view').value, key=document.getElementById('key').value.trim();
+  if(!view){alert('기준(학급/교사/교실)을 먼저 선택하세요.');return;}
+  if(!key){alert('대상을 직접 입력하거나 목록에서 선택하세요.');return;}
   fetch('/api/timetable',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessions,view,key})})
     .then(r=>r.json().then(d=>({ok:r.ok,d}))).then(x=>{
       if(!x.ok){alert('오류: '+(x.d.error?x.d.error.message:''));return;}

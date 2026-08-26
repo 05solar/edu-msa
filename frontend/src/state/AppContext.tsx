@@ -111,7 +111,7 @@ const FAVORITES_SEED: Record<Role, number[]> = {
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [loggedIn, setLoggedIn] = useState(false)
+  const [loggedIn, setLoggedIn] = useState(() => localStorage.getItem('edu-auth') === '1')
   const [role, setRole] = useState<Role>('coder')
   const [view, setView] = useState<ViewId>('home')
   const [detailId, setDetailId] = useState<number | null>(null)
@@ -135,6 +135,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     document.documentElement.style.setProperty('--ui-zoom', FONT_ZOOM[fontScale])
     localStorage.setItem('edu-fontscale', fontScale)
   }, [fontScale])
+  // 로그인 상태 유지: 브라우저 뒤로가기/새로고침 시 로그인 페이지가 아니라 메인으로 복귀
+  useEffect(() => {
+    localStorage.setItem('edu-auth', loggedIn ? '1' : '0')
+  }, [loggedIn])
 
   const toggleTheme = useCallback(() => setTheme((t) => (t === 'light' ? 'dark' : 'light')), [])
   const setFontScale = useCallback((s: FontScale) => setFontScaleState(s), [])

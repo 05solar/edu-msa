@@ -1,0 +1,639 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>edu-msa · 전체 시스템 개요</title>
+<style>
+  :root{
+    --bg:#eef2f8; --bg2:#f7fafd; --panel:#ffffff; --panel2:#f3f7fc;
+    --line:#d6deec; --ink:#16233a; --mut:#4d576e; --dim:#7a869c;
+    --blue:#1d4ed8; --teal:#0d9488; --violet:#6d28d9; --amber:#b8760a;
+    --rose:#d81b47; --green:#04785a; --cyan:#0e7490;
+    --sh:0 1px 2px rgba(20,40,80,.06), 0 10px 34px rgba(20,40,80,.08);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 560px at 85% -10%, #e2ebfb 0%, transparent 60%),
+      radial-gradient(900px 500px at -8% 10%, #e6f3f0 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Pretendard","Pretendard Variable",system-ui,-apple-system,"Segoe UI","Malgun Gothic",Roboto,sans-serif;
+    font-size:18px; line-height:1.7; letter-spacing:-.01em;
+    -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; text-rendering:optimizeLegibility;
+  }
+  #prog{position:fixed;top:0;left:0;height:4px;width:0;z-index:50;
+    background:linear-gradient(90deg,var(--teal),var(--blue));box-shadow:0 0 8px rgba(29,78,216,.4)}
+  .slide{padding:34px 26px;position:relative;border-top:1px solid var(--line)}
+  .slide:first-of-type{border-top:none;padding-top:52px}
+  .inner{max-width:1160px;margin:0 auto;width:100%}
+  .kicker{color:var(--teal);font-weight:800;font-size:15px;letter-spacing:2.5px;text-transform:uppercase;margin-bottom:12px}
+  .stitle{font-size:40px;line-height:1.2;font-weight:800;margin:0 0 14px}
+  .stitle span{color:var(--blue)}
+  .lead{font-size:20px;color:var(--mut);max-width:980px;margin:0 0 26px}
+  .lead b{color:var(--ink);font-weight:700}
+  .cover{padding-bottom:30px}
+  .cover h1{font-size:52px;line-height:1.16;font-weight:900;margin:6px 0 16px;letter-spacing:-.02em}
+  .cover h1 span{color:var(--blue)}
+  .cover .sub{font-size:21px;color:var(--mut);max-width:940px}
+  .chips{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px}
+  .chip{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:10px 18px;
+    font-size:15px;color:var(--mut);display:flex;align-items:center;gap:9px;box-shadow:var(--sh);font-weight:600}
+  .dotc{width:10px;height:10px;border-radius:50%}
+  .cover .hint{margin-top:34px;color:var(--dim);font-size:15px;display:flex;align-items:center;gap:10px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--sh)}
+  .stage{overflow-x:auto}
+  svg{display:block;width:100%;height:auto;min-width:760px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media(max-width:860px){.grid2,.grid3{grid-template-columns:1fr}}
+  .tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:var(--sh)}
+  .tile h4{margin:0 0 8px;font-size:17px;display:flex;align-items:center;gap:9px}
+  .tile p{margin:0;color:var(--mut);font-size:15px}
+  .tile .role{display:inline-block;font-size:12px;font-weight:800;color:var(--teal);letter-spacing:.5px;margin-bottom:8px}
+  .tier{border-radius:16px;padding:24px;border:1px solid var(--line);box-shadow:var(--sh)}
+  .tier.int{background:linear-gradient(180deg,#eaf3ff,#ffffff);border-color:#b7d0f6}
+  .tier.pub{background:linear-gradient(180deg,#f4ecfe,#ffffff);border-color:#d5bcf3}
+  .tier h3{margin:0 0 4px;font-size:21px;display:flex;align-items:center;gap:10px}
+  .tier .lab{font-size:14px;color:var(--dim);margin-bottom:6px}
+  .tier ul{margin:14px 0 0;padding-left:0;list-style:none}
+  .tier li{font-size:15.5px;color:var(--mut);padding:10px 0;border-top:1px dashed var(--line)}
+  .tier li:first-child{border-top:none}
+  .k{color:var(--ink);font-weight:800}
+  table{width:100%;border-collapse:collapse;font-size:15.5px}
+  th,td{text-align:left;padding:13px 14px;border-bottom:1px solid var(--line)}
+  th{color:var(--dim);font-weight:800;font-size:12.5px;text-transform:uppercase;letter-spacing:.7px}
+  tr:hover td{background:var(--panel2)}
+  td .b{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:9px;vertical-align:middle}
+  .badges{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  @media(max-width:860px){.badges{grid-template-columns:repeat(2,1fr)}}
+  .badge{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--sh)}
+  .badge .p{font-size:13px;color:var(--teal);font-weight:900;letter-spacing:1px}
+  .badge .t{font-size:15.5px;margin:6px 0 10px;color:var(--ink);font-weight:700}
+  .badge .v{font-size:13.5px;color:var(--mut)}
+  .ok{color:var(--green);font-weight:900}
+  .legend{display:flex;gap:20px;flex-wrap:wrap;margin-top:16px;font-size:14px;color:var(--mut)}
+  .legend span{display:flex;align-items:center;gap:8px}
+  .legend .fa{display:inline-block;width:26px;height:0;border-top:3px dashed var(--blue)}
+  .cap{font-size:14px;color:var(--dim);margin-top:14px;text-align:center}
+  .note{margin-top:16px;font-size:15px;color:var(--mut);background:var(--panel2);border:1px solid var(--line);
+    border-left:4px solid var(--teal);border-radius:10px;padding:12px 16px}
+  .n{font-size:15px;fill:var(--ink)} .s{font-size:12.5px;fill:var(--mut)} .lb{font-size:12px;fill:var(--dim)}
+  .band{font-size:14px;font-weight:800}
+  svg text{font-family:inherit}
+  /* ===== 흐름 애니메이션 ===== */
+  @keyframes flowdash{to{stroke-dashoffset:-32}}
+  .flow{stroke-dasharray:9 7;animation:flowdash 1.05s linear infinite}
+  .flow.slow{animation-duration:1.7s}
+  @media (prefers-reduced-motion: reduce){.flow{animation:none}.mvdot{display:none}}
+</style>
+</head>
+<body>
+<div id="prog"></div>
+
+<!-- ============ 0. 커버 ============ -->
+<section class="slide cover">
+  <div class="inner">
+    <div class="kicker">edu-msa · system overview</div>
+    <h1>교육청 업무 프로그램을<br><span>안전하게 배포하고 바로 쓰는</span> 전체 시스템</h1>
+    <p class="sub">이 문서는 edu-msa가 <b>무엇으로 구성되어</b> 있고, 각 구성요소가 <b>어떤 역할</b>을 하며,
+      데이터·인증·배포·요청이 <b>어떤 흐름</b>으로 오가는지를 도면으로 설명한다. 앞부분은 전체 시스템,
+      중간은 인프라 상세, 뒤는 로컬/실서버 대조와 보안 요약이다.</p>
+    <div class="chips">
+      <div class="chip"><i class="dotc" style="background:var(--blue)"></i>Frontend · Backend · PostgreSQL</div>
+      <div class="chip"><i class="dotc" style="background:var(--green)"></i>auth-service · JWT · RBAC</div>
+      <div class="chip"><i class="dotc" style="background:var(--violet)"></i>배포 파이프라인 · 서브도메인</div>
+      <div class="chip"><i class="dotc" style="background:var(--rose)"></i>Kubernetes · 격리 · 관측성</div>
+    </div>
+    <div class="cover hint">아래로 스크롤하며 순서대로 읽으면 된다 · 흐름 그림의 점선/이동 점은 데이터가 흐르는 방향을 뜻한다</div>
+  </div>
+</section>
+
+<!-- ============ 1. 시스템 한눈에 ============ -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">01 · 큰 그림</div>
+    <h2 class="stitle">시스템 <span>한눈에</span> — 무엇이 어디에 있나</h2>
+    <p class="lead">사용자는 <b>플랫폼 UI</b>로 들어와 로그인하고 프로그램을 찾아 쓴다. UI 뒤에는 인증 전담
+      <b>auth-service</b>, 플랫폼 API <b>backend</b>, 그리고 배포된 서비스로 연결하는 리버스 프록시
+      <b>Traefik</b>가 있다. 배포된 개인용 도구들은 <b>서브도메인</b>으로 바로 열린다.</p>
+    <div class="card stage">
+      <svg viewBox="0 0 1120 560" role="img" aria-label="시스템 구성 한눈에">
+        <defs>
+          <marker id="aB" markerWidth="11" markerHeight="11" refX="8" refY="3.2" orient="auto"><path d="M0,0 L9,3.2 L0,6.4 Z" fill="#1d4ed8"/></marker>
+          <marker id="aG" markerWidth="11" markerHeight="11" refX="8" refY="3.2" orient="auto"><path d="M0,0 L9,3.2 L0,6.4 Z" fill="#04785a"/></marker>
+          <marker id="aV" markerWidth="11" markerHeight="11" refX="8" refY="3.2" orient="auto"><path d="M0,0 L9,3.2 L0,6.4 Z" fill="#6d28d9"/></marker>
+        </defs>
+        <!-- 사용자 -->
+        <rect x="470" y="12" width="180" height="52" rx="12" fill="#eef2f8" stroke="#9fb0cc"/>
+        <text x="560" y="38" class="n" text-anchor="middle" font-weight="700">사용자 (브라우저)</text>
+        <text x="560" y="54" class="s" text-anchor="middle">교직원 · 운영 관리자</text>
+        <!-- Frontend -->
+        <rect x="440" y="110" width="240" height="60" rx="12" fill="#e8f0fe" stroke="#1d4ed8"/>
+        <text x="560" y="136" class="n" text-anchor="middle" font-weight="700">Frontend (React·Vite)</text>
+        <text x="560" y="154" class="s" text-anchor="middle">플랫폼 UI · 로컬 :5173 프록시 / 실서버 nginx</text>
+        <path d="M560 64 V110" stroke="#1d4ed8" stroke-width="2.4" fill="none" marker-end="url(#aB)"/>
+        <!-- 3 서비스 레인 -->
+        <rect x="70" y="232" width="270" height="64" rx="12" fill="#e5f5ef" stroke="#04785a"/>
+        <text x="205" y="258" class="n" text-anchor="middle" font-weight="700">auth-service · :8089</text>
+        <text x="205" y="277" class="s" text-anchor="middle">로그인·회원가입·JWT 발급/갱신</text>
+        <rect x="120" y="322" width="170" height="44" rx="10" fill="#fff" stroke="#04785a"/>
+        <text x="205" y="349" class="n" text-anchor="middle">auth-db (계정)</text>
+        <path d="M205 296 V322" stroke="#04785a" stroke-width="2.2" fill="none" marker-end="url(#aG)"/>
+
+        <rect x="620" y="232" width="320" height="64" rx="12" fill="#e8f0fe" stroke="#1d4ed8"/>
+        <text x="780" y="256" class="n" text-anchor="middle" font-weight="700">backend · :8088</text>
+        <text x="780" y="275" class="s" text-anchor="middle">카탈로그·등록·배포 파이프라인 · JWT 검증(RBAC)</text>
+        <rect x="695" y="322" width="170" height="44" rx="10" fill="#fff" stroke="#1d4ed8"/>
+        <text x="780" y="349" class="n" text-anchor="middle">platform-db</text>
+        <path d="M780 296 V322" stroke="#1d4ed8" stroke-width="2.2" fill="none" marker-end="url(#aB)"/>
+
+        <!-- Frontend -> auth / backend -->
+        <path d="M470 150 H205 V232" stroke="#04785a" stroke-width="2.4" fill="none" marker-end="url(#aG)"/>
+        <text x="300" y="196" class="lb" text-anchor="middle">/api/auth</text>
+        <path d="M650 150 H780 V232" stroke="#1d4ed8" stroke-width="2.4" fill="none" marker-end="url(#aB)"/>
+        <text x="742" y="196" class="lb" text-anchor="middle">/api</text>
+
+        <!-- Traefik + 배포 서비스 -->
+        <rect x="380" y="232" width="200" height="64" rx="12" fill="#f2ecfe" stroke="#6d28d9"/>
+        <text x="480" y="258" class="n" text-anchor="middle" font-weight="700">Traefik · :80</text>
+        <text x="480" y="277" class="s" text-anchor="middle">&lt;slug&gt;.localhost 프록시</text>
+
+        <rect x="150" y="420" width="820" height="112" rx="14" fill="#fbf3e3" stroke="#e6c38a"/>
+        <text x="176" y="452" class="band" fill="#8a5a06">배포된 개인용 서비스 (컨테이너/파드) — 카테고리별 1개, 각 폴더=배포 레포</text>
+        <rect x="176" y="466" width="180" height="50" rx="9" fill="#fff" stroke="#b8760a"/><text x="266" y="490" class="n" text-anchor="middle">doc-proofreader</text><text x="266" y="506" class="s" text-anchor="middle">Go · 오타검사</text>
+        <rect x="366" y="466" width="150" height="50" rx="9" fill="#fff" stroke="#b8760a"/><text x="441" y="490" class="n" text-anchor="middle">seat-maker</text><text x="441" y="506" class="s" text-anchor="middle">Python</text>
+        <rect x="526" y="466" width="170" height="50" rx="9" fill="#fff" stroke="#b8760a"/><text x="611" y="490" class="n" text-anchor="middle">travel-allowance</text><text x="611" y="506" class="s" text-anchor="middle">C#</text>
+        <rect x="706" y="466" width="150" height="50" rx="9" fill="#fff" stroke="#b8760a"/><text x="781" y="490" class="n" text-anchor="middle">doc-ocr …</text><text x="781" y="506" class="s" text-anchor="middle">외 7종</text>
+        <text x="906" y="496" class="s" text-anchor="middle">＋7</text>
+
+        <!-- backend deploy -> services -->
+        <path d="M780 296 V392 H560 V420" stroke="#1d4ed8" stroke-width="2.4" fill="none" marker-end="url(#aB)"/>
+        <text x="600" y="384" class="lb">배포/관리</text>
+        <!-- traefik -> services -->
+        <path d="M480 296 V420" stroke="#6d28d9" stroke-width="2.4" fill="none" marker-end="url(#aV)"/>
+        <!-- 사용자 -> traefik (웹에서 바로 사용) -->
+        <path d="M650 38 H1050 V264 H580" stroke="#6d28d9" stroke-width="2.2" fill="none" stroke-dasharray="7 6" marker-end="url(#aV)"/>
+        <text x="1050" y="150" class="lb" text-anchor="middle" transform="rotate(90 1050 150)">웹에서 바로 사용 · &lt;slug&gt;.localhost</text>
+      </svg>
+      <div class="legend">
+        <span><i style="width:12px;height:12px;border-radius:3px;background:#e5f5ef;border:1px solid #04785a"></i> 인증(auth-service)</span>
+        <span><i style="width:12px;height:12px;border-radius:3px;background:#e8f0fe;border:1px solid #1d4ed8"></i> 플랫폼(frontend·backend)</span>
+        <span><i style="width:12px;height:12px;border-radius:3px;background:#f2ecfe;border:1px solid #6d28d9"></i> 라우팅(Traefik)</span>
+        <span><i style="width:12px;height:12px;border-radius:3px;background:#fbf3e3;border:1px solid #b8760a"></i> 배포된 서비스</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 2. 구성 요소와 역할 ============ -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">02 · 구성요소</div>
+    <h2 class="stitle">각 구성요소는 <span>무슨 역할</span>을 하나</h2>
+    <p class="lead">시스템은 역할이 분명한 몇 개의 서비스로 나뉜다. 인증은 인증만, 플랫폼 API는 카탈로그·배포만
+      맡아 <b>관심사가 분리</b>되어 있고, 데이터도 각자의 DB로 나뉜다.</p>
+    <div class="grid3">
+      <div class="tile"><span class="role">플랫폼 UI</span><h4><i class="dotc" style="background:var(--blue)"></i>Frontend</h4><p>React+Vite. 로그인·카탈로그·등록·마이페이지·운영 관리자 화면. 토큰을 붙여 API 호출, 로컬은 /api·/api/auth를 각 서버로 프록시.</p></div>
+      <div class="tile"><span class="role">인증</span><h4><i class="dotc" style="background:var(--green)"></i>auth-service</h4><p>계정의 단일 소스. 회원가입·로그인·데모로그인, JWT(Access+Refresh) 발급/회전. 자체 DB(auth-db) 사용.</p></div>
+      <div class="tile"><span class="role">플랫폼 API</span><h4><i class="dotc" style="background:var(--blue)"></i>backend</h4><p>프로그램 카탈로그·등록·검토·배포 파이프라인. 요청의 JWT를 <b>스스로 검증</b>해 역할(RBAC)로 인가.</p></div>
+      <div class="tile"><span class="role">데이터</span><h4><i class="dotc" style="background:var(--green)"></i>auth-db</h4><p>계정·비밀번호 해시(BCrypt)·권한 신청 상태. 플랫폼 DB와 분리해 계정 정보를 한 곳에 둔다.</p></div>
+      <div class="tile"><span class="role">데이터</span><h4><i class="dotc" style="background:var(--blue)"></i>platform-db</h4><p>프로그램·배포 기록·알림·처리 이력. 서비스 소스는 담지 않고 메타데이터만.</p></div>
+      <div class="tile"><span class="role">라우팅</span><h4><i class="dotc" style="background:var(--violet)"></i>Traefik</h4><p>리버스 프록시. <span class="k">&lt;slug&gt;.localhost</span> Host로 각 배포 컨테이너에 연결. backend가 라우트 파일을 써 넣으면 감시해 반영.</p></div>
+      <div class="tile"><span class="role">배포 파이프라인</span><h4><i class="dotc" style="background:var(--blue)"></i>deploy(백엔드 내부)</h4><p>레포 수집→규격 검증→이미지 빌드→컨테이너/파드 기동→헬스 대기→공개. simulate·docker·real 모드.</p></div>
+      <div class="tile"><span class="role">배포 결과</span><h4><i class="dotc" style="background:var(--amber)"></i>examples · 7 서비스</h4><p>기본 내장 <b>개인용 단발 도구</b> 7종(카테고리별 1개). 각 폴더가 service.yaml·Dockerfile을 갖춘 배포 가능한 레포.</p></div>
+      <div class="tile"><span class="role">실행 기반</span><h4><i class="dotc" style="background:var(--rose)"></i>Kubernetes</h4><p>실서버 오케스트레이션. 신뢰등급 네임스페이스·격리·오토스케일·관측성. 로컬은 docker-compose로 대체.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 3. 신뢰 모델 · 역할 ============ -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">03 · 설계 전제</div>
+    <h2 class="stitle">신뢰 모델과 <span>역할(권한)</span></h2>
+    <p class="lead">사용자는 <b>내부 직원</b>과 <b>불특정 다수</b>가 섞여 있다. 그래서 회원가입은 항상
+      최소 권한으로 만들고, 상향 권한은 <b>신청 → 운영 관리자 승인</b>으로만 부여한다. 판단이 애매하면
+      항상 더 안전한 쪽으로 붙이는 <b>fail-closed</b>가 원칙이다.</p>
+    <div class="grid2">
+      <div class="tier int">
+        <h3><span class="dotc" style="background:var(--green)"></span>역할 3단계</h3>
+        <div class="lab">JWT role 클레임으로 서버가 판단</div>
+        <ul>
+          <li><span class="k">USER</span> · 외부 사용자 — 열람·사용. 회원가입 기본값</li>
+          <li><span class="k">CODER</span> · 내부 직원 — 프로그램 등록·레포 규격 검증</li>
+          <li><span class="k">ADMIN</span> · 운영 관리자 — 검토·승인·배포·권한 부여</li>
+        </ul>
+      </div>
+      <div class="tier pub">
+        <h3><span class="dotc" style="background:var(--violet)"></span>권한 상향은 신청+승인</h3>
+        <div class="lab">자가 가입/신청만으로는 오르지 않음</div>
+        <ul>
+          <li>가입 시 <span class="k">requestRole</span> 또는 마이페이지에서 신청</li>
+          <li>계정은 그대로 USER, "승인 대기"만 보관</li>
+          <li>운영 관리자가 <span class="k">승인</span> 시 실제 role 반영, <span class="k">반려</span> 시 USER 유지</li>
+        </ul>
+      </div>
+    </div>
+    <div class="note">실서버 배포 격리도 같은 신뢰 모델을 따른다 — 내부 직원 서비스는 <b>edu-services</b>(baseline),
+      불특정 다수 서비스는 <b>edu-services-public</b>(restricted) 네임스페이스로 자동 배치(§08).</div>
+  </div>
+</section>
+
+<!-- ============ 4. 플로우 ① 인증 (애니메이션) ============ -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">04 · 흐름 ① 인증</div>
+    <h2 class="stitle">로그인은 <span>auth-service</span>가, 검증은 각 서비스가</h2>
+    <p class="lead">로그인하면 auth-service가 <b>JWT</b>를 발급한다. 이후 플랫폼 API는 매 요청마다
+      auth-service를 부르지 않고, backend가 <b>같은 서명키로 토큰을 스스로 검증</b>한다. 아래 점선의
+      흐르는 점이 토큰이 이동하는 방향이다.</p>
+    <div class="card stage">
+      <svg viewBox="0 0 1120 340" role="img" aria-label="인증 흐름">
+        <defs>
+          <marker id="fa1" markerWidth="11" markerHeight="11" refX="8" refY="3.2" orient="auto"><path d="M0,0 L9,3.2 L0,6.4 Z" fill="#04785a"/></marker>
+          <marker id="fa1b" markerWidth="11" markerHeight="11" refX="8" refY="3.2" orient="auto"><path d="M0,0 L9,3.2 L0,6.4 Z" fill="#1d4ed8"/></marker>
+        </defs>
+        <rect x="40" y="130" width="180" height="70" rx="12" fill="#eef2f8" stroke="#9fb0cc"/>
+        <text x="130" y="160" class="n" text-anchor="middle" font-weight="700">사용자</text>
+        <text x="130" y="180" class="s" text-anchor="middle">Frontend</text>
+
+        <rect x="360" y="120" width="230" height="90" rx="12" fill="#e5f5ef" stroke="#04785a"/>
+        <text x="475" y="150" class="n" text-anchor="middle" font-weight="700">auth-service</text>
+        <text x="475" y="170" class="s" text-anchor="middle">비밀번호 확인(BCrypt)</text>
+        <text x="475" y="188" class="s" text-anchor="middle">JWT 발급 · Refresh 회전</text>
+
+        <rect x="740" y="120" width="230" height="90" rx="12" fill="#e8f0fe" stroke="#1d4ed8"/>
+        <text x="855" y="150" class="n" text-anchor="middle" font-weight="700">backend (자원 서버)</text>
+        <text x="855" y="170" class="s" text-anchor="middle">JWT 자체 검증</text>
+        <text x="855" y="188" class="s" text-anchor="middle">role 클레임으로 RBAC</text>
+
+        <!-- 로그인 요청 -->
+        <path id="p_login" d="M220 155 H360" stroke="#04785a" stroke-width="2.6" fill="none" class="flow" marker-end="url(#fa1)"/>
+        <text x="290" y="142" class="lb" text-anchor="middle">① 로그인</text>
+        <circle r="4.5" fill="#04785a" class="mvdot"><animateMotion dur="1.7s" repeatCount="indefinite" path="M220 155 H360"/></circle>
+        <!-- 토큰 발급 -->
+        <path id="p_tok" d="M360 185 H220" stroke="#04785a" stroke-width="2.6" fill="none" class="flow" marker-end="url(#fa1)"/>
+        <text x="290" y="210" class="lb" text-anchor="middle">② Access(본문)+Refresh(HttpOnly 쿠키)</text>
+        <circle r="4.5" fill="#0d9488" class="mvdot"><animateMotion dur="1.7s" repeatCount="indefinite" path="M360 185 H220"/></circle>
+        <!-- API 요청 with Bearer -->
+        <path id="p_api" d="M220 250 H855 V210" stroke="#1d4ed8" stroke-width="2.6" fill="none" class="flow slow" marker-end="url(#fa1b)"/>
+        <text x="520" y="272" class="lb" text-anchor="middle">③ 이후 API 요청 · Authorization: Bearer &lt;JWT&gt;</text>
+        <circle r="4.5" fill="#1d4ed8" class="mvdot"><animateMotion dur="2.4s" repeatCount="indefinite" path="M220 250 H855 V210"/></circle>
+        <!-- 검증 자체 -->
+        <path d="M740 165 H600" stroke="#1d4ed8" stroke-width="2" fill="none" stroke-dasharray="4 5" marker-end="url(#fa1b)"/>
+        <text x="668" y="152" class="lb" text-anchor="middle">같은 EDU_JWT_SECRET</text>
+      </svg>
+      <div class="legend">
+        <span><span class="fa" style="border-color:var(--green)"></span> 인증 발급 흐름</span>
+        <span><span class="fa" style="border-color:var(--blue)"></span> 토큰 사용(검증) 흐름</span>
+        <span>흐르는 점 = 데이터 이동 방향</span>
+      </div>
+    </div>
+    <div class="note">데모 로그인도 같은 형태의 토큰을 받으므로 진입 후 실제 API를 그대로 쓴다. 교육청 SSO가
+      추가돼도 <b>토큰 형태가 같아</b> backend·각 서비스는 바뀌지 않는다.</div>
+  </div>
+</section>
+
+<!-- ============ 5. 플로우 ② 등록→배포 (애니메이션) ============ -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">05 · 흐름 ② 등록에서 배포까지</div>
+    <h2 class="stitle">레포 하나가 <span>서비스로 뜨기까지</span></h2>
+    <p class="lead">코더가 레포를 등록하고 규격을 스스로 점검하면, 운영 관리자가 승인·배포한다. 배포는
+      <b>소스 수집 → 빌드 → 기동 → 라우트 등록 → 헬스 대기</b>를 거쳐 <b>서브도메인</b>으로 공개된다.
+      아래 파이프라인의 이동 점이 한 번의 배포가 흐르는 순서다.</p>
+    <div class="card stage">
+      <svg viewBox="0 0 1120 360" role="img" aria-label="등록에서 배포까지">
+        <defs>
+          <marker id="fa2" markerWidth="11" markerHeight="11" refX="8" refY="3.2" orient="auto"><path d="M0,0 L9,3.2 L0,6.4 Z" fill="#6d28d9"/></marker>
+        </defs>
+        <!-- 상단: 사람 단계 -->
+        <rect x="40" y="30" width="230" height="64" rx="12" fill="#e8f0fe" stroke="#1d4ed8"/>
+        <text x="155" y="56" class="n" text-anchor="middle" font-weight="700">① 코더: 등록</text>
+        <text x="155" y="75" class="s" text-anchor="middle">GitHub 레포 주소 제출(CODER+)</text>
+        <rect x="330" y="30" width="230" height="64" rx="12" fill="#e5f5ef" stroke="#04785a"/>
+        <text x="445" y="56" class="n" text-anchor="middle" font-weight="700">② 레포 규격 검증</text>
+        <text x="445" y="75" class="s" text-anchor="middle">정적 검사 · 빌드/배포 없음(CODER+)</text>
+        <rect x="620" y="30" width="230" height="64" rx="12" fill="#f2ecfe" stroke="#6d28d9"/>
+        <text x="735" y="56" class="n" text-anchor="middle" font-weight="700">③ 운영 관리자 승인</text>
+        <text x="735" y="75" class="s" text-anchor="middle">검토 후 배포 트리거(ADMIN)</text>
+        <path d="M270 62 H330" stroke="#1d4ed8" stroke-width="2.4" fill="none" marker-end="url(#fa2)"/>
+        <path d="M560 62 H620" stroke="#04785a" stroke-width="2.4" fill="none" marker-end="url(#fa2)"/>
+
+        <!-- 파이프라인(배포) -->
+        <rect x="40" y="150" width="1040" height="96" rx="14" fill="#faf6ff" stroke="#d9c8f5"/>
+        <text x="60" y="176" class="band" fill="#5b21b6">④ 배포 파이프라인 (백엔드 deploy 도메인)</text>
+        <g>
+          <rect x="60" y="192" width="150" height="42" rx="9" fill="#fff" stroke="#6d28d9"/><text x="135" y="218" class="n" text-anchor="middle">소스 수집</text>
+          <rect x="230" y="192" width="150" height="42" rx="9" fill="#fff" stroke="#6d28d9"/><text x="305" y="218" class="n" text-anchor="middle">규격 검증</text>
+          <rect x="400" y="192" width="150" height="42" rx="9" fill="#fff" stroke="#6d28d9"/><text x="475" y="218" class="n" text-anchor="middle">이미지 빌드</text>
+          <rect x="570" y="192" width="170" height="42" rx="9" fill="#fff" stroke="#6d28d9"/><text x="655" y="218" class="n" text-anchor="middle">컨테이너/파드 기동</text>
+          <rect x="760" y="192" width="150" height="42" rx="9" fill="#fff" stroke="#6d28d9"/><text x="835" y="218" class="n" text-anchor="middle">라우트 등록</text>
+          <rect x="930" y="192" width="140" height="42" rx="9" fill="#fff" stroke="#6d28d9"/><text x="1000" y="218" class="n" text-anchor="middle">헬스 대기</text>
+        </g>
+        <path d="M735 94 V150" stroke="#6d28d9" stroke-width="2.4" fill="none" marker-end="url(#fa2)"/>
+        <!-- 파이프라인 진행 흐름선 -->
+        <path id="p_pipe" d="M210 213 H230 M380 213 H400 M550 213 H570 M740 213 H760 M910 213 H930"
+              stroke="#6d28d9" stroke-width="2.6" fill="none" class="flow"/>
+        <circle r="5" fill="#6d28d9" class="mvdot"><animateMotion dur="3.2s" repeatCount="indefinite" path="M135 234 V250 H1000 V234"/></circle>
+
+        <!-- 결과: 서브도메인 공개 -->
+        <rect x="400" y="300" width="320" height="46" rx="10" fill="#fbf3e3" stroke="#b8760a"/>
+        <text x="560" y="328" class="n" text-anchor="middle" font-weight="700">⑤ 공개 · http://&lt;slug&gt;.localhost</text>
+        <path d="M560 246 V300" stroke="#b8760a" stroke-width="2.4" fill="none" marker-end="url(#fa2)"/>
+      </svg>
+      <div class="legend">
+        <span><span class="fa" style="border-color:var(--violet)"></span> 배포 파이프라인 흐름</span>
+        <span>이동 점 = 한 번의 배포가 지나가는 순서</span>
+        <span>실서버(real)는 Kaniko 빌드+K8s apply, 로컬(docker)은 docker build+run</span>
+      </div>
+    </div>
+    <div class="note">헬스(/healthz)가 응답할 때까지 기다린 뒤 "실행 중"으로 표시하므로, 상세 페이지의
+      "웹에서 바로 사용" 버튼은 <b>준비가 끝나면 자동으로</b> 서브도메인 링크로 바뀐다.</div>
+  </div>
+</section>
+
+<!-- ============ 6. 플로우 ③ 요청 처리 (애니메이션) ============ -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">06 · 흐름 ③ 요청 처리</div>
+    <h2 class="stitle">두 갈래의 <span>요청 경로</span></h2>
+    <p class="lead">사용자의 요청은 두 갈래다. <b>플랫폼 UI/API</b>는 프론트를 거쳐 backend(JWT 검증)로,
+      <b>배포된 서비스</b>는 서브도메인으로 Traefik을 거쳐 해당 컨테이너로 간다.</p>
+    <div class="card stage">
+      <svg viewBox="0 0 1120 320" role="img" aria-label="요청 처리 경로">
+        <defs>
+          <marker id="fa3b" markerWidth="11" markerHeight="11" refX="8" refY="3.2" orient="auto"><path d="M0,0 L9,3.2 L0,6.4 Z" fill="#1d4ed8"/></marker>
+          <marker id="fa3v" markerWidth="11" markerHeight="11" refX="8" refY="3.2" orient="auto"><path d="M0,0 L9,3.2 L0,6.4 Z" fill="#6d28d9"/></marker>
+        </defs>
+        <rect x="40" y="120" width="160" height="72" rx="12" fill="#eef2f8" stroke="#9fb0cc"/>
+        <text x="120" y="150" class="n" text-anchor="middle" font-weight="700">사용자</text>
+        <text x="120" y="170" class="s" text-anchor="middle">브라우저</text>
+
+        <!-- 경로 A: 플랫폼 -->
+        <rect x="300" y="40" width="200" height="60" rx="12" fill="#e8f0fe" stroke="#1d4ed8"/>
+        <text x="400" y="66" class="n" text-anchor="middle" font-weight="700">Frontend</text>
+        <text x="400" y="84" class="s" text-anchor="middle">/api·/api/auth 프록시</text>
+        <rect x="620" y="40" width="220" height="60" rx="12" fill="#e8f0fe" stroke="#1d4ed8"/>
+        <text x="730" y="66" class="n" text-anchor="middle" font-weight="700">backend · JWT 검증</text>
+        <text x="730" y="84" class="s" text-anchor="middle">공개/로그인/CODER/ADMIN</text>
+        <rect x="900" y="40" width="180" height="60" rx="12" fill="#e5f5ef" stroke="#04785a"/>
+        <text x="990" y="66" class="n" text-anchor="middle" font-weight="700">auth-service</text>
+        <text x="990" y="84" class="s" text-anchor="middle">/api/auth</text>
+
+        <path id="pa1" d="M200 140 H260 V70 H300" stroke="#1d4ed8" stroke-width="2.6" fill="none" class="flow" marker-end="url(#fa3b)"/>
+        <path d="M500 70 H620" stroke="#1d4ed8" stroke-width="2.6" fill="none" class="flow" marker-end="url(#fa3b)"/>
+        <path d="M840 70 H900" stroke="#04785a" stroke-width="2.2" fill="none" stroke-dasharray="5 5" marker-end="url(#fa3b)"/>
+        <text x="560" y="34" class="lb" text-anchor="middle">경로 A · 플랫폼 UI/API</text>
+        <circle r="4.5" fill="#1d4ed8" class="mvdot"><animateMotion dur="2.2s" repeatCount="indefinite" path="M200 140 H260 V70 H300 M500 70 H620"/></circle>
+
+        <!-- 경로 B: 배포 서비스 -->
+        <rect x="360" y="220" width="200" height="60" rx="12" fill="#f2ecfe" stroke="#6d28d9"/>
+        <text x="460" y="246" class="n" text-anchor="middle" font-weight="700">Traefik · :80</text>
+        <text x="460" y="264" class="s" text-anchor="middle">Host = &lt;slug&gt;.localhost</text>
+        <rect x="700" y="220" width="240" height="60" rx="12" fill="#fbf3e3" stroke="#b8760a"/>
+        <text x="820" y="246" class="n" text-anchor="middle" font-weight="700">edu-svc-&lt;slug&gt; 컨테이너</text>
+        <text x="820" y="264" class="s" text-anchor="middle">개인용 도구 웹 UI</text>
+
+        <path id="pb1" d="M120 192 V250 H360" stroke="#6d28d9" stroke-width="2.6" fill="none" class="flow" marker-end="url(#fa3v)"/>
+        <path d="M560 250 H700" stroke="#6d28d9" stroke-width="2.6" fill="none" class="flow" marker-end="url(#fa3v)"/>
+        <text x="300" y="214" class="lb" text-anchor="middle">경로 B · 웹에서 바로 사용</text>
+        <circle r="4.5" fill="#6d28d9" class="mvdot"><animateMotion dur="2.2s" repeatCount="indefinite" path="M120 192 V250 H360 M560 250 H700"/></circle>
+      </svg>
+      <div class="legend">
+        <span><span class="fa" style="border-color:var(--blue)"></span> 플랫폼 경로</span>
+        <span><span class="fa" style="border-color:var(--violet)"></span> 배포 서비스 경로(서브도메인)</span>
+      </div>
+    </div>
+    <div class="note">실서버에서는 두 경로 모두 <b>ingress-nginx</b>(TLS·rate-limit·WAF) 뒤에 놓이고,
+      개별 서비스는 <b>Ingress 서브도메인</b>으로 노출된다(§11).</div>
+  </div>
+</section>
+
+<!-- ============ 7. (중간) 인프라 · 신뢰 등급 격리 ============ -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">07 · 인프라 상세 · 격리</div>
+    <h2 class="stitle">실서버 격리 — <span>신뢰 등급별 네임스페이스</span></h2>
+    <p class="lead">여기서부터는 <b>실서버(Kubernetes) 인프라</b> 이야기다. 업로더 신뢰도에 따라 배포 위치와
+      격리 강도를 자동으로 다르게 적용한다(fail-closed).</p>
+    <div class="grid2">
+      <div class="tier int">
+        <h3><span class="dotc" style="background:var(--green)"></span>내부 직원 · 반신뢰</h3>
+        <div class="lab">CODER / ADMIN</div>
+        <ul>
+          <li>배포 위치 <span class="k">edu-services</span> 네임스페이스</li>
+          <li>PodSecurity <span class="k">baseline</span> 강제</li>
+          <li>업무 특성상 사설망 접근 허용</li>
+        </ul>
+      </div>
+      <div class="tier pub">
+        <h3><span class="dotc" style="background:var(--violet)"></span>불특정 다수 · 비신뢰</h3>
+        <div class="lab">USER / 익명 / 불명</div>
+        <ul>
+          <li>배포 위치 <span class="k">edu-services-public</span></li>
+          <li>PodSecurity <span class="k">restricted</span> 강제</li>
+          <li>사설망 egress 차단 · (선택) gVisor 샌드박스</li>
+        </ul>
+      </div>
+    </div>
+    <div class="note">네임스페이스는 업로더 신뢰도로 자동 결정되며, 애매하면 무조건 비신뢰(더 안전한 쪽)로 붙인다.</div>
+  </div>
+</section>
+
+<!-- ============ 8. (중간) 배포 파이프라인(real) ============ -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">08 · 인프라 상세 · 배포</div>
+    <h2 class="stitle">GitHub 레포 → <span>실행 서비스</span> (real 모드)</h2>
+    <p class="lead">실서버에서는 docker.sock을 쓰지 않고 <b>Kaniko</b>로 인클러스터 빌드해 레지스트리에
+      올린 뒤, 매니페스트를 렌더링해 신뢰등급 네임스페이스에 적용한다.</p>
+    <div class="card stage">
+      <svg viewBox="0 0 1120 300" role="img" aria-label="배포 파이프라인(real)">
+        <defs><marker id="ap" markerWidth="11" markerHeight="11" refX="8" refY="3.2" orient="auto"><path d="M0,0 L9,3.2 L0,6.4 Z" fill="#1d4ed8"/></marker></defs>
+        <g class="stepg">
+          <rect x="30" y="60" width="150" height="66" rx="11" fill="#e8f0fe" stroke="#1d4ed8"/><text x="105" y="90" class="n" text-anchor="middle">SourceResolver</text><text x="105" y="108" class="s" text-anchor="middle">clone/local/sample</text>
+          <rect x="210" y="60" width="150" height="66" rx="11" fill="#e8f0fe" stroke="#1d4ed8"/><text x="285" y="90" class="n" text-anchor="middle">SpecParser</text><text x="285" y="108" class="s" text-anchor="middle">service.yaml</text>
+          <rect x="390" y="60" width="180" height="66" rx="11" fill="#e8f0fe" stroke="#1d4ed8"/><text x="480" y="90" class="n" text-anchor="middle">SpecValidator</text><text x="480" y="108" class="s" text-anchor="middle">slug·포트·헬스·중복</text>
+          <rect x="600" y="60" width="170" height="66" rx="11" fill="#f2ecfe" stroke="#6d28d9"/><text x="685" y="90" class="n" text-anchor="middle">Kaniko 빌드</text><text x="685" y="108" class="s" text-anchor="middle">docker.sock 미사용</text>
+          <rect x="800" y="60" width="150" height="66" rx="11" fill="#f2ecfe" stroke="#6d28d9"/><text x="875" y="90" class="n" text-anchor="middle">registry push</text><text x="875" y="108" class="s" text-anchor="middle">registry.edu.internal</text>
+          <rect x="980" y="60" width="110" height="66" rx="11" fill="#e5f5ef" stroke="#04785a"/><text x="1035" y="90" class="n" text-anchor="middle">kubectl</text><text x="1035" y="108" class="s" text-anchor="middle">apply</text>
+        </g>
+        <path d="M180 93 H210 M360 93 H390 M570 93 H600 M770 93 H800 M950 93 H980" stroke="#1d4ed8" stroke-width="2.6" fill="none" class="flow" marker-end="url(#ap)"/>
+        <circle r="5" fill="#1d4ed8" class="mvdot"><animateMotion dur="3.4s" repeatCount="indefinite" path="M105 126 V150 H1035 V126"/></circle>
+        <rect x="360" y="200" width="400" height="70" rx="12" fill="#e5f5ef" stroke="#a2dbc5"/>
+        <text x="560" y="230" class="n" text-anchor="middle" font-weight="700">서비스 Pod + Service + Ingress</text>
+        <text x="560" y="250" class="s" text-anchor="middle">HPA·PDB·NetworkPolicy·PodSecurity 자동 적용 → 공개</text>
+        <path d="M1035 126 V226 H760" stroke="#04785a" stroke-width="2.4" fill="none" marker-end="url(#ap)"/>
+      </svg>
+      <div class="legend">
+        <span><i style="width:12px;height:12px;border-radius:3px;background:#e8f0fe;border:1px solid #1d4ed8"></i> 수집·검증</span>
+        <span><i style="width:12px;height:12px;border-radius:3px;background:#f2ecfe;border:1px solid #6d28d9"></i> 빌드·레지스트리</span>
+        <span><i style="width:12px;height:12px;border-radius:3px;background:#e5f5ef;border:1px solid #04785a"></i> 적용·공개</span>
+      </div>
+    </div>
+    <div class="note">로컬(docker 모드)은 같은 앞단(수집·검증)을 쓰되 호스트 Docker로 <span class="k">docker build/run</span>하고
+      Traefik 라우트 파일을 기록해 <b>&lt;slug&gt;.localhost</b>로 연다. real 모드는 위처럼 K8s로 배포한다.</div>
+  </div>
+</section>
+
+<!-- ============ 9. (중간) 멀티테넌트 하드닝 ============ -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">09 · 인프라 상세 · 보안 격리</div>
+    <h2 class="stitle">멀티테넌트 <span>하드닝</span></h2>
+    <p class="lead">여러 사람이 올린 서비스가 한 클러스터에 공존하므로, 네임스페이스마다 강한 격리 통제를 건다.</p>
+    <table>
+      <thead><tr><th>통제</th><th>내용</th></tr></thead>
+      <tbody>
+        <tr><td class="k">PodSecurity Admission</td><td>신뢰등급별 baseline/restricted 강제(비루트·캡드롭·seccomp)</td></tr>
+        <tr><td class="k">ResourceQuota / LimitRange</td><td>네임스페이스별 자원 상한 — 한 서비스가 자원을 독점하지 못하게</td></tr>
+        <tr><td class="k">NetworkPolicy</td><td>default-deny + DNS 허용 + tier별 egress(공개 tier는 사설망 차단)</td></tr>
+        <tr><td class="k">RuntimeClass(gVisor)</td><td>비신뢰 서비스는 샌드박스 런타임으로 커널 격리(선택)</td></tr>
+        <tr><td class="k">Kaniko 빌드</td><td>docker.sock을 마운트하지 않는 안전 빌드. 미신뢰 입력은 정규식 검증 후 사용</td></tr>
+      </tbody>
+    </table>
+    <div class="note">CNI는 NetworkPolicy를 강제하는 <b>Calico</b>를 쓴다. 검증: 공개 tier의 사설망 egress 차단 /
+      내부 tier 허용을 대조 확인.</div>
+  </div>
+</section>
+
+<!-- ============ 10. (중간) 관측성 + 오토스케일 ============ -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">10 · 인프라 상세 · 운영</div>
+    <h2 class="stitle">관측성과 <span>오토스케일</span></h2>
+    <p class="lead">지표·로그·트레이스 3축을 한 곳(Grafana)에서 상관 조회하고, 부하와 유휴에 맞춰 자동으로
+      늘리고 0까지 줄인다.</p>
+    <div class="grid3">
+      <div class="tile"><span class="role">지표</span><h4>Prometheus</h4><p>kube-prometheus-stack. ServiceMonitor로 backend·서비스를 스크레이프, Alertmanager로 알림(BackendDown/CrashLoop 등).</p></div>
+      <div class="tile"><span class="role">로그</span><h4>Loki + Promtail</h4><p>LogQL로 조회, Grafana 연동.</p></div>
+      <div class="tile"><span class="role">트레이스</span><h4>Tempo (OTLP)</h4><p>트레이스↔로그 상관.</p></div>
+      <div class="tile"><span class="role">스케일</span><h4>HPA + PDB</h4><p>CPU 타깃으로 replica 증감, 최소가용 보장(무중단 롤링).</p></div>
+      <div class="tile"><span class="role">유휴 비용</span><h4>KEDA scale-to-zero</h4><p>요청 없으면 0으로, 요청 오면 0→1 콜드스타트.</p></div>
+      <div class="tile"><span class="role">DB 가용성</span><h4>CloudNativePG</h4><p>Postgres 클러스터 자동 장애조치(primary 승격).</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 11. (중간) 엣지 + 레지스트리 ============ -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">11 · 인프라 상세 · 엣지</div>
+    <h2 class="stitle">엣지 보안과 <span>이미지 배급</span></h2>
+    <p class="lead">클러스터 입구에서 TLS·속도제한·웹방화벽을 적용하고, 인증서는 자동 발급한다. 빌드한 이미지는
+      로컬 레지스트리로 노드가 당겨온다.</p>
+    <div class="card stage">
+      <svg viewBox="0 0 1120 250" role="img" aria-label="엣지와 레지스트리">
+        <defs><marker id="ae" markerWidth="11" markerHeight="11" refX="8" refY="3.2" orient="auto"><path d="M0,0 L9,3.2 L0,6.4 Z" fill="#d81b47"/></marker></defs>
+        <rect x="40" y="90" width="150" height="66" rx="11" fill="#eef2f8" stroke="#9fb0cc"/><text x="115" y="128" class="n" text-anchor="middle">사용자(HTTPS)</text>
+        <rect x="250" y="60" width="620" height="126" rx="14" fill="#fdeaee" stroke="#efb3c1"/>
+        <text x="270" y="86" class="band" fill="#a3123a">ingress-nginx (엣지)</text>
+        <rect x="272" y="100" width="150" height="46" rx="9" fill="#fff" stroke="#d81b47"/><text x="347" y="128" class="n" text-anchor="middle">TLS 종료</text>
+        <rect x="440" y="100" width="150" height="46" rx="9" fill="#fff" stroke="#d81b47"/><text x="515" y="128" class="n" text-anchor="middle">rate-limit</text>
+        <rect x="608" y="100" width="240" height="46" rx="9" fill="#fff" stroke="#d81b47"/><text x="728" y="128" class="n" text-anchor="middle">WAF · ModSecurity/CRS</text>
+        <rect x="920" y="90" width="160" height="66" rx="11" fill="#e5f5ef" stroke="#04785a"/><text x="1000" y="120" class="n" text-anchor="middle">frontend/backend</text><text x="1000" y="138" class="s" text-anchor="middle">+ 서비스 Ingress</text>
+        <path d="M190 123 H250" stroke="#d81b47" stroke-width="2.6" fill="none" class="flow" marker-end="url(#ae)"/>
+        <path d="M870 123 H920" stroke="#d81b47" stroke-width="2.6" fill="none" class="flow" marker-end="url(#ae)"/>
+        <text x="560" y="214" class="s" text-anchor="middle">인증서는 <tspan class="k" style="fill:var(--ink)">cert-manager</tspan>가 Ingress 주석만으로 자동 발급 · 이미지는 <tspan class="k" style="fill:var(--ink)">local registry</tspan>(localhost:5001)에서 노드가 pull</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 12. (뒤) 로컬 vs 실서버 ============ -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">12 · 실행 환경</div>
+    <h2 class="stitle">로컬(docker-compose) vs <span>실서버(K8s)</span></h2>
+    <p class="lead">같은 코드가 두 환경에서 돈다. 로컬은 개발·시연용으로 가볍게, 실서버는 격리·확장·관측을 갖춰
+      운영한다.</p>
+    <table>
+      <thead><tr><th>항목</th><th>로컬 (docker-compose · docker 모드)</th><th>실서버 (Kubernetes · real 모드)</th></tr></thead>
+      <tbody>
+        <tr><td class="k">플랫폼</td><td>backend :8088 · frontend Vite :5173</td><td>backend(2 replica) · frontend(nginx) · ingress</td></tr>
+        <tr><td class="k">인증</td><td>auth-service :8089 · auth-db(:5433)</td><td>deploy/k8s/auth/ (auth-service·auth-db·edu-auth-jwt Secret)</td></tr>
+        <tr><td class="k">DB</td><td>postgres(:5432) · auth-db(:5433)</td><td>CloudNativePG 클러스터(자동 장애조치)</td></tr>
+        <tr><td class="k">배포 결과</td><td>edu-svc-&lt;slug&gt; 컨테이너</td><td>서비스 Pod+Service+Ingress(신뢰등급 ns)</td></tr>
+        <tr><td class="k">라우팅</td><td>Traefik :80 → &lt;slug&gt;.localhost(파일 프로바이더)</td><td>ingress-nginx → &lt;slug&gt; 서브도메인(+WAF·TLS)</td></tr>
+        <tr><td class="k">빌드</td><td>호스트 Docker build/run</td><td>Kaniko 인클러스터 빌드 → registry</td></tr>
+        <tr><td class="k">시크릿</td><td>deploy/.env (EDU_JWT_SECRET 등)</td><td>edu-auth-jwt 등 K8s Secret</td></tr>
+      </tbody>
+    </table>
+    <div class="note">두 환경 모두 <b>EDU_JWT_SECRET</b>을 auth-service(발급)와 backend(검증)가 공유한다. 로컬은
+      <code>deploy/.env</code>, 실서버는 Secret 한 곳에서 관리한다.</div>
+  </div>
+</section>
+
+<!-- ============ 13. (뒤) 보안 요약 ============ -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">13 · 보안</div>
+    <h2 class="stitle">보안 <span>한 장 요약</span></h2>
+    <div class="badges">
+      <div class="badge"><div class="p">인증</div><div class="t">JWT 자체 검증</div><div class="v">각 서비스가 공용 서명키로 토큰 검증 — 인증 단일 장애점 회피</div></div>
+      <div class="badge"><div class="p">토큰</div><div class="t">Refresh = HttpOnly 쿠키</div><div class="v">Access는 메모리(본문), Refresh는 쿠키(path /api/auth)·회전. XSS 노출 최소화</div></div>
+      <div class="badge"><div class="p">인가</div><div class="t">경로별 RBAC</div><div class="v">공개 / 로그인 / CODER / ADMIN. 애매하면 인증 요구(기본 authenticated)</div></div>
+      <div class="badge"><div class="p">계정</div><div class="t">최소권한 + 승인</div><div class="v">가입은 항상 USER, 상향은 신청→관리자 승인. 자가 상승 불가</div></div>
+      <div class="badge"><div class="p">격리</div><div class="t">PodSecurity + NetworkPolicy</div><div class="v">신뢰등급별 baseline/restricted, default-deny egress, (선택) gVisor</div></div>
+      <div class="badge"><div class="p">빌드</div><div class="t">Kaniko(소켓 미사용)</div><div class="v">docker.sock 미마운트. 미신뢰 입력 정규식 검증</div></div>
+      <div class="badge"><div class="p">엣지</div><div class="t">WAF + TLS</div><div class="v">ingress-nginx ModSecurity/CRS, cert-manager 자동 인증서</div></div>
+      <div class="badge"><div class="p">기본값</div><div class="t">fail-closed</div><div class="v">신뢰도 불명이면 가장 안전한 쪽(비신뢰 ns·restricted)로</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 14. (뒤) 기술 스택 · 역할 요약 ============ -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">14 · 요약</div>
+    <h2 class="stitle">기술 스택과 <span>구성요소 역할</span> 요약</h2>
+    <table>
+      <thead><tr><th>구성요소</th><th>기술</th><th>역할</th></tr></thead>
+      <tbody>
+        <tr><td><span class="b" style="background:var(--blue)"></span>Frontend</td><td>React · Vite · TypeScript</td><td>플랫폼 UI(로그인·카탈로그·등록·마이·관리자), 토큰 부착 API 호출</td></tr>
+        <tr><td><span class="b" style="background:var(--green)"></span>auth-service</td><td>Spring Boot 3 · JWT · BCrypt</td><td>계정 단일 소스 · 로그인/회원가입/데모 · 토큰 발급·회전 · 권한 신청/승인</td></tr>
+        <tr><td><span class="b" style="background:var(--blue)"></span>backend</td><td>Spring Boot 3 · Gradle KTS</td><td>카탈로그·등록·검토·배포 파이프라인 · JWT 검증(RBAC)</td></tr>
+        <tr><td><span class="b" style="background:var(--violet)"></span>Traefik</td><td>Traefik v3 (파일 프로바이더)</td><td>&lt;slug&gt;.localhost Host 라우팅(로컬)</td></tr>
+        <tr><td><span class="b" style="background:var(--amber)"></span>examples · 7</td><td>Go·Python·TS·C#·Java</td><td>기본 개인용 단발 도구(카테고리별 1개) · 각 폴더=배포 레포</td></tr>
+        <tr><td><span class="b" style="background:var(--cyan)"></span>PostgreSQL ×2</td><td>Postgres 16 / CloudNativePG</td><td>auth-db(계정) · platform-db(프로그램·배포 메타)</td></tr>
+        <tr><td><span class="b" style="background:var(--rose)"></span>Kubernetes</td><td>K8s · Calico · Kaniko · KEDA</td><td>실서버 실행·격리·확장·관측·엣지</td></tr>
+      </tbody>
+    </table>
+    <div class="note">문서 지도 · 전체 개요(이 문서) · 인프라 상세 <b>deploy/INFRA.md</b> / <b>deploy/infra-overview.html</b> ·
+      아키텍처 <b>docs/ARCHITECTURE.md</b> · 인증 <b>auth-service/README.md</b> · 서비스 규격 <b>docs/MSA_SERVICE_SPEC.md</b> ·
+      보안 <b>SECURITY.md</b> · 로드맵 <b>ROADMAP.md</b>.</div>
+  </div>
+</section>
+
+<!-- ============ 15. 마무리 ============ -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">15 · 마무리</div>
+    <h2 class="stitle">한 문장으로</h2>
+    <p class="lead"><b>"직원이 올린 프로그램을, 신뢰도에 맞춰 안전하게 빌드·격리 배포하고, 로그인한 사람이
+      역할에 맞는 권한으로 웹에서 바로 쓰게 하는 시스템."</b></p>
+    <p class="lead">인증(auth-service)·플랫폼(backend)·라우팅(Traefik)·실행(Kubernetes)이 관심사별로 분리되어 있어,
+      SSO 추가·서비스 증가·환경 이전(로컬↔실서버) 어느 방향으로 커져도 변경 범위가 한 곳에 갇힌다.</p>
+    <div class="chips">
+      <div class="chip"><i class="dotc" style="background:var(--green)"></i>인증은 auth-service로 분리</div>
+      <div class="chip"><i class="dotc" style="background:var(--blue)"></i>토큰은 각 서비스가 자체 검증</div>
+      <div class="chip"><i class="dotc" style="background:var(--violet)"></i>접속은 서브도메인</div>
+      <div class="chip"><i class="dotc" style="background:var(--rose)"></i>격리·확장·관측은 K8s</div>
+    </div>
+  </div>
+</section>
+
+<script>
+  // 상단 진행바(자연스러운 페이지 스크롤)
+  const bar=document.getElementById('prog');
+  const sc=document.scrollingElement||document.documentElement;
+  function upd(){const max=sc.scrollHeight-sc.clientHeight;const p=max>0?sc.scrollTop/max:0;bar.style.width=(p*100)+'%';}
+  addEventListener('scroll',upd,{passive:true});addEventListener('resize',upd);upd();
+</script>
+</body>
+</html>

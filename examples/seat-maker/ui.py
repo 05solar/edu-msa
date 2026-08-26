@@ -1,7 +1,7 @@
 INDEX = r"""<!doctype html><html lang=ko><head><meta charset=utf-8>
 <meta name=viewport content="width=device-width, initial-scale=1"><title>학생 자리배치 생성기</title>
 <style>
-:root{--line:#e2e8f0;--ink:#1e293b;--mut:#64748b;--blue:#2563eb;--bg:#f8fafc}
+:root{--accent:#b4381f;--accent-2:#e0553f;--line:#e6eaf1;--line-2:#eef1f6;--ink:#0f172a;--mut:#5b6b86;--faint:#9aa7bd;--blue:var(--accent);--bg:#eef1f8;--card:#fff;--ok:#0b7a4b;--danger:#dc2626}
 *{box-sizing:border-box}body{margin:0;font-family:system-ui,'Malgun Gothic',sans-serif;color:var(--ink);background:var(--bg)}
 header{background:#fff;border-bottom:1px solid var(--line);padding:16px 24px}header h1{font-size:20px;margin:0}header p{margin:4px 0 0;color:var(--mut);font-size:13px}
 .wrap{max-width:1120px;margin:0 auto;padding:20px 24px}
@@ -24,8 +24,47 @@ table.seats{border-collapse:separate;border-spacing:8px;margin:0 auto}
 .ok2{color:#166534;font-size:13px;margin-bottom:8px}
 .empty-hint{color:#94a3b8;text-align:center;padding:40px}
 @media print{header,.panel.input,.toolbar,.no-print{display:none!important}.grid2{grid-template-columns:1fr}.wrap{padding:0}.panel{border:none}}
+/* === 디자인 고도화 (공통 디자인 시스템) === */
+::selection{background:color-mix(in srgb,var(--accent) 22%,#fff)}
+body{background:radial-gradient(1100px 480px at 100% -8%,color-mix(in srgb,var(--accent) 11%,transparent),transparent 62%),radial-gradient(720px 340px at -6% 0%,color-mix(in srgb,var(--accent) 7%,transparent),transparent 55%),var(--bg);min-height:100vh;-webkit-font-smoothing:antialiased;font-family:-apple-system,BlinkMacSystemFont,system-ui,'Malgun Gothic','Apple SD Gothic Neo',sans-serif}
+header{position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 24px;background:rgba(255,255,255,.8);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);box-shadow:0 1px 2px rgba(15,23,42,.05)}
+.brand{display:flex;align-items:center;gap:13px;min-width:0}
+.chip{flex:none;width:44px;height:44px;border-radius:13px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),var(--accent-2));box-shadow:0 6px 16px color-mix(in srgb,var(--accent) 38%,transparent)}
+.chip svg{width:23px;height:23px;stroke:#fff;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.htxt{min-width:0}.htxt h1{margin:0;font-size:18px;font-weight:800;letter-spacing:-.02em;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.htxt p{margin:2px 0 0;color:var(--mut);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hbadge{flex:none;font-size:11.5px;font-weight:700;color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,#fff);border:1px solid color-mix(in srgb,var(--accent) 22%,#fff);padding:6px 12px;border-radius:999px;white-space:nowrap}
+@media(max-width:620px){.hbadge{display:none}.htxt p{display:none}}
+.panel{border-radius:16px;box-shadow:0 1px 2px rgba(15,23,42,.06),0 1px 3px rgba(15,23,42,.04);transition:box-shadow .2s}
+.panel:hover{box-shadow:0 10px 30px rgba(15,23,42,.08)}
+.panel h2{font-size:13px;font-weight:800;letter-spacing:-.01em;display:flex;align-items:center;gap:8px;color:var(--ink)}
+.panel h2::before{content:"";flex:none;width:4px;height:14px;border-radius:3px;background:linear-gradient(var(--accent),var(--accent-2))}
+label{font-weight:600;color:var(--mut)}
+input,select,textarea{border-radius:10px;padding:9px 12px;border:1px solid var(--line);background:#fff;transition:border-color .15s,box-shadow .15s}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 16%,transparent)}
+button{border-radius:10px;font-weight:600;padding:9px 15px;transition:all .15s}
+button:hover{background:#f6f8fc;border-color:#cfd6e4}
+button:active{transform:translateY(1px)}
+.btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;border:1px solid transparent;box-shadow:0 4px 13px color-mix(in srgb,var(--accent) 30%,transparent)}
+.btn-primary:hover{filter:brightness(1.07);background:linear-gradient(135deg,var(--accent),var(--accent-2));border-color:transparent}
+.btn-sm{padding:5px 10px;font-size:12px;border-radius:8px}
+th{text-transform:uppercase;letter-spacing:.03em;font-weight:700;color:var(--mut)}
+tr:last-child td{border-bottom:none}
+.badge{font-weight:700;letter-spacing:-.01em}
+dialog{border:none;border-radius:18px;box-shadow:0 24px 60px rgba(15,23,42,.28);padding:0}
+dialog::backdrop{background:rgba(15,23,42,.42);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+.empty,.empty-hint{color:var(--faint)}
+.hintbox{background:color-mix(in srgb,var(--accent) 6%,#f6f8fc);border:1px solid color-mix(in srgb,var(--accent) 14%,#fff);border-radius:12px;color:#43506b}
+.card{border-radius:12px;border-color:var(--line);transition:box-shadow .2s,transform .12s}.card:hover{box-shadow:0 6px 18px rgba(15,23,42,.07);transform:translateY(-1px)}
+.stat b{font-weight:800}
+.seat{border-radius:10px;box-shadow:0 1px 2px rgba(15,23,42,.05);transition:transform .1s,box-shadow .1s}.seat:hover{transform:translateY(-1px);box-shadow:0 4px 10px rgba(15,23,42,.1)}
+.teacher{background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 13%,#fff),color-mix(in srgb,var(--accent) 4%,#fff));border:1px solid color-mix(in srgb,var(--accent) 20%,#fff);color:var(--accent);font-weight:800;letter-spacing:.05em;border-radius:12px}
+.drop{border-radius:14px;transition:all .15s;border-width:2px}.drop.drag{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,#fff);color:var(--accent)}
+#svgbox,#chartImg,#preview,iframe{border-radius:12px}
+.total b{background:linear-gradient(135deg,var(--accent),var(--accent-2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.conf{border-radius:12px}.tag{font-weight:700}
 </style></head><body>
-<header><h1>학생 자리배치 생성기</h1><p>명단을 입력하거나 엑셀로 올리고 조건을 지정하면 좌석 배치를 만들어 엑셀·인쇄로 내보냅니다. (개인 단발 사용 도구)</p></header>
+<header><div class="brand"><span class="chip"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="7" height="7" rx="1.5"/><rect x="14" y="4" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span><div class="htxt"><h1>학생 자리배치 생성기</h1><p>명단과 조건으로 좌석 배치를 만들어 엑셀·인쇄로 내보냅니다</p></div></div><span class="hbadge">교육청 업무도구 · 개인용</span></header>
 <div class="wrap"><div class="grid2">
   <div class="panel input">
     <h2>명단 · 조건</h2>

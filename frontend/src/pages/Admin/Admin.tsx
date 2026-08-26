@@ -1,5 +1,5 @@
 import './Admin.css'
-import { Fragment, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { CATEGORIES, ROLE_LABEL } from '../../data/catalog'
 import { catOf, num, dot } from '../../lib/helpers'
 import { useApp } from '../../state/AppContext'
@@ -7,11 +7,12 @@ import { Icon } from '../../icons/Icon'
 import { StatusBadge } from '../../components/program/Badges'
 import { DeployResultModal } from '../../components/DeployResultModal/DeployResultModal'
 import { USE_API, api } from '../../api/client'
+import { authApi, type AuthAccount } from '../../api/auth'
 import type { AdminAction, Role } from '../../types'
 
-type Tab = 'pending' | 'all' | 'log' | 'stats' | 'category'
+type Tab = 'pending' | 'roles' | 'all' | 'log' | 'stats' | 'category'
 const TABS: { id: Tab; name: string }[] = [
-  { id: 'pending', name: '검토 대기' }, { id: 'all', name: '전체 프로그램' },
+  { id: 'pending', name: '검토 대기' }, { id: 'roles', name: '권한 요청' }, { id: 'all', name: '전체 프로그램' },
   { id: 'log', name: '처리 이력' }, { id: 'stats', name: '운영 현황' }, { id: 'category', name: '카테고리 관리' },
 ]
 const REASONS = ['개인정보 처리 검토 필요', '정보보안 검토 필요', '중복 프로그램으로 확인', '설명·사용법 보완 필요', '표준 서비스 규격 미준수']
@@ -26,6 +27,24 @@ export function Admin() {
   const [rejectingId, setRejectingId] = useState<number | null>(null)
   const [reason, setReason] = useState('')
   const [deployingId, setDeployingId] = useState<number | null>(null)
+  const [roleReqs, setRoleReqs] = useState<AuthAccount[]>([])
+
+  const loadRoleReqs = () => {
+    if (!USE_API) return
+    authApi.roleRequests().then(setRoleReqs).catch(() => { /* 관리자 세션 아님/네트워크 */ })
+  }
+  useEffect(() => { loadRoleReqs() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const approveRole = (username: string, name: string) => {
+    authApi.approveRoleRequest(username)
+      .then(() => { toast(`${name} 님의 권한 신청을 승인했습니다.`, 'ok'); loadRoleReqs() })
+      .catch((e) => toast('승인 실패: ' + (e as Error).message, 'warn'))
+  }
+  const rejectRole = (username: string, name: string) => {
+    authApi.rejectRoleRequest(username)
+      .then(() => { toast(`${name} 님의 권한 신청을 반려했습니다.`, 'info'); loadRoleReqs() })
+      .catch((e) => toast('반려 실패: ' + (e as Error).message, 'warn'))
+  }
 
   const deploy = (id: number, repo: string, branch?: string) => {
     if (!USE_API) { toast('배포는 백엔드 연동 모드(VITE_USE_API=true)에서 실행됩니다.', 'warn'); return }
@@ -59,7 +78,9 @@ export function Admin() {
       <div className="subtabs">
         {TABS.map((t) => (
           <button key={t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>
-            {t.name}{t.id === 'pending' && pendingPrograms.length > 0 && ` (${pendingPrograms.length})`}
+            {t.name}
+            {t.id === 'pending' && pendingPrograms.length > 0 && ` (${pendingPrograms.length})`}
+            {t.id === 'roles' && roleReqs.length > 0 && ` (${roleReqs.length})`}
           </button>
         ))}
       </div>
@@ -107,6 +128,35 @@ export function Admin() {
                     </tr>
                   )}
                 </Fragment>
+              ))}
+            </tbody>
+          </table></div></div>
+        )
+      )}
+
+      {tab === 'roles' && (
+        roleReqs.length === 0 ? (
+          <div className="empty"><div className="em-t">대기 중인 권한 신청이 없습니다.</div>
+            <div className="em-d">회원가입 시 상향 권한을 신청하면 여기에 표시됩니다.</div></div>
+        ) : (
+          <div className="panel"><div className="table-scroll"><table className="table">
+            <thead><tr><th>이름</th><th>아이디</th><th>부서</th><th>현재</th><th>신청 권한</th><th>사유</th><th style={{ width: 160 }}>처리</th></tr></thead>
+            <tbody>
+              {roleReqs.map((a) => (
+                <tr key={a.username}>
+                  <td style={{ fontWeight: 600 }}>{a.name}</td>
+                  <td>{a.username}</td>
+                  <td>{a.dept}</td>
+                  <td>{ROLE_LABEL[a.role]}</td>
+                  <td><b>{a.requestedRole ? ROLE_LABEL[a.requestedRole] : '-'}</b></td>
+                  <td style={{ maxWidth: 280, color: 'var(--ink-400)', fontSize: 13 }}>{a.roleRequestReason || '-'}</td>
+                  <td>
+                    <div className="my-table-actions">
+                      <button className="btn btn-sm btn-ok" onClick={() => approveRole(a.username, a.name)}>승인</button>
+                      <button className="btn btn-sm btn-danger" onClick={() => rejectRole(a.username, a.name)}>반려</button>
+                    </div>
+                  </td>
+                </tr>
               ))}
             </tbody>
           </table></div></div>

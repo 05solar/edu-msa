@@ -43,10 +43,17 @@ public final class AccountDtos {
 
             @NotBlank(message = "부서를 입력해 주세요.")
             @Size(max = 50, message = "부서는 50자를 넘을 수 없습니다.")
-            String dept
+            String dept,
+
+            /** (선택) 상향 권한 신청 — coder|admin. 미지정/user 는 신청 없음(계정은 항상 USER 로 생성). */
+            String requestRole,
+
+            /** (선택) 상향 권한 신청 사유. */
+            @Size(max = 300, message = "신청 사유는 300자를 넘을 수 없습니다.")
+            String requestReason
     ) {}
 
-    /** 계정 표현 — 비밀번호 해시는 어떤 응답에도 포함하지 않는다. */
+    /** 계정 표현 — 비밀번호 해시는 어떤 응답에도 포함하지 않는다. requestedRole 이 있으면 승인 대기 상태. */
     public record AccountResponse(
             Long id,
             String username,
@@ -54,11 +61,14 @@ public final class AccountDtos {
             String email,
             String dept,
             AccountRole role,
+            AccountRole requestedRole,
+            String roleRequestReason,
             boolean mustChangePassword
     ) {
         public static AccountResponse of(Account a) {
             return new AccountResponse(a.getId(), a.getUsername(), a.getName(), a.getEmail(),
-                    a.getDept(), a.getRole(), a.isMustChangePassword());
+                    a.getDept(), a.getRole(), a.getRequestedRole(), a.getRoleRequestReason(),
+                    a.isMustChangePassword());
         }
     }
 

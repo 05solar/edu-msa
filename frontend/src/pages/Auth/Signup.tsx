@@ -19,6 +19,8 @@ export function Signup() {
   const [dept, setDept] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
+  const [requestRole, setRequestRole] = useState<'' | 'coder' | 'admin'>('')
+  const [requestReason, setRequestReason] = useState('')
   const [errors, setErrors] = useState<Errors<K>>({})
   const [submitting, setSubmitting] = useState(false)
   const [checking, setChecking] = useState<DuplicateField | null>(null)
@@ -47,15 +49,21 @@ export function Signup() {
 
     setSubmitting(true)
     try {
-      // 기본 권한 USER 로 저장된다. CODER/ADMIN 은 운영 관리자가 부여한다.
+      // 계정은 항상 USER 로 저장된다. 상향 권한은 신청으로만 보관되고 운영 관리자 승인 시 적용된다.
       await authApi.signup({
         username: username.trim(),
         password,
         name: name.trim(),
         email: email.trim(),
         dept: dept.trim(),
+        ...(requestRole ? { requestRole, requestReason: requestReason.trim() } : {}),
       })
-      toast('회원가입이 완료되었습니다. 가입한 아이디로 로그인해 주세요.', 'ok')
+      toast(
+        requestRole
+          ? '회원가입이 완료되었습니다. 신청한 권한은 운영 관리자 승인 후 적용됩니다. 우선 일반 사용자로 로그인해 주세요.'
+          : '회원가입이 완료되었습니다. 가입한 아이디로 로그인해 주세요.',
+        'ok',
+      )
       goAuth('login')
     } catch (err) {
       toast((err as Error).message, 'warn')
@@ -92,8 +100,8 @@ export function Signup() {
       <AuthBack onClick={() => goAuth('login')} label="로그인으로 돌아가기" />
       <h2>회원가입</h2>
       <div className="ac-sub">
-        가입 시 기본 권한은 일반 사용자입니다. 바이브 코더·운영 관리자 권한은
-        가입 후 운영 관리자가 부여합니다.
+        가입 시 기본 권한은 일반 사용자입니다. 바이브 코더·운영 관리자 권한이 필요하면
+        아래에서 신청할 수 있으며, 운영 관리자 승인 후 적용됩니다.
       </div>
 
       <form className="auth-form" onSubmit={onSubmit} noValidate>
@@ -199,6 +207,34 @@ export function Signup() {
             </button>
           </div>
         </AuthField>
+
+        <AuthField
+          label="권한 신청 (선택)"
+          hint="상향 권한은 운영 관리자 승인 후 적용됩니다. 미선택 시 일반 사용자로 가입합니다."
+        >
+          <select
+            className="input"
+            value={requestRole}
+            onChange={(e) => setRequestRole(e.target.value as '' | 'coder' | 'admin')}
+          >
+            <option value="">일반 사용자 (기본)</option>
+            <option value="coder">바이브 코더 — 프로그램 등록·배포</option>
+            <option value="admin">운영 관리자 — 검토·권한·배포 관리</option>
+          </select>
+        </AuthField>
+
+        {requestRole && (
+          <AuthField label="신청 사유" hint="승인 검토에 참고됩니다. (최대 300자)">
+            <textarea
+              className="input"
+              rows={2}
+              maxLength={300}
+              value={requestReason}
+              placeholder="예: 학사 업무 자동화 프로그램을 등록·운영하기 위해 코더 권한이 필요합니다."
+              onChange={(e) => setRequestReason(e.target.value)}
+            />
+          </AuthField>
+        )}
 
         <PendingBox
           title="본인 확인"

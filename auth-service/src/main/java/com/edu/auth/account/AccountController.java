@@ -57,10 +57,28 @@ public class AccountController {
         return accounts.findAll().stream().map(AccountResponse::of).toList();
     }
 
-    /** 운영 관리자 전용 — CODER/ADMIN 권한 부여. */
+    /** 운영 관리자 전용 — CODER/ADMIN 권한 부여(직접). */
     @PatchMapping("/accounts/{username}/role")
     public AccountResponse changeRole(@PathVariable String username,
                                       @Valid @RequestBody RoleChangeRequest req) {
         return accountService.changeRole(username, AccountRole.from(req.role()));
+    }
+
+    /** 운영 관리자 전용 — 회원가입 시 신청된 상향 권한 승인 대기 목록. */
+    @GetMapping("/role-requests")
+    public List<AccountResponse> roleRequests() {
+        return accountService.pendingRoleRequests();
+    }
+
+    /** 운영 관리자 전용 — 상향 권한 신청 승인(신청 권한으로 상향). */
+    @PostMapping("/accounts/{username}/role-request/approve")
+    public AccountResponse approveRoleRequest(@PathVariable String username) {
+        return accountService.approveRoleRequest(username);
+    }
+
+    /** 운영 관리자 전용 — 상향 권한 신청 반려(USER 유지). */
+    @PostMapping("/accounts/{username}/role-request/reject")
+    public AccountResponse rejectRoleRequest(@PathVariable String username) {
+        return accountService.rejectRoleRequest(username);
     }
 }

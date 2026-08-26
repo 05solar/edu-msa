@@ -50,6 +50,17 @@ public class Account {
     private AccountRole role;
 
     /**
+     * 회원가입 시 신청한 상향 권한(CODER/ADMIN). 계정 자체는 항상 USER 로 생성되며,
+     * 이 값이 있으면 "승인 대기" 상태다. 운영 관리자가 승인하면 role 로 반영하고 소거한다.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "requested_role", length = 10)
+    private AccountRole requestedRole;
+
+    @Column(name = "role_request_reason", length = 300)
+    private String roleRequestReason;
+
+    /**
      * 최초 로그인 시 비밀번호 변경 강제를 위한 플래그.
      * 시드 계정처럼 공통 임시 비밀번호로 발급된 계정은 true 로 저장한다.
      * (강제 변경 화면 자체는 추후 작업 범위)
@@ -86,12 +97,26 @@ public class Account {
     public String getEmail() { return email; }
     public String getDept() { return dept; }
     public AccountRole getRole() { return role; }
+    public AccountRole getRequestedRole() { return requestedRole; }
+    public String getRoleRequestReason() { return roleRequestReason; }
     public boolean isMustChangePassword() { return mustChangePassword; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
 
     /** 권한 부여는 운영 관리자만 수행한다(회원가입 기본값은 USER). */
     public void changeRole(AccountRole role) { this.role = role; }
+
+    /** 회원가입 시 상향 권한 신청을 등록한다(계정 자체는 USER 로 생성). */
+    public void requestRole(AccountRole role, String reason) {
+        this.requestedRole = role;
+        this.roleRequestReason = reason;
+    }
+
+    /** 신청을 소거한다(관리자 승인·반려 처리 후). */
+    public void clearRoleRequest() {
+        this.requestedRole = null;
+        this.roleRequestReason = null;
+    }
 
     public void changePassword(String passwordHash) {
         this.passwordHash = passwordHash;

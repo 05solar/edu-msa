@@ -56,9 +56,13 @@ public class SecurityConfig {
                         // 로그아웃은 Access Token 이 만료된 뒤에도 쿠키만으로 수행할 수 있어야 한다.
                         .requestMatchers(HttpMethod.POST, "/api/auth/logout").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/check-duplicate").permitAll()
-                        // 권한 부여는 운영 관리자만 수행한다.
+                        // 권한 부여·상향 신청 승인은 운영 관리자만 수행한다.
                         .requestMatchers(HttpMethod.PATCH, "/api/auth/accounts/*/role").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/auth/accounts").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/auth/role-requests").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/auth/accounts/*/role-request/approve",
+                                "/api/auth/accounts/*/role-request/reject").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .exceptionHandling(e -> e
                         .authenticationEntryPoint((req, res, ex) ->

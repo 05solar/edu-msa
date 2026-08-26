@@ -17,6 +17,9 @@ export interface AuthAccount {
   email: string
   dept: string
   role: Role
+  /** 회원가입 시 신청한 상향 권한(승인 대기). 없으면 null. */
+  requestedRole?: Role | null
+  roleRequestReason?: string | null
   mustChangePassword: boolean
 }
 
@@ -33,6 +36,9 @@ export interface SignupInput {
   name: string
   email: string
   dept: string
+  /** (선택) 상향 권한 신청 — 계정은 항상 USER 로 생성되고 운영 관리자 승인 시 반영. */
+  requestRole?: 'coder' | 'admin'
+  requestReason?: string
 }
 
 export type DuplicateField = 'username' | 'email'
@@ -112,8 +118,19 @@ export const authApi = {
   /** 운영 관리자 전용 — 계정 목록. 권한 판단의 기준은 auth-service 이다. */
   accounts: () => req<AuthAccount[]>('/accounts'),
 
-  /** 운영 관리자 전용 — 권한 부여. */
+  /** 운영 관리자 전용 — 권한 부여(직접). */
   setRole: (username: string, role: Role) =>
     req<AuthAccount>(`/accounts/${encodeURIComponent(username)}/role`,
       { method: 'PATCH', body: JSON.stringify({ role }) }),
+
+  /** 운영 관리자 전용 — 상향 권한 승인 대기 목록. */
+  roleRequests: () => req<AuthAccount[]>('/role-requests'),
+
+  /** 운영 관리자 전용 — 신청 승인(신청 권한으로 상향). */
+  approveRoleRequest: (username: string) =>
+    req<AuthAccount>(`/accounts/${encodeURIComponent(username)}/role-request/approve`, { method: 'POST' }),
+
+  /** 운영 관리자 전용 — 신청 반려(USER 유지). */
+  rejectRoleRequest: (username: string) =>
+    req<AuthAccount>(`/accounts/${encodeURIComponent(username)}/role-request/reject`, { method: 'POST' }),
 }

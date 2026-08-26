@@ -426,17 +426,130 @@ public static class Util
 
 public static class Html
 {
-    public const string Index = "<!doctype html><html lang=ko><meta charset=utf-8>"
-        + "<title>기자재·자산 관리 · asset-mgr</title>"
-        + "<style>body{font-family:system-ui,'Malgun Gothic',sans-serif;max-width:820px;margin:32px auto;padding:0 16px;color:#1e293b}"
-        + "h1{font-size:22px}code{background:#eef2f8;padding:2px 6px;border-radius:5px}li{margin:5px 0}</style>"
-        + "<h1>교육 기자재·자산 관리 (asset-mgr)</h1>"
-        + "<p>등록 → 배치 → 이관 → 수리 → 폐기 생애주기 + 감가상각(정액법) + 재물조사를 관리합니다.</p><ul>"
-        + "<li><code>GET /healthz</code></li>"
-        + "<li><code>GET /api/assets?status=&category=&location=&custodian=&q=&sort=&page=&size=</code></li>"
-        + "<li><code>POST /api/assets</code> 등록 · <code>PATCH /api/assets/{id}</code> 수정</li>"
-        + "<li><code>POST /api/assets/{id}/assign|transfer|repair|repair-done|dispose|report-lost|recover|audit</code></li>"
-        + "<li><code>GET /api/assets/export</code> 재물조사용 CSV</li>"
-        + "<li><code>GET /api/assets/{id}/history</code> · <code>GET /api/stats</code></li>"
-        + "</ul><p>currentValue=정액법 감가상각 후 현재가치. 샘플 자산 4건 시드. 배포 경로 <code>/svc/asset-mgr</code>.</p></html>";
+    public const string Index = """
+<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>교육 기자재·자산 관리</title>
+<style>
+  :root{--line:#e2e8f0;--ink:#1e293b;--mut:#64748b;--blue:#2563eb;--bg:#f8fafc}
+  *{box-sizing:border-box}body{margin:0;font-family:system-ui,'Malgun Gothic',sans-serif;color:var(--ink);background:var(--bg)}
+  header{background:#fff;border-bottom:1px solid var(--line);padding:16px 24px}
+  header h1{font-size:20px;margin:0}header p{margin:4px 0 0;color:var(--mut);font-size:13px}
+  .wrap{max-width:1100px;margin:0 auto;padding:20px 24px}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px}
+  .card .lbl{font-size:12px;color:var(--mut)}.card .val{font-size:22px;font-weight:800;margin-top:4px}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  input,select,button{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+  button{cursor:pointer}.btn-primary{background:var(--blue);color:#fff;border-color:var(--blue);font-weight:600}
+  .btn-sm{padding:4px 8px;font-size:12px}
+  table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line)}th{background:#f1f5f9;color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+  tr:last-child td{border-bottom:none}
+  .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700}
+  .s-IN_STORAGE{background:#e0e7ff;color:#3730a3}.s-IN_USE{background:#dcfce7;color:#166534}.s-UNDER_REPAIR{background:#fef3c7;color:#92400e}
+  .s-DISPOSED{background:#e2e8f0;color:#475569}.s-LOST{background:#fee2e2;color:#991b1b}
+  dialog{border:none;border-radius:14px;padding:0;max-width:420px;width:92%}
+  form{padding:20px}form h3{margin:0 0 14px}.fld{margin-bottom:10px}.fld label{display:block;font-size:12px;color:var(--mut);margin-bottom:4px}
+  .fld input,.fld select{width:100%}.row{display:flex;gap:8px}.row>*{flex:1}
+  .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+  .num{text-align:right;font-variant-numeric:tabular-nums}
+</style></head><body>
+<header><h1>교육 기자재·자산 관리</h1><p>등록 → 배치 → 이관 → 수리 → 폐기 생애주기 · 정액법 감가상각 · 재물조사</p></header>
+<div class="wrap">
+  <div class="stats" id="stats"></div>
+  <div class="toolbar">
+    <input id="q" placeholder="품명·자산번호 검색" style="min-width:200px">
+    <select id="fstatus"><option value="">전체 상태</option></select>
+    <select id="fcat"><option value="">전체 분류</option></select>
+    <button onclick="load()">조회</button>
+    <span style="flex:1"></span>
+    <a href="/api/assets/export" download><button>CSV 내보내기</button></a>
+    <button class="btn-primary" onclick="openReg()">+ 자산 등록</button>
+  </div>
+  <table><thead><tr><th>자산번호</th><th>품명</th><th>분류</th><th>상태</th><th>위치/관리자</th><th class="num">취득가</th><th class="num">현재가치</th><th>처리</th></tr></thead>
+  <tbody id="rows"></tbody></table>
+</div>
+<dialog id="reg"><form onsubmit="return submitReg(event)">
+  <h3>자산 등록</h3>
+  <div class="fld"><label>품명 *</label><input id="r-name" required></div>
+  <div class="row"><div class="fld"><label>분류</label><select id="r-cat"></select></div>
+  <div class="fld"><label>취득가(원)</label><input id="r-cost" type="number" value="0"></div></div>
+  <div class="row"><div class="fld"><label>내용연수(년)</label><input id="r-life" type="number" placeholder="분류 기본"></div>
+  <div class="fld"><label>취득일</label><input id="r-date" type="date"></div></div>
+  <div class="row"><div class="fld"><label>위치</label><input id="r-loc"></div>
+  <div class="fld"><label>관리자</label><input id="r-cust"></div></div>
+  <div class="modal-actions"><button type="button" onclick="reg.close()">취소</button><button class="btn-primary" type="submit">등록</button></div>
+</form></dialog>
+<script>
+const CATS=["전산기기","실험기자재","도서","가구","체육용품","기타"];
+const STS={IN_STORAGE:"보관",IN_USE:"사용중",UNDER_REPAIR:"수리중",DISPOSED:"폐기",LOST:"분실"};
+const won=n=>(n==null?"-":Number(n).toLocaleString()+"원");
+function fillSelect(el,arr,val){arr.forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=STS[c]||c;el.appendChild(o);});}
+fillSelect(document.getElementById("fstatus"),Object.keys(STS));
+fillSelect(document.getElementById("fcat"),CATS);
+CATS.forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c;document.getElementById("r-cat").appendChild(o);});
+async function jget(u){const r=await fetch(u);return r.json();}
+async function jpost(u,b){const r=await fetch(u,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b||{})});return {ok:r.ok,d:await r.json()};}
+async function load(){
+  const q=new URLSearchParams();
+  const qq=document.getElementById("q").value.trim();if(qq)q.set("q",qq);
+  const st=document.getElementById("fstatus").value;if(st)q.set("status",st);
+  const ct=document.getElementById("fcat").value;if(ct)q.set("category",ct);
+  q.set("size","100");
+  const d=await jget("/api/assets?"+q);
+  const rows=document.getElementById("rows");rows.innerHTML="";
+  if(!d.items.length){rows.innerHTML='<tr><td colspan=8 style="text-align:center;color:#94a3b8;padding:30px">자산이 없습니다.</td></tr>';}
+  d.items.forEach(a=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${a.assetNo}</td><td><b>${esc(a.name)}</b></td><td>${a.category}</td>
+      <td><span class="badge s-${a.status}">${STS[a.status]}</span></td>
+      <td>${esc(a.location||"-")}${a.custodian?" / "+esc(a.custodian):""}</td>
+      <td class="num">${won(a.acquiredCost)}</td><td class="num">${won(a.currentValue)}</td>
+      <td>${actions(a)}</td>`;
+    rows.appendChild(tr);
+  });
+  const s=await jget("/api/stats");
+  document.getElementById("stats").innerHTML=
+    card("총 자산",s.total+"건")+card("사용중",(s.byStatus.IN_USE||0)+"건")+
+    card("수리중",s.underRepair+"건")+card("현재가치 합계",won(s.totalCurrentValue));
+}
+function card(l,v){return `<div class="card"><div class="lbl">${l}</div><div class="val">${v}</div></div>`;}
+function esc(s){return (s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+function actions(a){
+  const b=(t,f)=>`<button class="btn-sm" onclick="${f}">${t}</button> `;
+  if(a.status==="IN_STORAGE")return b("배치",`act('assign',${a.id})`)+b("수리",`act('repair',${a.id})`)+b("폐기",`act('dispose',${a.id})`);
+  if(a.status==="IN_USE")return b("이관",`act('transfer',${a.id})`)+b("수리",`act('repair',${a.id})`)+b("폐기",`act('dispose',${a.id})`);
+  if(a.status==="UNDER_REPAIR")return b("수리완료",`act('repair-done',${a.id})`);
+  if(a.status==="LOST")return b("재발견",`act('recover',${a.id})`);
+  return "-";
+}
+async function act(kind,id){
+  let body={actor:"담당자"};
+  if(kind==="assign"){const l=prompt("배치 위치");if(l==null)return;const c=prompt("관리자");if(c==null)return;body.location=l;body.custodian=c;}
+  else if(kind==="transfer"){const l=prompt("이관 위치(비우면 관리자만)");const c=prompt("이관 관리자");body.location=l||"";body.custodian=c||"";}
+  else if(kind==="repair"){const r=prompt("수리 사유");if(!r)return;body.reason=r;}
+  else if(kind==="repair-done"){const c=prompt("수리비(원, 없으면 0)","0");body.cost=Number(c)||0;}
+  else if(kind==="dispose"){const r=prompt("폐기 사유");if(!r)return;body.reason=r;}
+  else if(kind==="recover"){const r=prompt("재발견 경위");if(!r)return;body.reason=r;}
+  const {ok,d}=await jpost(`/api/assets/${id}/${kind}`,body);
+  if(!ok)alert("오류: "+(d.error?d.error.message:"실패"));
+  load();
+}
+function openReg(){document.getElementById("r-name").value="";document.getElementById("r-cost").value="0";
+  document.getElementById("r-life").value="";document.getElementById("r-loc").value="";document.getElementById("r-cust").value="";
+  reg.showModal();}
+async function submitReg(e){e.preventDefault();
+  const b={name:document.getElementById("r-name").value,category:document.getElementById("r-cat").value,
+    acquiredCost:Number(document.getElementById("r-cost").value)||0,
+    location:document.getElementById("r-loc").value,custodian:document.getElementById("r-cust").value,actor:"담당자"};
+  const life=document.getElementById("r-life").value;if(life)b.usefulLifeYears=Number(life);
+  const dt=document.getElementById("r-date").value;if(dt)b.acquiredDate=dt;
+  const {ok,d}=await jpost("/api/assets",b);
+  if(!ok){alert("오류: "+(d.error?d.error.message:"실패"));return false;}
+  reg.close();load();return false;
+}
+load();
+</script></body></html>
+""";
 }

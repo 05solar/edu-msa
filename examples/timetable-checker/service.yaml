@@ -1,0 +1,14 @@
+name: 시간표 충돌 검사·이미지 생성기
+slug: timetable-checker
+category: curri
+purposes:
+  - verify
+  - gen
+tech:
+  - TypeScript
+summary: 수업 목록의 교사·교실·학급 동시간 중복을 찾아내고 주간 시간표 이미지(SVG)를 만들어 주는 개인용 단발 도구.
+port: 8080
+health: /healthz
+resources:
+  cpu: 250m
+  memory: 256Mi

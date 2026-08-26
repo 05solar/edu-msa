@@ -66,6 +66,9 @@ services:
       - ../examples:/app/examples:ro
       # Traefik 동적 라우트 파일 공유(백엔드 write, traefik watch)
       - edu_dynamic:/dynamic
+    networks:
+      - default
+      - eduproxy
     depends_on:
       db:
         condition: service_healthy

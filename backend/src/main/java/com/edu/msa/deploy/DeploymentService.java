@@ -229,9 +229,34 @@ public class DeploymentService {
             throw new DeployException("컨테이너가 정상 실행되지 않았습니다.");
         }
         writeTraefikRoute(log, spec.slug(), host, container, spec.port());
+        waitHealthy(log, container, spec.port(), spec.healthOrDefault());
         d.setManifest(renderer.render(spec, d.getImageTag(), ns));   // 매니페스트도 참고용으로 보관(네임스페이스 반영)
         line(log, "컨테이너 실행 확인 · " + container + " (서브도메인 " + host + ")");
         return "http://" + host;
+    }
+
+    /** 컨테이너 내부 앱이 실제로 응답할 때까지 대기(최대 ~60초). 백엔드는 eduproxy 네트워크로 컨테이너명 접근. */
+    private void waitHealthy(StringBuilder log, String container, int port, String health) {
+        String url = "http://" + container + ":" + port + (health.startsWith("/") ? health : "/" + health);
+        java.net.http.HttpClient client = java.net.http.HttpClient.newBuilder()
+                .connectTimeout(java.time.Duration.ofSeconds(2)).build();
+        for (int i = 0; i < 30; i++) {
+            try {
+                java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder()
+                        .uri(java.net.URI.create(url)).timeout(java.time.Duration.ofSeconds(2))
+                        .GET().build();
+                java.net.http.HttpResponse<Void> resp =
+                        client.send(req, java.net.http.HttpResponse.BodyHandlers.discarding());
+                if (resp.statusCode() >= 200 && resp.statusCode() < 500) {
+                    line(log, "readiness 확인 · " + url + " (" + resp.statusCode() + ", " + (i + 1) + "회)");
+                    return;
+                }
+            } catch (Exception ignore) {
+                // 아직 기동 중
+            }
+            try { Thread.sleep(2000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); return; }
+        }
+        line(log, "경고: readiness 확인 시간 초과 · " + url + " (기동이 느릴 수 있어 계속 진행)");
     }
 
     /** Traefik 파일 프로바이더용 라우트 파일을 써 넣는다. <slug>.localhost -> http://edu-svc-<slug>:port */

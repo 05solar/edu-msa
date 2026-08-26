@@ -1,0 +1,111 @@
+<!doctype html><html lang=ko><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width, initial-scale=1"><title>시간표 충돌 검사·이미지 생성기</title>
+<style>
+:root{--line:#e2e8f0;--ink:#1e293b;--mut:#64748b;--blue:#2563eb;--bg:#f8fafc}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,'Malgun Gothic',sans-serif;color:var(--ink);background:var(--bg)}
+header{background:#fff;border-bottom:1px solid var(--line);padding:16px 24px}header h1{font-size:20px;margin:0}header p{margin:4px 0 0;color:var(--mut);font-size:13px}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 24px}
+.grid2{display:grid;grid-template-columns:380px 1fr;gap:18px}@media(max-width:900px){.grid2{grid-template-columns:1fr}}
+.panel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px}.panel h2{font-size:14px;margin:0 0 10px}
+label{font-size:12px;color:var(--mut);display:block;margin:10px 0 4px}
+textarea,input,select{width:100%;font:14px system-ui,'Malgun Gothic',sans-serif;padding:8px 10px;border:1px solid var(--line);border-radius:8px;color:var(--ink);background:#fff}
+textarea{min-height:190px;resize:vertical;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+button{font:inherit;padding:8px 14px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);cursor:pointer}
+.btn-primary{background:var(--blue);color:#fff;border-color:var(--blue);font-weight:600}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
+.row{display:flex;gap:8px}.row>div{flex:1}
+.conf{border:1px solid #fecaca;background:#fef2f2;border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:13px}
+.conf b{color:#b91c1c}
+.ok2{color:#166534;font-size:14px;font-weight:600;margin-bottom:8px}
+.empty-hint{color:#94a3b8;text-align:center;padding:36px}
+.tag{display:inline-block;background:#e0e7ff;color:#3730a3;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:700;margin-right:4px}
+#svgbox{overflow:auto;border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff}
+.hintbox{background:#f1f5f9;border-radius:8px;padding:10px;font-size:12px;color:#475569;line-height:1.7}
+</style></head><body>
+<header><h1>시간표 충돌 검사·이미지 생성기</h1><p>수업을 입력하면 같은 시간대의 교사·교실·학급 중복(충돌)을 찾아내고 주간 시간표 이미지를 만들어 드립니다. (개인 단발 사용 도구)</p></header>
+<div class="wrap"><div class="grid2">
+  <div class="panel">
+    <h2>수업 입력</h2>
+    <div class="hintbox">한 줄에 한 수업, 쉼표로 구분:<br><b>요일,교시,학급,과목,교사,교실</b><br>예) 월,1,3-1,수학,김철수,201</div>
+    <textarea id="src" placeholder="월,1,3-1,수학,김철수,201&#10;월,1,3-2,국어,이영희,202"></textarea>
+    <div class="toolbar"><button onclick="loadSample()">예시</button><button onclick="clearAll()">지우기</button>
+      <button class="btn-primary" style="margin-left:auto" onclick="check()">충돌 검사</button></div>
+    <div id="ttmaker" style="display:none;margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
+      <h2>시간표 이미지</h2>
+      <div class="row"><div><label>기준</label><select id="view" onchange="fillKeys()"><option value="klass">학급</option><option value="teacher">교사</option><option value="room">교실</option></select></div>
+        <div><label>대상</label><select id="key"></select></div></div>
+      <div class="toolbar"><button class="btn-primary" onclick="makeImage()">시간표 생성</button><button id="dl" onclick="download()" style="display:none">이미지(SVG) 다운로드</button></div>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>결과</h2>
+    <div id="result"><div class="empty-hint">왼쪽에 수업을 입력하고 [충돌 검사]를 누르세요.</div></div>
+    <div id="svgwrap" style="display:none;margin-top:14px"><div id="svgbox"></div></div>
+  </div>
+</div></div>
+<script>
+let sessions=[], keys={}, lastSvg='', lastKey='';
+function parse(){
+  const out=[];
+  for(const raw of document.getElementById('src').value.split('\n')){
+    const line=raw.trim();if(!line)continue;
+    const p=line.split(',').map(s=>s.trim());
+    if(p.length<4)continue;
+    out.push({day:p[0],period:parseInt(p[1],10),klass:p[2]||'',subject:p[3]||'',teacher:p[4]||'',room:p[5]||''});
+  }
+  return out;
+}
+function check(){
+  sessions=parse();
+  if(!sessions.length){alert('수업을 입력하세요. (요일,교시,학급,과목,교사,교실)');return;}
+  fetch('/api/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessions})})
+    .then(r=>r.json().then(d=>({ok:r.ok,d}))).then(x=>{
+      if(!x.ok){alert('오류: '+(x.d.error?x.d.error.message:''));return;}
+      keys=x.d.keys;render(x.d);
+      document.getElementById('ttmaker').style.display='block';fillKeys();
+    });
+}
+function render(d){
+  let h='';
+  if(!d.conflicts.length)h='<div class="ok2">충돌이 없습니다. 총 '+d.count+'개 수업이 서로 겹치지 않습니다.</div>';
+  else{
+    h='<div style="font-weight:600;margin-bottom:8px;color:#b91c1c">충돌 '+d.conflicts.length+'건 발견 ('+d.count+'개 수업 중)</div>';
+    for(const c of d.conflicts){
+      h+='<div class="conf"><span class="tag">'+c.day+' '+c.period+'교시</span> <b>'+esc(c.typeLabel)+' 중복</b> · '+esc(c.value)+
+         '<div style="color:#64748b;margin-top:4px">'+c.members.map(esc).join(' ↔ ')+'</div></div>';
+    }
+  }
+  document.getElementById('result').innerHTML=h;
+}
+function fillKeys(){
+  const view=document.getElementById('view').value;
+  const sel=document.getElementById('key');sel.innerHTML='';
+  (keys[view]||[]).forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=k;sel.appendChild(o);});
+  if(!(keys[view]||[]).length){const o=document.createElement('option');o.value='';o.textContent='(값 없음 — 입력에 '+({klass:'학급',teacher:'교사',room:'교실'}[view])+' 필요)';sel.appendChild(o);}
+}
+function makeImage(){
+  const view=document.getElementById('view').value, key=document.getElementById('key').value;
+  if(!key){alert('대상을 선택하세요.');return;}
+  fetch('/api/timetable',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessions,view,key})})
+    .then(r=>r.json().then(d=>({ok:r.ok,d}))).then(x=>{
+      if(!x.ok){alert('오류: '+(x.d.error?x.d.error.message:''));return;}
+      lastSvg=x.d.svg;lastKey=key;
+      document.getElementById('svgbox').innerHTML=x.d.svg;
+      document.getElementById('svgwrap').style.display='block';
+      document.getElementById('dl').style.display='inline-block';
+    });
+}
+function download(){
+  const blob=new Blob([lastSvg],{type:'image/svg+xml;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='시간표_'+lastKey+'.svg';a.click();
+}
+function esc(s){return (''+s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function clearAll(){document.getElementById('src').value='';document.getElementById('result').innerHTML='<div class="empty-hint">왼쪽에 수업을 입력하고 [충돌 검사]를 누르세요.</div>';document.getElementById('ttmaker').style.display='none';document.getElementById('svgwrap').style.display='none';}
+function loadSample(){
+  document.getElementById('src').value=[
+    '월,1,3-1,수학,김철수,201','월,1,3-2,국어,이영희,202','월,2,3-1,영어,박민수,201',
+    '화,1,3-1,과학,김철수,과학실','화,1,3-2,수학,김철수,202','월,3,3-1,체육,정지훈,운동장',
+    '수,2,3-1,사회,이영희,201','수,2,3-2,미술,최유나,미술실','목,1,3-1,국어,이영희,201'
+  ].join('\n');
+}
+</script></body></html>

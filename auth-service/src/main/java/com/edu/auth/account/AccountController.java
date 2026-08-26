@@ -4,6 +4,7 @@ import com.edu.auth.account.domain.AccountRole;
 import com.edu.auth.account.dto.AccountDtos.AccountResponse;
 import com.edu.auth.account.dto.AccountDtos.DuplicateResponse;
 import com.edu.auth.account.dto.AccountDtos.RoleChangeRequest;
+import com.edu.auth.account.dto.AccountDtos.RoleRequestInput;
 import com.edu.auth.account.dto.AccountDtos.SignupRequest;
 import com.edu.auth.account.repository.AccountRepository;
 import com.edu.auth.security.AuthPrincipal;
@@ -12,6 +13,7 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -49,6 +51,19 @@ public class AccountController {
     @GetMapping("/me")
     public AccountResponse me(@AuthenticationPrincipal AuthPrincipal principal) {
         return AccountResponse.of(accountService.getById(principal.id()));
+    }
+
+    /** 로그인한 사용자가 스스로 상향 권한을 신청한다(마이페이지). 승인은 운영 관리자가 한다. */
+    @PostMapping("/role-request")
+    public AccountResponse requestRoleUpgrade(@AuthenticationPrincipal AuthPrincipal principal,
+                                              @Valid @RequestBody RoleRequestInput req) {
+        return accountService.requestRoleUpgrade(principal.id(), req.requestRole(), req.requestReason());
+    }
+
+    /** 로그인한 사용자가 자신의 권한 신청을 취소한다. */
+    @DeleteMapping("/role-request")
+    public AccountResponse cancelRoleRequest(@AuthenticationPrincipal AuthPrincipal principal) {
+        return accountService.cancelOwnRoleRequest(principal.id());
     }
 
     /** 운영 관리자 전용 — 계정 목록. */

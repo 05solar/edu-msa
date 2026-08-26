@@ -1,6 +1,7 @@
 import './My.css'
 import { useState } from 'react'
 import { num, dot, catOf } from '../../lib/helpers'
+import { ROLE_LABEL } from '../../data/catalog'
 import { useApp } from '../../state/AppContext'
 import { Icon } from '../../icons/Icon'
 import { StatusBadge } from '../../components/program/Badges'
@@ -17,11 +18,14 @@ const NOTI_ICON: Record<NotiKind, Parameters<typeof Icon>[0]['name']> = {
 }
 
 export function My() {
-  const { role, myPrograms, favPrograms, myNotis, unreadCount, readNoti, readAllNotis, go, myTab, setMyTab } = useApp()
+  const { role, myPrograms, favPrograms, myNotis, unreadCount, readNoti, readAllNotis, go, myTab, setMyTab,
+    account, demoMode, requestRoleUpgrade, cancelRoleUpgrade } = useApp()
   const canRegister = role === 'coder' || role === 'admin'
   const tab: Tab = (!canRegister && myTab === 'mine') ? 'fav' : myTab
   const setTab = setMyTab
   const [status, setStatus] = useState<'all' | ProgramStatus>('all')
+  const [reqRole, setReqRole] = useState<'coder' | 'admin' | ''>('')
+  const [reqReason, setReqReason] = useState('')
 
   const isUser = role === 'user'
   const title = isUser ? '마이페이지' : '내 프로그램'
@@ -35,6 +39,51 @@ export function My() {
         <div className="page-title">{title}</div>
         <div className="page-desc">{isUser ? '즐겨찾기와 알림을 확인합니다.' : '등록 현황·승인 상태·즐겨찾기·알림을 확인합니다.'}</div>
       </div>
+
+      {account && !demoMode && account.role !== 'admin' && (
+        <div className="panel" style={{ marginBottom: 16 }}>
+          <div className="panel-head"><div className="panel-title">내 권한</div></div>
+          <div className="panel-body">
+            <div style={{ marginBottom: 10 }}>현재 권한: <b>{ROLE_LABEL[account.role]}</b></div>
+            {account.requestedRole ? (
+              <div>
+                <div>신청 중: <b>{ROLE_LABEL[account.requestedRole]}</b> — 운영 관리자 승인 대기</div>
+                {account.roleRequestReason && (
+                  <div style={{ color: 'var(--ink-400)', fontSize: 13, marginTop: 4 }}>사유: {account.roleRequestReason}</div>
+                )}
+                <button className="btn btn-sm" style={{ marginTop: 10 }} onClick={() => cancelRoleUpgrade()}>신청 취소</button>
+              </div>
+            ) : (
+              <div>
+                <div className="field-row" style={{ maxWidth: 520 }}>
+                  <select className="input" value={reqRole} onChange={(e) => setReqRole(e.target.value as 'coder' | 'admin' | '')}>
+                    <option value="">신청할 권한 선택</option>
+                    {account.role === 'user' && <option value="coder">바이브 코더 — 프로그램 등록·배포</option>}
+                    <option value="admin">운영 관리자 — 검토·권한·배포 관리</option>
+                  </select>
+                </div>
+                <textarea
+                  className="input"
+                  rows={2}
+                  maxLength={300}
+                  style={{ marginTop: 8, maxWidth: 520, width: '100%' }}
+                  value={reqReason}
+                  placeholder="신청 사유 (선택, 최대 300자)"
+                  onChange={(e) => setReqReason(e.target.value)}
+                />
+                <div style={{ marginTop: 10 }}>
+                  <button
+                    className="btn btn-primary btn-sm"
+                    disabled={!reqRole}
+                    onClick={() => { if (reqRole) { requestRoleUpgrade(reqRole, reqReason.trim()); setReqRole(''); setReqReason('') } }}
+                  >권한 신청</button>
+                </div>
+                <div style={{ color: 'var(--ink-400)', fontSize: 12, marginTop: 6 }}>상향 권한은 운영 관리자 승인 후 적용됩니다.</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {!isUser && (
         <div className="stat-row">

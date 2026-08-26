@@ -30,7 +30,9 @@
 | POST | `/api/auth/demo-login` | 공개 | 시연용 — 역할별 데모 계정 토큰 발급 |
 | POST | `/api/auth/refresh` | 공개(쿠키) | Access Token 재발급 |
 | POST | `/api/auth/logout` | 공개(쿠키) | Refresh Token 폐기 |
-| GET | `/api/auth/me` | 로그인 | 현재 계정 |
+| GET | `/api/auth/me` | 로그인 | 현재 계정(신청 상태 포함) |
+| POST | `/api/auth/role-request` | 로그인 | 본인 상향 권한 신청(마이페이지) · `{requestRole,requestReason}` |
+| DELETE | `/api/auth/role-request` | 로그인 | 본인 상향 권한 신청 취소 |
 | GET | `/api/auth/check-duplicate` | 공개 | `?field=username\|email&value=…` |
 | GET | `/api/auth/accounts` | ADMIN | 계정 목록 |
 | PATCH | `/api/auth/accounts/{username}/role` | ADMIN | 권한 부여(직접) |
@@ -40,9 +42,12 @@
 | GET | `/api/auth/health` | 공개 | 헬스 체크 |
 
 ### 권한 신청·승인 흐름
-회원가입은 **항상 USER** 로 계정을 만든다. 가입자가 상향 권한이 필요하면 `requestRole`(coder|admin)을
-함께 보내 "승인 대기" 상태로 신청하고(계정은 여전히 USER), 운영 관리자가 `/role-requests` 에서
-확인해 승인(신청 권한으로 상향)하거나 반려(USER 유지)한다. 자가 가입으로는 권한이 상승하지 않는다.
+회원가입은 **항상 USER** 로 계정을 만든다. 상향 권한은 두 경로로 신청할 수 있다:
+(1) **가입 시** `requestRole`(coder|admin)을 함께 전송, (2) **로그인 후 마이페이지**에서
+`POST /api/auth/role-request`. 어느 경로든 계정 권한은 그대로 USER 이며 "승인 대기"로만 보관된다.
+운영 관리자가 `/role-requests` 에서 승인(신청 권한으로 상향)하거나 반려(USER 유지)하며,
+신청자는 승인 전까지 `DELETE /api/auth/role-request` 로 스스로 취소할 수 있다. 자가 가입·자가 신청만으로는
+권한이 상승하지 않는다.
 
 Access Token 은 응답 본문으로, **Refresh Token 은 `HttpOnly` 쿠키(`edu_refresh`)로만** 오간다.
 쿠키 경로는 `/api/auth` 로 제한되며 갱신할 때마다 회전(기존 토큰 폐기 + 재발급)한다.

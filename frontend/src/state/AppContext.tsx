@@ -53,6 +53,9 @@ interface AppContextValue {
   /** 새로고침 시 세션 복구 시도가 끝났는지 여부. */
   authReady: boolean
   signIn: (username: string, password: string) => Promise<void>
+  /** 마이페이지에서 외부 사용자가 스스로 상향 권한을 신청/취소한다(승인은 운영 관리자). */
+  requestRoleUpgrade: (requestRole: 'coder' | 'admin', reason?: string) => Promise<void>
+  cancelRoleUpgrade: () => Promise<void>
 
   role: Role
   changeRole: (r: Role) => void
@@ -249,6 +252,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     applySession(await authApi.login(username, password), false)
     setView('home')
   }, [applySession])
+
+  // 마이페이지 — 외부 사용자가 스스로 상향 권한을 신청/취소한다. 계정 상태(account)를 갱신해 즉시 반영.
+  const requestRoleUpgrade = useCallback(async (requestRole: 'coder' | 'admin', reason?: string) => {
+    try {
+      setAccount(await authApi.requestRoleUpgrade(requestRole, reason))
+      toast('권한 신청이 접수되었습니다. 운영 관리자 승인 후 적용됩니다.', 'ok')
+    } catch (e) { toast('신청 실패: ' + (e as Error).message, 'warn') }
+  }, [toast])
+  const cancelRoleUpgrade = useCallback(async () => {
+    try {
+      setAccount(await authApi.cancelRoleRequest())
+      toast('권한 신청을 취소했습니다.', 'info')
+    } catch (e) { toast('취소 실패: ' + (e as Error).message, 'warn') }
+  }, [toast])
 
   // 새로고침 시 Refresh 쿠키로 세션을 복구한다. 세션이 없으면 로그인 화면을 유지한다.
   useEffect(() => {
@@ -523,7 +540,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const value: AppContextValue = {
     loggedIn, login, logout,
     authView, goAuth,
-    account, demoMode, demoPending, authReady, signIn,
+    account, demoMode, demoPending, authReady, signIn, requestRoleUpgrade, cancelRoleUpgrade,
     role, changeRole, me,
     view, detailId, go,
     sideCollapsed, toggleSide, sidebarOpen, setSidebarOpen,

@@ -70,6 +70,33 @@ public class AccountService {
         return role == AccountRole.USER ? null : role;
     }
 
+    /** 로그인한 사용자가 스스로 상향 권한을 신청한다(마이페이지). 계정 권한은 변하지 않고 승인 대기로만 보관. */
+    @Transactional
+    public AccountResponse requestRoleUpgrade(Long userId, String requestRole, String reason) {
+        AccountRole requested = parseRequestedRole(requestRole);
+        if (requested == null) {
+            throw new IllegalArgumentException("신청할 권한을 선택해 주세요(코더 또는 운영 관리자).");
+        }
+        Account account = getById(userId);
+        if (account.getRole() == requested) {
+            throw new ConflictException("이미 보유한 권한입니다.");
+        }
+        String r = reason == null ? null : reason.trim();
+        account.requestRole(requested, (r == null || r.isBlank()) ? null : r);
+        return AccountResponse.of(account);
+    }
+
+    /** 로그인한 사용자가 자신의 신청을 취소한다. */
+    @Transactional
+    public AccountResponse cancelOwnRoleRequest(Long userId) {
+        Account account = getById(userId);
+        if (account.getRequestedRole() == null) {
+            throw new ConflictException("진행 중인 권한 신청이 없습니다.");
+        }
+        account.clearRoleRequest();
+        return AccountResponse.of(account);
+    }
+
     /** 운영 관리자 전용 — 상향 권한 승인 대기 목록(신청 순). */
     @Transactional(readOnly = true)
     public List<AccountResponse> pendingRoleRequests() {

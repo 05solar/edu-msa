@@ -79,4 +79,13 @@ public final class AccountDtos {
             @NotBlank(message = "권한을 입력해 주세요.")
             String role
     ) {}
+
+    /** 로그인한 사용자가 스스로 상향 권한을 신청할 때(마이페이지). */
+    public record RoleRequestInput(
+            @NotBlank(message = "신청할 권한을 선택해 주세요.")
+            String requestRole,
+
+            @Size(max = 300, message = "신청 사유는 300자를 넘을 수 없습니다.")
+            String requestReason
+    ) {}
 }

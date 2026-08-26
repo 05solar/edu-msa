@@ -112,6 +112,14 @@ export const authApi = {
 
   me: () => req<AuthAccount>('/me'),
 
+  /** 로그인한 사용자가 스스로 상향 권한을 신청한다(마이페이지). 승인은 운영 관리자가 한다. */
+  requestRoleUpgrade: (requestRole: 'coder' | 'admin', requestReason?: string) =>
+    req<AuthAccount>('/role-request',
+      { method: 'POST', body: JSON.stringify({ requestRole, requestReason: requestReason ?? '' }) }),
+
+  /** 자신의 권한 신청을 취소한다. */
+  cancelRoleRequest: () => req<AuthAccount>('/role-request', { method: 'DELETE' }),
+
   checkDuplicate: (field: DuplicateField, value: string) =>
     req<DuplicateResponse>(`/check-duplicate?field=${field}&value=${encodeURIComponent(value)}`),
 

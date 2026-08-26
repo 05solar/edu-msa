@@ -3,6 +3,7 @@
  * (미설정 시 프론트엔드는 목업 데이터로 동작하는 오프라인 데모 모드)
  * 개발 서버는 vite.config.ts 의 프록시로 /api → 백엔드로 전달한다.
  */
+import { authHeader } from './token'
 import type {
   AdminLogEntry, AppUser, Comment, Notification, Program, Role, PurposeId, RunTypeId, Scope,
 } from '../types'
@@ -26,8 +27,12 @@ export interface DeploymentResponse {
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(BASE + path, {
-    headers: { 'Content-Type': 'application/json' },
     ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeader(),
+      ...(init?.headers as Record<string, string> | undefined),
+    },
   })
   if (!res.ok) {
     let msg = `${res.status} ${res.statusText}`

@@ -16,3 +16,6 @@ edu:
   deploy:
     worker:
       enabled: false   # 테스트에서는 배포 워커 비활성(H2)
+  jwt:
+    secret: test-secret-key-for-edu-msa-backend-only-32bytes+
+    issuer: edu-auth-service

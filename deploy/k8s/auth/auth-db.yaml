@@ -1,0 +1,82 @@
+# 인증 전용 PostgreSQL. 플랫폼 DB(platform/postgres.yaml)와 완전히 분리된 인스턴스다.
+#
+# 접속정보는 소스에 두지 않는다. 아래 Secret 은 형태를 보여주는 자리표시자이므로
+# 실제 환경에서는 apply 전에 값을 교체하거나 별도로 생성한다.
+#   kubectl -n edu-platform create secret generic edu-auth-db \
+#     --from-literal=POSTGRES_DB=eduauth \
+#     --from-literal=POSTGRES_USER=eduauth \
+#     --from-literal=POSTGRES_PASSWORD="$(openssl rand -base64 24)"
+apiVersion: v1
+kind: Secret
+metadata:
+  name: edu-auth-db
+  namespace: edu-platform
+type: Opaque
+stringData:
+  POSTGRES_DB: eduauth
+  POSTGRES_USER: eduauth
+  POSTGRES_PASSWORD: change-me-in-real-env
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: edu-auth-pgdata
+  namespace: edu-platform
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-db
+  namespace: edu-platform
+  labels:
+    app: auth-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auth-db
+  template:
+    metadata:
+      labels:
+        app: auth-db
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          envFrom:
+            - secretRef:
+                name: edu-auth-db
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: pgdata
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "eduauth", "-d", "eduauth"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests: { cpu: "100m", memory: "256Mi" }
+            limits: { cpu: "500m", memory: "512Mi" }
+      volumes:
+        - name: pgdata
+          persistentVolumeClaim:
+            claimName: edu-auth-pgdata
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-db
+  namespace: edu-platform
+spec:
+  selector:
+    app: auth-db
+  ports:
+    - port: 5432
+      targetPort: 5432

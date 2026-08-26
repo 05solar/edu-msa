@@ -1,0 +1,9 @@
+[
+  { "username": "kimdohyun",    "name": "김도현", "dept": "행정지원과",   "role": "CODER" },
+  { "username": "parkseoyeon",  "name": "박서연", "dept": "기획예산과",   "role": "CODER" },
+  { "username": "leejunho",     "name": "이준호", "dept": "감사관실",     "role": "CODER" },
+  { "username": "choimina",     "name": "최민아", "dept": "교육과정과",   "role": "CODER" },
+  { "username": "jungwooseong", "name": "정우성", "dept": "정보화담당관", "role": "ADMIN" },
+  { "username": "yunhaneul",    "name": "윤하늘", "dept": "교육과정과",   "role": "USER" },
+  { "username": "ohsehun",      "name": "오세훈", "dept": "학교지원과",   "role": "USER" }
+]

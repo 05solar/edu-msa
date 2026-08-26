@@ -7,7 +7,7 @@ import type { NavItem, Role } from '../../types'
 
 export function Sidebar() {
   const {
-    role, changeRole, view, go, me, sideCollapsed, toggleSide,
+    role, changeRole, demoMode, demoPending, view, go, me, sideCollapsed, toggleSide,
     sidebarOpen, setSidebarOpen, unreadCount, pendingPrograms,
   } = useApp()
 
@@ -68,17 +68,23 @@ export function Sidebar() {
         </nav>
 
         <div className="side-demo">
-          <div className="sd-lbl">시연용 권한 전환</div>
-          <select
-            className="role-select"
-            value={role}
-            onChange={(e) => changeRole(e.target.value as Role)}
-            title="시연용 권한 전환"
-          >
-            <option value="user">외부 사용자</option>
-            <option value="coder">내부 직원</option>
-            <option value="admin">운영 관리자</option>
-          </select>
+          {/* 권한 전환은 데모 진입 전용. 실제 로그인 계정의 권한은 auth-service 가 기준이다. */}
+          {demoMode && (
+            <>
+              <div className="sd-lbl">시연용 권한 전환</div>
+              <select
+                className="role-select"
+                value={role}
+                disabled={demoPending}
+                onChange={(e) => changeRole(e.target.value as Role)}
+                title="시연용 권한 전환"
+              >
+                <option value="user">외부 사용자</option>
+                <option value="coder">내부 직원</option>
+                <option value="admin">운영 관리자</option>
+              </select>
+            </>
+          )}
           <div className="side-who">
             <div className="avatar">{initialOf(me.name)}</div>
             <div>
@@ -87,8 +93,11 @@ export function Sidebar() {
             </div>
           </div>
           <div className="side-note">
-            시연을 위한 임시 전환 기능입니다.<br />
-            실제 서비스에서는 SSO 로그인 권한으로 자동 결정됩니다.
+            {demoMode ? (
+              <>시연용 데모 계정으로 전환합니다.<br />실제 로그인 시에는 계정 권한으로 결정됩니다.</>
+            ) : (
+              <>auth-service 계정으로 로그인한 상태입니다.<br />권한 변경은 운영 관리자가 수행합니다.</>
+            )}
           </div>
         </div>
       </aside>

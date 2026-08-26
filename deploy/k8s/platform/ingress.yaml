@@ -3,14 +3,23 @@ kind: Ingress
 metadata:
   name: edu-platform
   namespace: edu-platform
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
+  # rewrite-target 은 두지 않는다.
+  # 캡처 그룹 없는 경로에 rewrite-target: / 를 걸면 /api/auth/login 같은 요청이
+  # 모두 / 로 재작성되어 백엔드에 도달하지 못한다. 경로를 그대로 전달해야 한다.
 spec:
   ingressClassName: nginx
   rules:
     - host: edu.internal
       http:
         paths:
+          # 인증 API 는 auth-service 로 보낸다. (/api 보다 구체적인 경로)
+          - path: /api/auth
+            pathType: Prefix
+            backend:
+              service:
+                name: auth-service
+                port:
+                  number: 80
           - path: /api
             pathType: Prefix
             backend:

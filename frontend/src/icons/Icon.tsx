@@ -20,10 +20,11 @@ export type IconName =
   | 'bell' | 'copy' | 'star' | 'star-filled' | 'plus' | 'external'
   | 'file' | 'arrow-right' | 'menu' | 'shield' | 'grid' | 'warn' | 'info'
   | 'git-branch' | 'eye' | 'comment' | 'calendar' | 'folder' | 'upload'
-  | 'sparkle' | 'send'
+  | 'sparkle' | 'send' | 'logout'
 
 const P: Record<IconName, JSX.Element> = {
   home: <><path d="M4 11l8-6 8 6" /><path d="M6 10v9h12v-9" /></>,
+  logout: <><path d="M15 4h3a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-3" /><path d="M10 16l-4-4 4-4" /><path d="M6 12h9" /></>,
   list: <><rect x="4" y="4" width="7" height="7" rx="1" /><rect x="13" y="4" width="7" height="7" rx="1" /><rect x="4" y="13" width="7" height="7" rx="1" /><rect x="13" y="13" width="7" height="7" rx="1" /></>,
   ai: <><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3" /></>,
   register: <><path d="M12 5v14" /><path d="M5 12h14" /></>,

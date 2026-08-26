@@ -1,12 +1,17 @@
 name: edu-msa
 
+# 민감한 값은 하드코딩하지 않고 환경변수로 주입한다.
+# 로컬 실행 시 deploy/.env 를 두거나 셸에서 export 하면 된다. (deploy/.env.example 참고)
+#   EDU_JWT_SECRET     auth-service 가 발급하고 backend 가 검증하는 공용 서명 키 (32바이트 이상)
+#   EDU_SEED_PASSWORD  데모 계정 7명의 공통 임시 비밀번호
+
 services:
   db:
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: edumsa
       POSTGRES_USER: edumsa
-      POSTGRES_PASSWORD: edumsa
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-edumsa}
     ports:
       - "5432:5432"
     volumes:
@@ -16,6 +21,45 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+
+  # 인증 전용 DB — 플랫폼 DB 와 분리한다. 계정 정보의 단일 소스.
+  auth-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: eduauth
+      POSTGRES_USER: eduauth
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:-eduauth}
+    ports:
+      - "5433:5432"
+    volumes:
+      - edu_auth_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eduauth -d eduauth"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # 인증 마이크로서비스 — 회원가입·로그인·JWT 발급. 각 서비스는 동일 시크릿으로 토큰을 자체 검증.
+  auth-service:
+    build:
+      context: ../auth-service
+    environment:
+      AUTH_DB_URL: jdbc:postgresql://auth-db:5432/eduauth
+      AUTH_DB_USER: eduauth
+      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:-eduauth}
+      PORT: "8080"
+      CORS_ORIGINS: http://localhost:5173
+      EDU_JWT_SECRET: ${EDU_JWT_SECRET:?EDU_JWT_SECRET 을 설정하세요 (32바이트 이상)}
+      # 로컬은 http 이므로 Secure 쿠키를 끈다. HTTPS 배포에서는 true + SameSite=None.
+      EDU_COOKIE_SECURE: "false"
+      EDU_COOKIE_SAMESITE: Lax
+      EDU_SEED: "true"
+      EDU_SEED_PASSWORD: ${EDU_SEED_PASSWORD:-Edu@2026!}
+    ports:
+      - "8089:8080"
+    depends_on:
+      auth-db:
+        condition: service_healthy
 
   # 서브도메인 리버스 프록시: <slug>.localhost -> 해당 서비스 컨테이너로 Host 라우팅.
   # 백엔드가 배포 시 /dynamic/<slug>.yml 라우트 파일을 써 넣고 Traefik 파일 프로바이더가 감시한다.
@@ -45,10 +89,12 @@ services:
     environment:
       DB_URL: jdbc:postgresql://db:5432/edumsa
       DB_USER: edumsa
-      DB_PASSWORD: edumsa
+      DB_PASSWORD: ${DB_PASSWORD:-edumsa}
       PORT: "8080"
       CORS_ORIGINS: http://localhost:5173
       EDU_SEED: "true"
+      # auth-service 와 반드시 동일한 시크릿 — 각 서비스가 JWT 를 자체 검증한다.
+      EDU_JWT_SECRET: ${EDU_JWT_SECRET:?EDU_JWT_SECRET 을 설정하세요 (32바이트 이상)}
       # simulate(기본) | docker(로컬 실배포, 호스트 docker로 컨테이너 기동) | real(K8s)
       EDU_DEPLOY_MODE: ${EDU_DEPLOY_MODE:-docker}
       EDU_DEPLOY_APP_HOST: localhost
@@ -75,6 +121,7 @@ services:
 
 volumes:
   edu_pgdata:
+  edu_auth_pgdata:
   edu_dynamic:
 
 networks:

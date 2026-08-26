@@ -23,3 +23,4 @@
 - 2026-08-24 — 프로그램 등록 가이드를 비전공자용 단계별 상세 문서로 재작성, 커스텀 스크롤바 적용, 모달 잘림 방지(헤더/푸터 고정 + 배율 보정 max-height).
 - 2026-08-25 — 상세 화면 "웹에서 바로 사용": 배포된 서비스(deploymentOf)가 running이면 실제 URL로 여는 버튼 연결. repoName에서 .git 접미어 제거.
 - 2026-08-24 — Phase 3: 등록 화면 "레포 규격 검증" 버튼(+결과 표시), 운영 관리자 "배포" 액션(파이프라인 로그/매니페스트 모달, DeployResultModal), api 클라이언트에 validate/deploy 추가. 타입체크/빌드 통과, 프록시 경유 POST 확인.
+- 2026-08-25 — 인증 UI: pages/Auth 신설(로그인/회원가입/아이디 찾기/비밀번호 찾기 + 공통 AuthShell·검증 모듈). 아이디 형식·비밀번호 복잡도·이메일·필수값 클라이언트 검증, 이메일/휴대폰 인증번호 자리 배치. 데모 로그인은 별도 구획으로 분리해 유지. AppContext에 authView/account/signIn/세션 복구·자동 갱신 추가, api/auth.ts 클라이언트와 플랫폼 클라이언트 Bearer 헤더 주입, Vite 프록시에 /api/auth 추가. 기존 pages/Login은 pages/Auth로 통합. 타입체크/빌드 통과. (npm typecheck 스크립트의 TS6310 오류 수정: tsc -b --noEmit → tsc -b)

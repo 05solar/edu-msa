@@ -183,6 +183,23 @@ CNI는 **Calico**(NetworkPolicy 강제; kindnet은 미강제). 검증: 공개 ti
 
 ## 7. 브링업 순서
 
+### 원커맨드 (K8s · kind 로컬 / 실서버 겸용) — 권장
+매니페스트를 순서대로 손으로 apply 하는 대신, `bootstrap.sh` 하나로 클러스터 준비→이미지
+빌드/푸시→코어 배포→(선택)운영스택→(선택)GPU 까지 끝낸다.
+```bash
+# 로컬 kind (코어+운영스택 전체)
+./deploy/bootstrap.sh up                 # 또는:  make up
+# 접속: http://edu.localhost  (브라우저가 *.localhost 를 127.0.0.1 로 해석)
+
+# 실서버(기존/신규 클러스터). 서버에 k8s 가 없으면 먼저 k3s 설치 → PRODUCTION.md 참고
+MODE=server DOMAIN=edu.example.go.kr REGISTRY=<레지스트리> ./deploy/bootstrap.sh up
+
+# 테넌트가 GPU 를 쓰면 GPU Operator 추가
+WITH_GPU=1 ./deploy/bootstrap.sh gpu
+```
+서브커맨드: `up | core | stack | gpu | images | status | down`. 실서버 상세(k3s·Calico·레지스트리·
+도메인/TLS·CNPG·시크릿·GPU)는 **[PRODUCTION.md](PRODUCTION.md)**.
+
 ### 로컬(docker-compose · docker 배포 모드)
 ```bash
 cp deploy/.env.example deploy/.env      # EDU_JWT_SECRET 등 값 채우기(≥32B)

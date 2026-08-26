@@ -74,7 +74,7 @@ spec:
             periodSeconds: 15
           resources:
             requests: { cpu: "{{CPU}}", memory: "{{MEMORY}}" }
-            limits: { cpu: "{{CPU_LIMIT}}", memory: "{{MEMORY_LIMIT}}" }
+            limits: { cpu: "{{CPU_LIMIT}}", memory: "{{MEMORY_LIMIT}}"{{GPU_LIMIT}} }
 ---
 apiVersion: v1
 kind: Service

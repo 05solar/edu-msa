@@ -35,7 +35,11 @@ public class ManifestRenderer {
                 .replace("{{CPU}}", spec.cpuOrDefault())
                 .replace("{{MEMORY}}", spec.memoryOrDefault())
                 .replace("{{CPU_LIMIT}}", props.cpuLimit())
-                .replace("{{MEMORY_LIMIT}}", props.memoryLimit());
+                .replace("{{MEMORY_LIMIT}}", props.memoryLimit())
+                // GPU 요청 서비스만 nvidia.com/gpu 리소스를 limits 에 추가한다(그 외 빈 문자열).
+                // GPU 스케줄링에는 NVIDIA GPU Operator/device-plugin 이 설치돼 있어야 한다.
+                .replace("{{GPU_LIMIT}}",
+                        spec.usesGpu() ? ", \"nvidia.com/gpu\": \"" + spec.gpu() + "\"" : "");
     }
 
     // 미신뢰 업로더 입력이 Kaniko 인자/YAML 로 주입되지 않도록 엄격 검증한다.

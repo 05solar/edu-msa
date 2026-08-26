@@ -28,7 +28,8 @@ public class SpecParser {
                 intOr(m.get("port"), 0),
                 str(m.get("health")),
                 res != null ? str(res.get("cpu")) : null,
-                res != null ? str(res.get("memory")) : null
+                res != null ? str(res.get("memory")) : null,
+                res != null ? intOr(res.get("gpu"), 0) : 0
         );
     }
 

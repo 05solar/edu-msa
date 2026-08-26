@@ -1,0 +1,15 @@
+# GPU 노드에 taint(예: nvidia.com/gpu=present:NoSchedule)가 걸린 클러스터에서,
+# 테넌트 서비스 파드가 GPU 노드에 스케줄되도록 붙이는 패치 예시.
+#
+# 사용:  kubectl -n edu-services-public patch deploy <slug> --patch-file gpu-toleration-patch.yaml
+#   또는 service-template.yaml 에 아래 tolerations/nodeSelector 블록을 항구적으로 추가.
+spec:
+  template:
+    spec:
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      # 특정 GPU 모델 노드로 고정하려면 nodeSelector 사용(라벨은 GPU Operator/GFD 가 부여):
+      # nodeSelector:
+      #   nvidia.com/gpu.product: NVIDIA-A100-SXM4-40GB

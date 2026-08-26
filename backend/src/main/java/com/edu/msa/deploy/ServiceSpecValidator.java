@@ -48,6 +48,9 @@ public class ServiceSpecValidator {
         if (health != null && !health.isBlank() && !health.startsWith("/")) {
             errors.add("service.yaml: health 경로는 '/'로 시작해야 합니다.");
         }
+        if (spec.gpu() < 0 || spec.gpu() > 8) {
+            errors.add("service.yaml: resources.gpu 는 0~8 범위여야 합니다. (GPU 미사용은 0 또는 생략)");
+        }
         if (!hasDockerfile) {
             errors.add("레포 루트에 Dockerfile 이 없습니다.");
         }

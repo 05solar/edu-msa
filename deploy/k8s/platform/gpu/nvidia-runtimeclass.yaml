@@ -1,0 +1,9 @@
+# NVIDIA 컨테이너 런타임 RuntimeClass.
+# GPU Operator 가 기본 런타임을 nvidia-container-runtime 으로 구성하면 대부분 필요 없지만,
+# 런타임을 파드별로 명시해야 하는 환경을 위해 제공한다.
+# (테넌트 서비스가 GPU 를 쓰는데 스케줄이 안 되면 파드 spec 에 runtimeClassName: nvidia 추가)
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: nvidia
+handler: nvidia

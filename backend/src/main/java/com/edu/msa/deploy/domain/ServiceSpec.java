@@ -13,7 +13,8 @@ public record ServiceSpec(
         int port,
         String health,
         String cpu,
-        String memory
+        String memory,
+        int gpu
 ) {
     public String healthOrDefault() {
         return (health != null && !health.isBlank()) ? health : "/healthz";
@@ -23,5 +24,9 @@ public record ServiceSpec(
     }
     public String memoryOrDefault() {
         return (memory != null && !memory.isBlank()) ? memory : "256Mi";
+    }
+    /** GPU 요청 개수(nvidia.com/gpu). 0이면 GPU 미사용(대부분의 서비스). */
+    public boolean usesGpu() {
+        return gpu > 0;
     }
 }

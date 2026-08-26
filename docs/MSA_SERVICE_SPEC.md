@@ -50,7 +50,13 @@ env: {KEY: value}     # 선택. 추가 환경변수 (민감정보 금지)
 resources:            # 선택. 미지정 시 기본값 적용
   cpu: "250m"
   memory: "256Mi"
+  gpu: 0              # 선택. 0=GPU 미사용(기본). 1 이상이면 nvidia.com/gpu 요청(0~8).
 ```
+
+> **GPU 사용(`resources.gpu >= 1`)**: 배포 매니페스트의 `limits` 에 `nvidia.com/gpu` 가
+> 추가된다. 클러스터에 **NVIDIA GPU Operator(device-plugin)** 가 설치되어 있고 GPU 노드가
+> 있어야 스케줄된다(`deploy/k8s/platform/gpu/README.md`). GPU 노드에 taint 가 걸린 환경이면
+> 서비스 파드에 toleration/nodeSelector 를 추가해야 한다(같은 문서의 패치 참고).
 
 ### 2.2 `Dockerfile` (필수)
 

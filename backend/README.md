@@ -58,8 +58,8 @@ com.edu.msa
 | --- | --- |
 | `GET /api/health`, `/api/healthz`, `/api/catalog/**`, `/actuator/**` | 공개 |
 | `GET /api/programs`, `/api/programs/{id}`, 의견 등록 등 | 로그인 사용자 |
-| `POST /api/programs` (프로그램 등록) | CODER 이상 |
-| `/api/programs/all`, `/api/programs/pending`, `/api/programs/*/review`, `/api/review/logs`, `/api/programs/*/deploy`, `/api/deploy`, `/api/deploy/validate`, `/api/users`, `/api/users/*/role` | ADMIN |
+| `POST /api/programs` (프로그램 등록), `POST /api/deploy/validate` (레포 규격 정적 검증) | CODER 이상 |
+| `/api/programs/all`, `/api/programs/pending`, `/api/programs/*/review`, `/api/review/logs`, `/api/programs/*/deploy`, `/api/deploy`, `/api/users`, `/api/users/*/role` | ADMIN |
 
 계정·권한의 단일 소스는 auth-service다. 회원가입은 항상 최소 권한(USER)으로 만들어지고,
 CODER/ADMIN 상향은 신청→운영 관리자 승인으로만 부여된다(자가 상승 불가). 자세한 흐름은
@@ -83,7 +83,7 @@ CODER/ADMIN 상향은 신청→운영 관리자 승인으로만 부여된다(자
 | POST | `/api/notifications/{id}/read` | 로그인 | 읽음 |
 | GET | `/api/users` | ADMIN | 사용자 목록 |
 | PATCH | `/api/users/{name}/role` | ADMIN | 권한 변경(표시용) |
-| POST | `/api/deploy/validate` | ADMIN | 레포 표준 규격 검증 |
+| POST | `/api/deploy/validate` | CODER+ | 레포 표준 규격 정적 검증(빌드/배포 없음, 등록자 자가 점검) |
 | POST | `/api/deploy` · `/api/programs/{id}/deploy` | ADMIN | 배포(작업 큐 적재) |
 | GET | `/api/programs/{id}/deployment` | 로그인 | 최근 배포 상태 |
 

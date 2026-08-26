@@ -56,10 +56,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/review/logs").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/users").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/users/*/role").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/deploy", "/api/deploy/validate").hasRole("ADMIN")
+                        // 실제 배포는 운영 관리자만.
+                        .requestMatchers(HttpMethod.POST, "/api/deploy").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/programs/*/deploy").hasRole("ADMIN")
 
-                        // 프로그램 등록은 바이브 코더 이상
+                        // 레포 규격 검증(정적 검사·빌드/배포 없음)과 프로그램 등록은 바이브 코더 이상.
+                        // 등록자가 제출 전 자기 레포를 스스로 점검할 수 있어야 하므로 CODER 에게도 허용한다.
+                        .requestMatchers(HttpMethod.POST, "/api/deploy/validate").hasAnyRole("CODER", "ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/programs").hasAnyRole("CODER", "ADMIN")
 
                         // 조회·의견 등록 등 나머지는 로그인한 사용자면 가능

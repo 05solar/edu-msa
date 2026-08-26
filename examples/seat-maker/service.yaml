@@ -1,0 +1,14 @@
+name: 학생 자리배치 생성기
+slug: seat-maker
+category: student
+purposes:
+  - gen
+  - auto
+tech:
+  - Python
+summary: 학생 명단을 올려 조건(성별 균형·인접 금지)을 반영한 좌석 배치를 만들고 엑셀로 내보내는 개인용 단발 도구.
+port: 8080
+health: /healthz
+resources:
+  cpu: 250m
+  memory: 256Mi

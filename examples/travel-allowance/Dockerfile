@@ -12,6 +12,7 @@ COPY index.html ./index.html
 COPY og.png ./og.png
 ENV PORT=8080
 # .NET 8 aspnet 이미지 내장 비루트 사용자(app, uid 1654)
-USER app
+# 숫자 UID 지정 — K8s runAsNonRoot 검증은 이름만으로는 비루트임을 확인하지 못한다
+USER 1654:1654
 EXPOSE 8080
 ENTRYPOINT ["sh", "-c", "ASPNETCORE_URLS=http://+:${PORT:-8080} dotnet travel-allowance.dll"]

@@ -7,7 +7,7 @@
 #                          ./deploy/bootstrap.sh up
 #
 # 하는 일:  클러스터 준비(kind) → 이미지 3종 빌드/푸시 → 코어 배포 → (선택)운영스택 → (선택)GPU
-# 서브커맨드:  up | core | stack | gpu | images | status | down
+# 서브커맨드:  up | core | stack | gpu | images | examples | status | down
 # 주요 env:
 #   MODE=kind|server        기본 kind (kind 클러스터 자동 생성 / server 는 현재 kubeconfig 사용)
 #   DOMAIN=edu.localhost     플랫폼 접속 도메인 (kind 기본 edu.localhost, server 는 실도메인 지정)
@@ -15,6 +15,7 @@
 #   IMAGE_TAG=latest         이미지 태그
 #   WITH_STACK=1|0           운영스택(모니터링·WAF·KEDA·로그·트레이스·cert-manager) 설치 (기본 up 에서 1)
 #   WITH_GPU=1|0             NVIDIA GPU Operator 설치(테넌트 GPU 사용 시) (기본 0)
+#   WITH_EXAMPLES=1|0        예제 서브 프로그램 7종(examples/)을 edu-services 에 배포 (기본 0)
 # =============================================================================
 set -euo pipefail
 
@@ -26,6 +27,7 @@ REG_PORT="${REG_PORT:-5001}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 WITH_STACK="${WITH_STACK:-auto}"     # auto = up 서브커맨드에서 1
 WITH_GPU="${WITH_GPU:-0}"
+WITH_EXAMPLES="${WITH_EXAMPLES:-0}"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 K8S="$ROOT/deploy/k8s"
@@ -226,6 +228,156 @@ install_stack(){
   warn "WAF(ModSecurity/CRS)는 ingress-nginx values 로 활성화합니다: deploy/k8s/platform/edge/README.md"
 }
 
+# ---- 예제 서브 프로그램 7종 (examples/ → edu-services) -----------------------
+# 순서는 backend seed/programs.json 의 프로그램 id 1..7 과 반드시 일치해야 한다.
+EXAMPLE_SLUGS=(doc-proofreader seat-maker timetable-checker travel-allowance asset-label data-summarizer doc-ocr)
+
+# 코어 플랫폼이 이미 떠 있는 클러스터에 예제 7종을 빌드→배포→DB 등록까지 한다.
+# 접속은 서브도메인 라우팅: kind <slug>.localhost / server <slug>.<DOMAIN>(와일드카드 DNS 필요).
+deploy_examples(){
+  local base; [ "$MODE" = kind ] && base="localhost" || base="$DOMAIN"
+
+  log "예제 서비스 7종 빌드/푸시 → ${REGISTRY}/edu-svc-<slug>:${IMAGE_TAG}"
+  local s
+  for s in "${EXAMPLE_SLUGS[@]}"; do
+    printf "  · %s 빌드\n" "$s"
+    docker build -q -t "${REGISTRY}/edu-svc-${s}:${IMAGE_TAG}" "$ROOT/examples/$s" >/dev/null
+    docker push "${REGISTRY}/edu-svc-${s}:${IMAGE_TAG}" >/dev/null
+  done
+  ok "이미지 7종 준비 완료"
+
+  log "edu-services 배포 (Deployment/Service/Ingress · 호스트 <slug>.${base})"
+  local tmp; tmp="$(mktemp)"; trap 'rm -f "$tmp"' RETURN
+  : > "$tmp"
+  local sy name port health cpu mem
+  for s in "${EXAMPLE_SLUGS[@]}"; do
+    sy="$ROOT/examples/$s/service.yaml"
+    name="$(sed -n 's/^name: //p' "$sy" | head -1)"
+    port="$(sed -n 's/^port: //p' "$sy" | head -1)"
+    health="$(sed -n 's/^health: //p' "$sy" | head -1)"
+    cpu="$(awk '$1=="cpu:"{print $2; exit}' "$sy")"
+    mem="$(awk '$1=="memory:"{print $2; exit}' "$sy")"
+    cat >> "$tmp" <<EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${s}
+  namespace: edu-services
+  labels: { app: ${s}, app.kubernetes.io/managed-by: edu-msa }
+  annotations:
+    edu.msa/display-name: "${name}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: ${s} }
+  template:
+    metadata:
+      labels: { app: ${s} }
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: ${s}
+          image: ${REGISTRY}/edu-svc-${s}:${IMAGE_TAG}
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities: { drop: ["ALL"] }
+            seccompProfile: { type: RuntimeDefault }
+          env:
+            - { name: PORT, value: "${port}" }
+          ports:
+            - containerPort: ${port}
+          readinessProbe:
+            httpGet: { path: ${health}, port: ${port} }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: ${health}, port: ${port} }
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          resources:
+            requests: { cpu: "${cpu}", memory: "${mem}" }
+            limits: { memory: "${mem}" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${s}
+  namespace: edu-services
+  labels: { app: ${s} }
+spec:
+  selector: { app: ${s} }
+  ports:
+    - port: 80
+      targetPort: ${port}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ${s}
+  namespace: edu-services
+EOF
+    if [ "$MODE" = server ]; then
+      cat >> "$tmp" <<EOF
+  annotations:
+    cert-manager.io/cluster-issuer: edu-ca
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [ ${s}.${base} ]
+      secretName: ${s}-tls
+EOF
+    else
+      cat >> "$tmp" <<EOF
+spec:
+  ingressClassName: nginx
+EOF
+    fi
+    cat >> "$tmp" <<EOF
+  rules:
+    - host: ${s}.${base}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ${s}
+                port: { number: 80 }
+---
+EOF
+  done
+  kubectl apply -f "$tmp"
+
+  log "롤아웃 대기 (최대 3분씩)"
+  for s in "${EXAMPLE_SLUGS[@]}"; do
+    kubectl -n edu-services rollout status "deploy/$s" --timeout=180s || warn "$s 대기 초과"
+  done
+  ok "예제 7종 배포 완료"
+
+  # 프론트 '웹에서 바로 사용' 버튼이 실제 주소로 연결되도록 배포 레코드를 등록한다(재실행 안전).
+  log "플랫폼 DB에 배포 레코드 등록"
+  local sql i=0 url
+  sql="DELETE FROM deployments WHERE slug IN ('${EXAMPLE_SLUGS[0]}'$(printf ",'%s'" "${EXAMPLE_SLUGS[@]:1}"));"
+  for s in "${EXAMPLE_SLUGS[@]}"; do
+    i=$((i+1))
+    name="$(sed -n 's/^name: //p' "$ROOT/examples/$s/service.yaml" | head -1)"
+    url="${SCHEME}://${s}.${base}"
+    sql+=$'\n'"INSERT INTO deployments (program_id, slug, name, repo_url, branch, image_tag, url, status, log_text, created_at, updated_at) VALUES (${i},'${s}','${name}','local://examples/${s}','main','${IMAGE_TAG}','${url}','RUNNING','- bootstrap.sh examples · K8s(edu-services) 배포',now(),now());"
+  done
+  if echo "$sql" | kubectl -n edu-platform exec -i deploy/postgres -- psql -U edumsa -d edumsa >/dev/null; then
+    ok "배포 레코드 ${#EXAMPLE_SLUGS[@]}건 등록 완료"
+  else
+    warn "DB 레코드 등록 실패 — 서비스 접속은 되지만 프론트 '웹에서 바로 사용' 버튼이 안 보일 수 있습니다."
+  fi
+
+  echo "  서브 프로그램 접속:  ${SCHEME}://<slug>.${base}  (예: ${SCHEME}://${EXAMPLE_SLUGS[0]}.${base})"
+  [ "$MODE" = server ] && echo "  (server 모드는 와일드카드 DNS '*.${DOMAIN} → ingress IP' 가 필요합니다)"
+}
+
 # ---- GPU Operator (테넌트 서비스가 nvidia.com/gpu 요청 시) -------------------
 install_gpu(){
   need helm
@@ -242,6 +394,7 @@ install_gpu(){
 
 status(){
   echo "== edu-platform =="; kubectl -n edu-platform get pods,svc,ingress 2>/dev/null || true
+  echo; echo "== edu-services (서브 프로그램) =="; kubectl -n edu-services get pods,ingress 2>/dev/null || true
   echo; echo "== 접속 =="; echo "  ${SCHEME}://${DOMAIN}"
 }
 
@@ -280,6 +433,7 @@ case "$cmd" in
     [ "$MODE" = kind ] && ensure_kind
     build_images
     apply_core
+    [ "$WITH_EXAMPLES" = 1 ] && deploy_examples
     [ "$WITH_STACK" = 1 ] || { [ "$WITH_STACK" = auto ] && WITH_STACK=1; }
     [ "$WITH_STACK" = 1 ] && install_stack
     [ "$WITH_GPU" = 1 ] && install_gpu
@@ -287,9 +441,10 @@ case "$cmd" in
     ;;
   core)   prereqs; [ "$MODE" = kind ] && ensure_kind; build_images; apply_core; access_hint ;;
   images) prereqs; build_images ;;
+  examples) prereqs; deploy_examples ;;   # 코어(edu-platform)가 이미 떠 있어야 한다
   stack)  install_stack ;;
   gpu)    install_gpu ;;
   status) status ;;
   down)   down ;;
-  *) die "알 수 없는 명령: $cmd  (up|core|stack|gpu|images|status|down)";;
+  *) die "알 수 없는 명령: $cmd  (up|core|stack|gpu|images|examples|status|down)";;
 esac

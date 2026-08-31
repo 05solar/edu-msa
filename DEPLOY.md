@@ -27,6 +27,9 @@ MODE=server DOMAIN=edu.example.go.kr REGISTRY=<레지스트리> ./deploy/bootstr
 
 # 테넌트가 GPU 를 쓰면 GPU Operator 추가
 WITH_GPU=1 ./deploy/bootstrap.sh gpu
+
+# 서브 프로그램(예제 7종)까지 처음부터 함께
+WITH_EXAMPLES=1 ./deploy/bootstrap.sh up
 ```
 
 ### 서브커맨드 / 환경변수
@@ -38,6 +41,7 @@ WITH_GPU=1 ./deploy/bootstrap.sh gpu
 | `images` | 이미지 3종 빌드/푸시만 |
 | `stack` | 운영스택(helm)만 |
 | `gpu` | NVIDIA GPU Operator만 |
+| `examples` | 서브 프로그램 7종(examples/) 배포 — [§1-1](#1-1-서브-프로그램예제-7종-배포) |
 | `status` / `down` | 상태 확인 / 제거 |
 
 | env | 기본값 | 설명 |
@@ -47,6 +51,7 @@ WITH_GPU=1 ./deploy/bootstrap.sh gpu
 | `REGISTRY` | kind `localhost:5001` / server `registry.edu.internal` | 이미지 접두어 |
 | `WITH_STACK` | `up` 에서 `1` | 모니터링·WAF·KEDA·로그·트레이스·cert-manager |
 | `WITH_GPU` | `0` | NVIDIA GPU Operator 설치 |
+| `WITH_EXAMPLES` | `0` | `up` 시 서브 프로그램 7종도 함께 배포 |
 | `IMAGE_TAG` | `latest` | 이미지 태그 |
 
 ### 사전 준비물
@@ -57,6 +62,34 @@ WITH_GPU=1 ./deploy/bootstrap.sh gpu
 
 > 운영스택 단계는 helm 설치라 클러스터·네트워크 상황에 따라 개별 실패할 수 있어 **각 단계
 > best-effort**(실패해도 다음 진행 + 경고)로 동작한다. 개별 상태는 `kubectl get pods -A` 로 확인.
+
+### 1-1. 서브 프로그램(예제 7종) 배포
+
+`examples/` 의 기본 내장 서비스 7개(맞춤법 검사기·자리배치 생성기 등)는 코어와 별도로 배포한다.
+시드 프로그램의 레포 주소가 `local://examples/<slug>` 라서 K8s(real) 모드의 Kaniko 파이프라인
+(git 레포 전용)으로는 자동 배포되지 않기 때문이다.
+
+```bash
+# 코어가 떠 있는 상태에서 한 번에 (빌드→푸시→배포→DB 등록)
+./deploy/bootstrap.sh examples          # 또는:  make examples
+
+# 처음부터 코어와 함께
+WITH_EXAMPLES=1 ./deploy/bootstrap.sh up
+```
+
+하는 일과 접속 방식:
+
+- 이미지 7종을 빌드해 레지스트리에 푸시 (`<REGISTRY>/edu-svc-<slug>:<IMAGE_TAG>`)
+- `edu-services` 네임스페이스에 Deployment(비루트 securityContext)/Service/Ingress 적용
+- 접속은 **서브도메인 라우팅**: kind `http://<slug>.localhost` (브라우저가 `*.localhost` 를
+  127.0.0.1 로 해석) / server `https://<slug>.<DOMAIN>` (**와일드카드 DNS** `*.<DOMAIN>` →
+  ingress IP 필요, TLS 는 cert-manager `edu-ca` 발급)
+- 플랫폼 DB(`deployments` 테이블)에 RUNNING 레코드를 등록해 프론트 프로그램 상세의
+  **"웹에서 바로 사용"** 버튼이 실제 주소로 연결되게 한다 (재실행 안전 — 기존 레코드 교체)
+
+> 서비스 이미지는 Dockerfile 의 `USER` 가 **숫자 UID** 여야 한다(예: `USER 1000:1000`).
+> 이름 기반(`USER node`)이면 K8s `runAsNonRoot` 검증이 비루트임을 확인하지 못해
+> `CreateContainerConfigError` 로 기동에 실패한다.
 
 ---
 

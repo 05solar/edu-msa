@@ -9,25 +9,28 @@ SHELL := /bin/bash
 BOOT  := ./deploy/bootstrap.sh
 
 # 오버라이드 가능한 변수 (예: make up DOMAIN=... REGISTRY=... WITH_STACK=0)
-MODE       ?= kind
-DOMAIN     ?=
-REGISTRY   ?=
-IMAGE_TAG  ?= latest
-WITH_STACK ?= auto
-WITH_GPU   ?= 0
+MODE          ?= kind
+DOMAIN        ?=
+REGISTRY      ?=
+IMAGE_TAG     ?= latest
+WITH_STACK    ?= auto
+WITH_GPU      ?= 0
+WITH_EXAMPLES ?= 0
 ENV = MODE=$(MODE) IMAGE_TAG=$(IMAGE_TAG) WITH_STACK=$(WITH_STACK) WITH_GPU=$(WITH_GPU) \
+      WITH_EXAMPLES=$(WITH_EXAMPLES) \
       $(if $(DOMAIN),DOMAIN=$(DOMAIN),) $(if $(REGISTRY),REGISTRY=$(REGISTRY),)
 
-.PHONY: up core images stack gpu status down up-server help
+.PHONY: up core images stack gpu examples status down up-server help
 help:
-	@echo "targets: up | core | images | stack | gpu | status | down | up-server"
-	@echo "vars   : MODE=kind|server DOMAIN=.. REGISTRY=.. WITH_STACK=1|0 WITH_GPU=1|0"
+	@echo "targets: up | core | images | stack | gpu | examples | status | down | up-server"
+	@echo "vars   : MODE=kind|server DOMAIN=.. REGISTRY=.. WITH_STACK=1|0 WITH_GPU=1|0 WITH_EXAMPLES=1|0"
 
 up:         ; $(ENV) $(BOOT) up
 core:       ; $(ENV) $(BOOT) core
 images:     ; $(ENV) $(BOOT) images
 stack:      ; $(ENV) $(BOOT) stack
 gpu:        ; $(ENV) $(BOOT) gpu
+examples:   ; $(ENV) $(BOOT) examples
 status:     ; $(ENV) $(BOOT) status
 down:       ; $(ENV) $(BOOT) down
 

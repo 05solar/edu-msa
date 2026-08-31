@@ -33,4 +33,7 @@ Host 헤더로 해당 컨테이너에 라우팅). 각 서비스는 인증 없이
 - 기본 Seed: `backend/src/main/resources/seed/programs.json` 에 7개 등록(소유자 내부 계정).
 - 배포: 플랫폼 docker 모드 `POST /api/programs/{id}/deploy` → `edu-svc-<slug>` 컨테이너 기동 +
   Traefik 라우트 파일 기록 → `http://<slug>.localhost` 접속.
+- K8s 배포: `./deploy/bootstrap.sh examples` — 7종 빌드→`edu-services` 배포→DB 등록까지 한 번에.
+  접속 주소는 동일하게 `http://<slug>.localhost` (ingress-nginx 서브도메인 라우팅). 상세는
+  [../DEPLOY.md §1-1](../DEPLOY.md).
 - 각 서비스는 프론트 목록 노출 → "웹에서 바로 사용" 서브도메인 실접속 → 실사용 오류 없음까지 검증합니다.

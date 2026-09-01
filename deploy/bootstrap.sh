@@ -195,11 +195,12 @@ EOF
 # ---- 운영스택 (helm, 각 단계 best-effort) -----------------------------------
 install_stack(){
   need helm
-  log "운영스택 설치 (모니터링·KEDA·cert-manager·로그·트레이스) — 각 단계 best-effort"
+  log "운영스택 설치 (모니터링·KEDA·cert-manager·로그·트레이스·Gitea) — 각 단계 best-effort"
   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts >/dev/null 2>&1 || true
   helm repo add kedacore https://kedacore.github.io/charts >/dev/null 2>&1 || true
   helm repo add jetstack https://charts.jetstack.io >/dev/null 2>&1 || true
   helm repo add grafana https://grafana.github.io/helm-charts >/dev/null 2>&1 || true
+  helm repo add gitea-charts https://dl.gitea.com/charts/ >/dev/null 2>&1 || true
   helm repo update >/dev/null 2>&1 || true
 
   _try(){ log "· $1"; shift; "$@" || warn "실패(건너뜀): $*"; }
@@ -223,6 +224,19 @@ install_stack(){
 
   _try "Tempo (트레이스)" helm upgrade --install tempo grafana/tempo \
       -n tracing --create-namespace --wait --timeout 5m
+
+  # Gitea (내부 코드 저장소) — 관리자 계정 Secret 을 먼저 만든다.
+  # GITEA_ADMIN_USER / GITEA_ADMIN_PASSWORD 로 지정 가능, 미지정 시 무작위 생성.
+  kubectl get ns gitea >/dev/null 2>&1 || kubectl create ns gitea >/dev/null
+  if ! kubectl -n gitea get secret gitea-admin >/dev/null 2>&1; then
+    local gpass="${GITEA_ADMIN_PASSWORD:-$(openssl rand -hex 12 2>/dev/null || echo "edu-gitea-${RANDOM}${RANDOM}")}"
+    kubectl -n gitea create secret generic gitea-admin \
+      --from-literal=username="${GITEA_ADMIN_USER:-edu-admin}" \
+      --from-literal=password="$gpass" >/dev/null
+    warn "Gitea 관리자 Secret(gitea-admin) 생성 — 비밀번호 확인: kubectl -n gitea get secret gitea-admin -o jsonpath='{.data.password}' | base64 -d"
+  fi
+  _try "Gitea (내부 코드 저장소)" helm upgrade --install gitea gitea-charts/gitea \
+      -n gitea -f "$K8S/platform/gitea/values.yaml" --wait --timeout 6m
 
   ok "운영스택 설치 시도 완료 — 개별 상태는 kubectl get pods -A 로 확인하세요."
   warn "WAF(ModSecurity/CRS)는 ingress-nginx values 로 활성화합니다: deploy/k8s/platform/edge/README.md"

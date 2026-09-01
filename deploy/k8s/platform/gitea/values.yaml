@@ -1,0 +1,63 @@
+# Gitea (내부 코드 저장소) — 1단계(설치) 값.
+# 도메인/TLS/Ingress 배선은 2단계(docs/planning/GITEA_PLAN.md §2)에서 한다.
+#
+# 설계 결정:
+# - DB: 1단계는 내장 SQLite(단일 replica). 운영 전환 시 플랫폼 CNPG PostgreSQL 에
+#   gitea DB 를 만들어 외부 DB 로 붙인다(README 참고) — 백업 일원화.
+# - 캐시/큐: 차트 기본(valkey-cluster)을 끄고 메모리/level 사용 — 소규모 기관 규모 충분.
+# - SSH: 내부망 HTTP(S) clone 만 쓰므로 비활성(22 포트 배선 없음).
+# - 관리자: 값 하드코딩 금지 — bootstrap.sh 가 만드는 gitea-admin Secret 참조.
+
+replicaCount: 1
+
+strategy:
+  type: Recreate            # RWO PVC + 단일 replica
+
+# 차트 동봉 DB/캐시 전부 비활성 (구/신 차트 키를 모두 명시)
+postgresql:
+  enabled: false
+postgresql-ha:
+  enabled: false
+redis-cluster:
+  enabled: false
+valkey-cluster:
+  enabled: false
+valkey:
+  enabled: false
+
+persistence:
+  enabled: true
+  size: 10Gi                # 레포 데이터. 실서버는 StorageClass·용량 재조정
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+service:
+  ssh:
+    enabled: false
+
+gitea:
+  admin:
+    existingSecret: gitea-admin   # bootstrap.sh 가 생성(username/password)
+  config:
+    database:
+      DB_TYPE: sqlite3
+    session:
+      PROVIDER: memory
+    cache:
+      ADAPTER: memory
+    queue:
+      TYPE: level
+    server:
+      # 2단계에서 https://gitea.<DOMAIN>/ 으로 교체
+      ROOT_URL: http://gitea.localhost/
+      DISABLE_SSH: true
+    service:
+      DISABLE_REGISTRATION: true  # 1차 운영 방침: 계정은 관리자가 발급
+    repository:
+      DEFAULT_BRANCH: main

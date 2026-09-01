@@ -171,4 +171,10 @@ auth-service는 자체 HS256 JWT 발급기로 **OIDC Provider가 아니다.** Gi
 
 ## 진행 기록
 
-- 2026-09-01 — 계획 수립. (진행 시 단계별 완료 일자·검증 결과를 여기에 추가)
+- 2026-09-01 — 계획 수립.
+- 2026-09-01 — **1단계 완료·검증** (feature/gitea): `deploy/k8s/platform/gitea/`
+  (values.yaml·README) + `bootstrap.sh stack` 편입(gitea-charts repo, 관리자 Secret
+  자동 생성, `_try` best-effort 설치). kind 검증 — Gitea 1.27.0 pod 1/1 Running,
+  웹 UI 200, 관리자 로그인(API, is_admin=true), 레포 생성 201, `git clone`/`push`
+  왕복 성공(서버 파일 확인). 캐시/큐는 memory/level, SQLite 단일 replica,
+  SSH 비활성·셀프 가입 비활성 구성.

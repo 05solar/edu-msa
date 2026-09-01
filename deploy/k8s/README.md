@@ -62,4 +62,4 @@ kubectl -n edu-platform create secret generic edu-auth-db \
 - readiness/liveness probe = `service.yaml`의 `health` 경로
 
 렌더링/적용은 `EDU_DEPLOY_MODE=real`(kubectl 실행) 또는 `simulate`(매니페스트만 생성)로
-동작한다. 자세한 계약은 [../../docs/MSA_SERVICE_SPEC.md](../../docs/MSA_SERVICE_SPEC.md).
+동작한다. 자세한 계약은 [../../docs/architecture/MSA_SERVICE_SPEC.md](../../docs/architecture/MSA_SERVICE_SPEC.md).

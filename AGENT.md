@@ -22,7 +22,7 @@
 
 **하나의 명령(작업)을 수행할 때마다** 관련된 메타 문서를 갱신한다.
 
-- 전체에 영향: 루트 `PROCESS.md`에 작업 이력 1줄 추가.
+- 전체에 영향: `docs/planning/PROCESS.md`에 작업 이력 1줄 추가.
 - 프론트 작업: `frontend/PROCESS.md`(이력), 필요 시 `frontend/DESIGN.md`,
   `frontend/TEST.md`, `frontend/README.md`를 갱신.
 - 백엔드 작업: `backend/PROCESS.md` 및 관련 문서 갱신.
@@ -33,7 +33,7 @@
 | 파일 | 목적 |
 | --- | --- |
 | `README.md` | 해당 범위의 개요·실행법 |
-| `PROCESS.md` | 작업 프로세스와 진행 이력(변경 로그) |
+| `docs/planning/PROCESS.md` | 작업 프로세스와 진행 이력(변경 로그) |
 | `AGENT.md` | 에이전트 작업 규칙 |
 | `DESIGN.md` | 디자인 원칙(프론트) / 설계 원칙(백엔드) |
 | `TEST.md` | 테스트 전략과 체크리스트 |

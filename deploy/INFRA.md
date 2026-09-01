@@ -221,8 +221,8 @@ cd frontend && npm install && npm run dev                   # 프론트(:5173)
 5. `monitoring/`·`logging/`·`tracing/` 데이터소스/규칙/ServiceMonitor 적용.
 
 > 상세 K8s 배포 가이드는 [k8s/README.md](k8s/README.md), 인프라 규칙은 [AGENT.md](AGENT.md),
-> 진행/검증 이력은 [PROCESS.md](PROCESS.md), 로드맵/검증현황은 [../ROADMAP.md](../ROADMAP.md),
-> 보안 하드닝은 [../SECURITY.md](../SECURITY.md) 참조.
+> 진행/검증 이력은 [PROCESS.md](PROCESS.md), 로드맵/검증현황은 [../ROADMAP.md](../docs/planning/ROADMAP.md),
+> 보안 하드닝은 [../SECURITY.md](../docs/operations/SECURITY.md) 참조.
 
 ---
 

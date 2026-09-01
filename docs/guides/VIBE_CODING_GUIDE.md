@@ -169,4 +169,4 @@ my-tool/
 5. 공개된 서비스는 포트가 아니라 **서브도메인 `http://<slug>.localhost`**(로컬 기준)로 열려
    목록의 "웹에서 바로 사용"으로 바로 접속합니다.
 
-기술 규격의 정확한 정의는 [MSA_SERVICE_SPEC.md](MSA_SERVICE_SPEC.md)를 참고하세요.
+기술 규격의 정확한 정의는 [MSA_SERVICE_SPEC.md](../architecture/MSA_SERVICE_SPEC.md)를 참고하세요.

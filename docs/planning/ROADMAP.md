@@ -1,7 +1,7 @@
 # ROADMAP.md · 대규모 전환 로드맵
 
 현재 구조는 소규모엔 적합하나 대규모(수십만 사용자·수천 서비스)엔 아래 축이 비어 있다.
-평가 근거는 [SECURITY.md](SECURITY.md)와 검증 기록(PROCESS.md) 참고. 각 항목은
+평가 근거는 [SECURITY.md](../operations/SECURITY.md)와 검증 기록(PROCESS.md) 참고. 각 항목은
 **구현 → 로컬(kind) 테스트/검증 → 문서화** 순으로 순차 진행한다.
 
 ## P0 (대규모 필수 · 없으면 못 버팀)

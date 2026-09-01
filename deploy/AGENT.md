@@ -21,7 +21,7 @@
 ## 배포 모드
 
 - `simulate`(기본·데모) / `docker`(로컬 실배포) / `real`(K8s). 자세한 내용은
-  [INFRA.md](INFRA.md)·[k8s/README.md](k8s/README.md), 하드닝 설계는 [../SECURITY.md](../SECURITY.md).
+  [INFRA.md](INFRA.md)·[k8s/README.md](k8s/README.md), 하드닝 설계는 [../SECURITY.md](../docs/operations/SECURITY.md).
 
 ## 작업 후 갱신할 문서
 

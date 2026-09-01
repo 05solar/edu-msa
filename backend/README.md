@@ -124,7 +124,7 @@ curl -X POST localhost:8088/api/deploy -H 'Content-Type: application/json' \
 ```
 compose는 호스트 `docker.sock`과 `examples/`를 백엔드에 마운트한다. 매니페스트 템플릿은
 `resources/deploy-templates/service-template.yaml`, 규격은
-[../docs/MSA_SERVICE_SPEC.md](../docs/MSA_SERVICE_SPEC.md), 다운로드용 AI 지시서는
+[../docs/architecture/MSA_SERVICE_SPEC.md](../docs/architecture/MSA_SERVICE_SPEC.md), 다운로드용 AI 지시서는
 `frontend/public/guides/`.
 
 자세한 설계는 [DESIGN.md](DESIGN.md), 작업 규칙은 [AGENT.md](AGENT.md) 참조.

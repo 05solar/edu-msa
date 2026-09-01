@@ -1,7 +1,7 @@
 # GITEA_PLAN.md · 내부 Gitea 구축 계획
 
 내부망 git 저장소(Gitea)를 플랫폼 스택에 추가하기 위한 **상세 실행 계획**이다.
-배경·우선순위는 [VERSIONS.md](../VERSIONS.md) §3, 완료 시 `v0.7.0` 태깅.
+배경·우선순위는 [VERSIONS.md](VERSIONS.md) §3, 완료 시 `v0.7.0` 태깅.
 
 > **왜 Gitea인가** — 운영 목표 환경(교육청 내부망)에서는 소스코드가 외부(GitHub)로
 > 나갈 수 없다. 카탈로그의 제공 방식에 이미 "Gitea 저장소(내부망 전용)"가 정의되어
@@ -142,7 +142,7 @@ Kaniko 빌드 → 배포 → 서비스 200. 토큰 없는 외부 요청으로는
 5. 백업 리허설: `gitea dump` 크론 또는 PVC 스냅샷 절차 1회 실행·복원 확인.
 
 **릴리스** — 서브에이전트(또는 동료) 리뷰 PASS → ROADMAP/PROCESS/VERSIONS 갱신 →
-`v0.7.0` 태깅. ([VERSIONS.md](../VERSIONS.md) §5 프로세스 준수)
+`v0.7.0` 태깅. ([VERSIONS.md](VERSIONS.md) §5 프로세스 준수)
 
 ---
 

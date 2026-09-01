@@ -2,7 +2,7 @@
 
 이 문서는 바이브 코더가 올린 임의의 GitHub 레포지토리가 교육청 플랫폼에서 하나의
 MSA 서비스로 배포되기 위해 만족해야 하는 **기술 계약(contract)**을 정의한다.
-쉬운 안내는 [VIBE_CODING_GUIDE.md](VIBE_CODING_GUIDE.md)를 참고한다.
+쉬운 안내는 [VIBE_CODING_GUIDE.md](../guides/VIBE_CODING_GUIDE.md)를 참고한다.
 
 ## 0. 등록 권한 (인증)
 

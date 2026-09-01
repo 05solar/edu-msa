@@ -2,7 +2,7 @@
 
 플랫폼이 **어떤 순서로 고도화되어 왔고**, 버전을 **어떻게 관리하며**, **앞으로 무엇을 어떤
 프로세스로 진행할지**를 한곳에 정리한다. 세부 검증 기록은 [ROADMAP.md](ROADMAP.md)·
-[PROCESS.md](PROCESS.md), 배포 방법은 [DEPLOY.md](DEPLOY.md) 참고.
+[PROCESS.md](PROCESS.md), 배포 방법은 [DEPLOY.md](../operations/DEPLOY.md) 참고.
 
 ---
 
@@ -107,7 +107,7 @@ kind 로컬 검증 + 서브에이전트 리뷰 PASS 후 완료 처리([ROADMAP.m
 
 ## 3. 예정 — Gitea 내부 저장소 도입
 
-> 단계별 상세 작업·기간·검증 시나리오는 **[docs/GITEA_PLAN.md](docs/GITEA_PLAN.md)** 참고.
+> 단계별 상세 작업·기간·검증 시나리오는 **[docs/GITEA_PLAN.md](GITEA_PLAN.md)** 참고.
 
 지금은 문서·UI가 "GitHub 레포 등록"을 안내하지만, 운영 목표 환경(내부망)에서는 코드가
 외부로 나가면 안 된다. 이미 카탈로그의 제공 방식에 **"Gitea 저장소(내부망 전용)"** 가
@@ -167,9 +167,9 @@ ROADMAP 실구현 항목(P0~P3)은 완료. 잔여·신규 항목을 우선순위
 ```
 
 - **문서 갱신은 작업의 일부다** — 메타 문서(README/PROCESS/AGENT/DESIGN/TEST)를
-  작업 시마다 갱신한다([AGENT.md](AGENT.md)). 본 문서는 ⑦ 릴리스 시점에 갱신한다.
+  작업 시마다 갱신한다([AGENT.md](../../AGENT.md)). 본 문서는 ⑦ 릴리스 시점에 갱신한다.
 - 실서버 반영은 kind 검증 통과본만. 실서버 차이점 체크리스트는
-  [DEPLOY.md](DEPLOY.md) §실서버 체크리스트를 따른다.
+  [DEPLOY.md](../operations/DEPLOY.md) §실서버 체크리스트를 따른다.
 
 ## 갱신 이력
 

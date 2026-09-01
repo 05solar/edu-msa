@@ -12,7 +12,7 @@
 - 오케스트레이션: **Kubernetes (MSA)**
 
 바이브 코더가 어떤 언어로 만들든(파이썬, Node, Go 등), 표준 규격
-([docs/MSA_SERVICE_SPEC.md](docs/MSA_SERVICE_SPEC.md))만 지키면 새로운 서비스로
+([docs/MSA_SERVICE_SPEC.md](docs/architecture/MSA_SERVICE_SPEC.md))만 지키면 새로운 서비스로
 등록·배포된다.
 
 ---
@@ -21,11 +21,13 @@
 
 ```
 edu-msa/
-├── README.md · PROCESS.md · AGENT.md       # 전체 개요 · 진행 이력 · 에이전트 규칙
+├── README.md · AGENT.md       # 전체 개요 · 에이전트 규칙 (루트 문서는 이 둘만)
 ├── docs/
-│   ├── VIBE_CODING_GUIDE.md   # 바이브 코더용 안내 (사람이 읽는 가이드)
-│   ├── MSA_SERVICE_SPEC.md    # 표준 서비스 규격 (기술 계약)
-│   └── ARCHITECTURE.md        # 전체 아키텍처 설계
+│   ├── architecture/          # ARCHITECTURE(설계) · MSA_SERVICE_SPEC(표준 규격)
+│   ├── guides/                # VIBE_CODING_GUIDE (바이브 코더용 안내)
+│   ├── operations/            # DEPLOY(배포) · SECURITY(보안 하드닝)
+│   └── planning/              # ROADMAP · VERSIONS · PROCESS(이력) · GITEA_PLAN · BASE_SERVICES_PLAN
+├── html/                      # 시각 문서 — system-overview · feature-guide · guide-staff/admin
 ├── frontend/                  # React + Vite + TSX
 │   ├── README·PROCESS·AGENT·DESIGN·TEST.md
 │   ├── public/guides/         # 다운로드용 AI 빌드 지시서(AI_BUILD_SPEC + 스택 템플릿)
@@ -141,7 +143,7 @@ SSO 가 추가되어도 변경 범위가 `auth-service` 안에 갇힌다.
 GitHub 레포 등록 → `service.yaml`/`Dockerfile` 규격 검증 → 이미지 빌드 →
 K8s 매니페스트(Deployment/Service/Ingress) 렌더링·적용 → 헬스 통과 → 공개.
 
-- 표준 규격: [docs/MSA_SERVICE_SPEC.md](docs/MSA_SERVICE_SPEC.md)
+- 표준 규격: [docs/MSA_SERVICE_SPEC.md](docs/architecture/MSA_SERVICE_SPEC.md)
 - K8s 매니페스트: [deploy/k8s/](deploy/k8s/) (namespace·플랫폼·서비스 템플릿·RBAC)
 - **기본 서비스 7개**: [examples/](examples/) — 교육청 업무 분야(category)별 **개인용 단발 도구** 1개씩.
   개인이 접속해 한 번의 작업(검사·변환·생성·계산·추출)을 처리하고 끝내는 도구이며(멀티유저 협업·상태
@@ -196,23 +198,23 @@ npm run dev                               # http://localhost:5173
 ./deploy/bootstrap.sh up            # 또는:  make up   (kind 자동 생성 → 이미지 빌드/푸시 → 코어+운영스택)
 # 접속: http://edu.localhost
 ```
-실서버(GPU 박스 포함)·GPU 테넌트 설정은 **[DEPLOY.md](DEPLOY.md)** 참고.
+실서버(GPU 박스 포함)·GPU 테넌트 설정은 **[DEPLOY.md](docs/operations/DEPLOY.md)** 참고.
 
 ## 문서 안내 (문서 지도)
 
 | 문서 | 내용 |
 | --- | --- |
-| [DEPLOY.md](DEPLOY.md) | **원커맨드 배포 & GPU 서버 안내** (K8s 한 번에·실서버·GPU) |
-| [VERSIONS.md](VERSIONS.md) | **버전 관리 & 고도화 이력** — 단계별 이력·태깅 규칙·Gitea 계획·백로그·진행 프로세스 |
-| [docs/GITEA_PLAN.md](docs/GITEA_PLAN.md) | 내부 Gitea 구축 상세 계획 — 6단계 작업·기간·검증 시나리오 |
+| [DEPLOY.md](docs/operations/DEPLOY.md) | **원커맨드 배포 & GPU 서버 안내** (K8s 한 번에·실서버·GPU) |
+| [VERSIONS.md](docs/planning/VERSIONS.md) | **버전 관리 & 고도화 이력** — 단계별 이력·태깅 규칙·Gitea 계획·백로그·진행 프로세스 |
+| [docs/GITEA_PLAN.md](docs/planning/GITEA_PLAN.md) | 내부 Gitea 구축 상세 계획 — 6단계 작업·기간·검증 시나리오 |
 | [deploy/PRODUCTION.md](deploy/PRODUCTION.md) | 실서버(k3s·Calico·레지스트리·도메인/TLS·CNPG·시크릿·GPU) 상세 가이드 |
-| [docs/VIBE_CODING_GUIDE.md](docs/VIBE_CODING_GUIDE.md) | 바이브 코더가 먼저 읽는 사람용 안내 |
-| [docs/MSA_SERVICE_SPEC.md](docs/MSA_SERVICE_SPEC.md) | 표준 서비스 규격(기술 계약) |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 전체 아키텍처 설계 |
+| [docs/VIBE_CODING_GUIDE.md](docs/guides/VIBE_CODING_GUIDE.md) | 바이브 코더가 먼저 읽는 사람용 안내 |
+| [docs/MSA_SERVICE_SPEC.md](docs/architecture/MSA_SERVICE_SPEC.md) | 표준 서비스 규격(기술 계약) |
+| [docs/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) | 전체 아키텍처 설계 |
 | `frontend/public/guides/AI_BUILD_SPEC.md` | **다운로드용 AI 지시서** — AI에 첨부해 규격대로 프로젝트 생성 (+ 파이썬/Node/정적 템플릿) |
 | [examples/README.md](examples/README.md) | 업무 분야별 실동작 예제 목록·실행법 |
 | [deploy/k8s/README.md](deploy/k8s/README.md) | K8s 매니페스트 구성·적용 순서 |
-| [SECURITY.md](SECURITY.md) | 멀티테넌트 보안 하드닝(신뢰 등급·격리·검증) |
+| [SECURITY.md](docs/operations/SECURITY.md) | 멀티테넌트 보안 하드닝(신뢰 등급·격리·검증) |
 | [deploy/PROCESS.md](deploy/PROCESS.md) · [deploy/AGENT.md](deploy/AGENT.md) | 인프라 진행 이력 · 작업 규칙 |
 | [frontend/README.md](frontend/README.md) · [backend/README.md](backend/README.md) | 각 앱 실행·구조·API |
 | 각 폴더 `AGENT.md` · `DESIGN.md` · `TEST.md` · `PROCESS.md` | 작업 규칙 · 설계 원칙 · 테스트 · 진행 이력 |

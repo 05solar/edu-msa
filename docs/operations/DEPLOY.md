@@ -1,7 +1,7 @@
 # DEPLOY.md · 원커맨드 배포 & GPU 서버 안내
 
 edu-msa 를 **명령어 한 번으로** Kubernetes 에 올리는 방법과, **실제 GPU 서버**에서 돌리는 방법을
-한곳에 정리한다. 세부는 [deploy/PRODUCTION.md](deploy/PRODUCTION.md) · [deploy/INFRA.md](deploy/INFRA.md).
+한곳에 정리한다. 세부는 [deploy/PRODUCTION.md](../../deploy/PRODUCTION.md) · [deploy/INFRA.md](../../deploy/INFRA.md).
 
 > 먼저 알아둘 점 — **플랫폼 코어(React 프론트 + Spring Boot backend/auth + PostgreSQL)는 GPU가
 > 필요 없다. CPU만으로 동작한다.** GPU는 **배포되는 테넌트 서비스**가 `service.yaml` 에서
@@ -113,7 +113,7 @@ MODE=server DOMAIN=edu.example.go.kr REGISTRY=<레지스트리> ./deploy/bootstr
 kubectl -n ingress-nginx get svc ingress-nginx-controller
 ```
 NetworkPolicy 강제(신뢰등급 격리)가 필요하면 k3s 기본 CNI 대신 **Calico** 를 쓴다 —
-플래그·명령은 [deploy/PRODUCTION.md §1](deploy/PRODUCTION.md).
+플래그·명령은 [deploy/PRODUCTION.md §1](../../deploy/PRODUCTION.md).
 
 ### (나) 테넌트 서비스가 GPU 를 쓰게 하기
 
@@ -130,7 +130,7 @@ resources:
   gpu: 1          # 0=미사용(기본). 1~8 이면 limits 에 nvidia.com/gpu 자동 추가
 ```
 GPU 노드 taint·격리(공개 tier·MIG·runtimeClass) 주의는
-[deploy/k8s/platform/gpu/README.md](deploy/k8s/platform/gpu/README.md).
+[deploy/k8s/platform/gpu/README.md](../../deploy/k8s/platform/gpu/README.md).
 
 ### 실서버 체크리스트 (kind 와 다른 부분)
 
@@ -145,7 +145,7 @@ GPU 노드 taint·격리(공개 tier·MIG·runtimeClass) 주의는
 | 시크릿 | 자리표시자 | **즉시 교체**(EDU_JWT_SECRET 등) |
 | GPU | — | NVIDIA GPU Operator |
 
-전체 절차는 **[deploy/PRODUCTION.md](deploy/PRODUCTION.md)** 참고.
+전체 절차는 **[deploy/PRODUCTION.md](../../deploy/PRODUCTION.md)** 참고.
 
 ---
 
@@ -167,7 +167,7 @@ kubectl get pods -A                 # 전체 상태
   docker compose -f deploy/docker-compose.yml up -d --build
   cd frontend && npm install && npm run dev   # http://localhost:5173
   ```
-- 인프라 전체 설명(도면): [system-overview.html](system-overview.html) · [deploy/infra-overview.html](deploy/infra-overview.html)
-- 배포 파이프라인·모드(simulate/docker/real): [deploy/INFRA.md](deploy/INFRA.md) · [backend/README.md](backend/README.md)
-- 서비스 규격(`service.yaml`·`resources.gpu`): [docs/MSA_SERVICE_SPEC.md](docs/MSA_SERVICE_SPEC.md)
+- 인프라 전체 설명(도면): [system-overview.html](../../html/system-overview.html) · [deploy/infra-overview.html](../../deploy/infra-overview.html)
+- 배포 파이프라인·모드(simulate/docker/real): [deploy/INFRA.md](../../deploy/INFRA.md) · [backend/README.md](../../backend/README.md)
+- 서비스 규격(`service.yaml`·`resources.gpu`): [docs/MSA_SERVICE_SPEC.md](../architecture/MSA_SERVICE_SPEC.md)
 - 보안·격리: [SECURITY.md](SECURITY.md)

@@ -103,5 +103,5 @@ kubectl apply -f deploy/k8s/hardening/30-runtimeclass-gvisor.yaml   # 노드에 
 - **플랫폼 HA**: 백엔드 무상태+복제, 관리형 HA PostgreSQL, 시크릿 관리(Vault/Sealed Secrets).
 - **관측성**: 로그/메트릭/감사(감사 로그, 이미지 스캐닝, 정책 위반 알림).
 
-자세한 K8s 배포 절차는 [deploy/k8s/README.md](deploy/k8s/README.md),
-인프라 작업 규칙은 [deploy/AGENT.md](deploy/AGENT.md) 참조.
+자세한 K8s 배포 절차는 [deploy/k8s/README.md](../../deploy/k8s/README.md),
+인프라 작업 규칙은 [deploy/AGENT.md](../../deploy/AGENT.md) 참조.

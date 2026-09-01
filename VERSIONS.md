@@ -107,6 +107,8 @@ kind 로컬 검증 + 서브에이전트 리뷰 PASS 후 완료 처리([ROADMAP.m
 
 ## 3. 예정 — Gitea 내부 저장소 도입
 
+> 단계별 상세 작업·기간·검증 시나리오는 **[docs/GITEA_PLAN.md](docs/GITEA_PLAN.md)** 참고.
+
 지금은 문서·UI가 "GitHub 레포 등록"을 안내하지만, 운영 목표 환경(내부망)에서는 코드가
 외부로 나가면 안 된다. 이미 카탈로그의 제공 방식에 **"Gitea 저장소(내부망 전용)"** 가
 정의되어 있고 시드 데이터도 `gitea.edu.internal` 주소를 쓰므로, 실제 Gitea 서버를

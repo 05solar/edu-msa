@@ -204,6 +204,7 @@ npm run dev                               # http://localhost:5173
 | --- | --- |
 | [DEPLOY.md](DEPLOY.md) | **원커맨드 배포 & GPU 서버 안내** (K8s 한 번에·실서버·GPU) |
 | [VERSIONS.md](VERSIONS.md) | **버전 관리 & 고도화 이력** — 단계별 이력·태깅 규칙·Gitea 계획·백로그·진행 프로세스 |
+| [docs/GITEA_PLAN.md](docs/GITEA_PLAN.md) | 내부 Gitea 구축 상세 계획 — 6단계 작업·기간·검증 시나리오 |
 | [deploy/PRODUCTION.md](deploy/PRODUCTION.md) | 실서버(k3s·Calico·레지스트리·도메인/TLS·CNPG·시크릿·GPU) 상세 가이드 |
 | [docs/VIBE_CODING_GUIDE.md](docs/VIBE_CODING_GUIDE.md) | 바이브 코더가 먼저 읽는 사람용 안내 |
 | [docs/MSA_SERVICE_SPEC.md](docs/MSA_SERVICE_SPEC.md) | 표준 서비스 규격(기술 계약) |

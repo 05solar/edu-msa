@@ -54,6 +54,23 @@ WITH_EXAMPLES=1 ./deploy/bootstrap.sh up
 | `WITH_EXAMPLES` | `0` | `up` 시 서브 프로그램 7종도 함께 배포 |
 | `IMAGE_TAG` | `latest` | 이미지 태그 |
 
+### Production 타겟 (edu-poc.headit.kr 운영 서버)
+
+운영 도메인이 고정된 전용 타겟이 있다. `IMAGE_TAG` 가 실행 시각으로 자동 부여되어
+재배포 때마다 롤링 업데이트가 일어난다.
+
+```bash
+make prod-deploy   PROD_REGISTRY=<레지스트리>   # 최초/전체 (코어+운영스택)
+make prod-core     PROD_REGISTRY=<레지스트리>   # 코드 반영 재배포 (평시 사용)
+make prod-examples PROD_REGISTRY=<레지스트리>   # 기본 예제 7종 (와일드카드 DNS 필요)
+make prod-status                                # 상태 확인
+```
+
+> 예제 7종의 서브도메인(`<slug>.edu-poc.headit.kr`)은 ① DNS `*.edu-poc.headit.kr` →
+> 서버 IP, ② 전면 Nginx 에 `server_name *.edu-poc.headit.kr` 프록시 블록
+> (`proxy_set_header Host $host` 필수), ③ 와일드카드 인증서(LE DNS-01) 가 전제다.
+> 등록 프로그램의 real 파이프라인은 경로 방식(`/svc/<slug>`)이라 이 전제 없이 동작한다.
+
 ### 사전 준비물
 
 - 공통: `docker`, `kubectl`, `git` (실행 중인 docker 데몬)

@@ -45,12 +45,15 @@ kubectl -n gitea port-forward svc/gitea-http 3000:3000
 
 ## 백업 (필수 운영 절차)
 
-레포 데이터는 PVC(`data-gitea-0` 형태)에 있다. 두 가지 중 하나를 정기 수행:
+레포 데이터는 PVC `gitea-shared-storage` 에 있다(차트는 Deployment + 단일 PVC).
+두 가지 중 하나를 정기 수행:
 
 ```bash
-# 1) gitea dump (레포+DB+설정 일괄 아카이브)
-kubectl -n gitea exec deploy/gitea -- su git -c "gitea dump -c /data/gitea/conf/app.ini"
-# 2) PVC 스냅샷 (StorageClass 가 지원할 때)
+# 1) gitea dump (레포+DB+설정 일괄 아카이브) — rootless 이미지라 su 없이 실행
+kubectl -n gitea exec deploy/gitea -c gitea -- \
+  gitea dump -c /data/gitea/conf/app.ini --file /tmp/gitea-dump.zip
+kubectl -n gitea cp "$(kubectl -n gitea get pod -l app=gitea -o jsonpath='{.items[0].metadata.name}')":/tmp/gitea-dump.zip ./gitea-dump.zip -c gitea
+# 2) PVC(gitea-shared-storage) 스냅샷 (StorageClass 가 지원할 때)
 ```
 
 복원 리허설은 6단계 통합 검증 항목이다.

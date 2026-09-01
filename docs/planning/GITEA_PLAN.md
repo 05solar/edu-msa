@@ -178,3 +178,10 @@ auth-service는 자체 HS256 JWT 발급기로 **OIDC Provider가 아니다.** Gi
   웹 UI 200, 관리자 로그인(API, is_admin=true), 레포 생성 201, `git clone`/`push`
   왕복 성공(서버 파일 확인). 캐시/큐는 memory/level, SQLite 단일 replica,
   SSH 비활성·셀프 가입 비활성 구성.
+- 2026-09-01 — **1단계 서브에이전트 리뷰 2건(기술/보안·운영) PASS** 후 지적 반영:
+  `DEFAULT_PRIVATE: private` 추가(신규 레포 기본 비공개 — app.ini 반영 확인),
+  dead key 제거(`service.ssh.enabled`·`redis-cluster`), README 백업 절 정정
+  (PVC `gitea-shared-storage`, rootless라 su 없이 `gitea dump --file` — **실제 1회
+  실행 검증**, 73KB 아카이브 생성), bootstrap Secret 블록 best-effort화 + 무작위
+  fallback을 /dev/urandom 128bit로 보강. 남긴 과제: gitea ns NetworkPolicy/PSA는
+  2단계(Ingress)에서, SECURITY.md 갱신 병행.

@@ -227,12 +227,13 @@ install_stack(){
 
   # Gitea (내부 코드 저장소) — 관리자 계정 Secret 을 먼저 만든다.
   # GITEA_ADMIN_USER / GITEA_ADMIN_PASSWORD 로 지정 가능, 미지정 시 무작위 생성.
-  kubectl get ns gitea >/dev/null 2>&1 || kubectl create ns gitea >/dev/null
+  kubectl get ns gitea >/dev/null 2>&1 || kubectl create ns gitea >/dev/null 2>&1 || warn "gitea 네임스페이스 생성 실패"
   if ! kubectl -n gitea get secret gitea-admin >/dev/null 2>&1; then
-    local gpass="${GITEA_ADMIN_PASSWORD:-$(openssl rand -hex 12 2>/dev/null || echo "edu-gitea-${RANDOM}${RANDOM}")}"
+    # openssl(96bit) → /dev/urandom(128bit) 순서로 무작위 생성. RANDOM 은 엔트로피가 약해 쓰지 않는다.
+    local gpass="${GITEA_ADMIN_PASSWORD:-$(openssl rand -hex 12 2>/dev/null || head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')}"
     kubectl -n gitea create secret generic gitea-admin \
       --from-literal=username="${GITEA_ADMIN_USER:-edu-admin}" \
-      --from-literal=password="$gpass" >/dev/null
+      --from-literal=password="$gpass" >/dev/null 2>&1 || warn "gitea-admin Secret 생성 실패"
     warn "Gitea 관리자 Secret(gitea-admin) 생성 — 비밀번호 확인: kubectl -n gitea get secret gitea-admin -o jsonpath='{.data.password}' | base64 -d"
   fi
   _try "Gitea (내부 코드 저장소)" helm upgrade --install gitea gitea-charts/gitea \

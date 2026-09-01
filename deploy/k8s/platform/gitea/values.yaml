@@ -13,12 +13,10 @@ replicaCount: 1
 strategy:
   type: Recreate            # RWO PVC + 단일 replica
 
-# 차트 동봉 DB/캐시 전부 비활성 (구/신 차트 키를 모두 명시)
+# 차트 동봉 DB/캐시 전부 비활성 (차트 12.x 의존성 4종)
 postgresql:
   enabled: false
 postgresql-ha:
-  enabled: false
-redis-cluster:
   enabled: false
 valkey-cluster:
   enabled: false
@@ -37,9 +35,8 @@ resources:
     cpu: "1"
     memory: 1Gi
 
-service:
-  ssh:
-    enabled: false
+# SSH 차단은 아래 server.DISABLE_SSH 가 담당한다. 차트가 gitea-ssh Service(headless)를
+# 무조건 렌더링하지만 데몬이 SSH 를 기동하지 않으므로 리스너 없는 껍데기다.
 
 gitea:
   admin:
@@ -61,3 +58,6 @@ gitea:
       DISABLE_REGISTRATION: true  # 1차 운영 방침: 계정은 관리자가 발급
     repository:
       DEFAULT_BRANCH: main
+      # 신규 레포 기본 비공개 — 내부 코드 저장소에서 실수로 만든 public 레포가
+      # (2단계 Ingress 개방 후) 익명 열람되는 것을 막는다. 명시적 public 은 여전히 가능.
+      DEFAULT_PRIVATE: private

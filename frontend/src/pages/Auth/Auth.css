@@ -28,6 +28,17 @@
 .auth-left .lg-points{margin-top:26px;display:flex;flex-direction:column;gap:12px;max-width:520px}
 .auth-left .lg-point{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;color:#D6E1F0}
 .auth-left .lg-point .lp-ico{color:#7FA8F5;margin-top:1px}
+.auth-left .lg-guides{margin-top:30px;max-width:520px}
+.auth-left .lg-guides-title{font-size:13px;color:#8697AC;margin-bottom:10px}
+.auth-left .lg-guides-row{display:flex;gap:10px;flex-wrap:wrap}
+.auth-left .lg-guide{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:9px 16px;border:1px solid rgba(127,168,245,.45);border-radius:var(--r);
+  color:#D6E1F0;font-size:13.5px;font-weight:600;text-decoration:none;
+  transition:background .15s,border-color .15s;
+}
+.auth-left .lg-guide:hover{background:rgba(127,168,245,.14);border-color:#7FA8F5}
+.auth-left .lg-guide .lg-ext{color:#8697AC;display:flex}
 
 /* ---------- 우측 카드 ---------- */
 .auth-right{

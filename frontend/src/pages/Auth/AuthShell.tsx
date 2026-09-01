@@ -28,6 +28,23 @@ export function AuthShell({ children, wide }: { children: ReactNode; wide?: bool
             <div key={t} className="lg-point"><span className="lp-ico"><Icon name="check" size={16} /></span>{t}</div>
           ))}
         </div>
+
+        {/* 이용 가이드 — 로그인 전에도 열람 가능하도록 정적 문서로 제공 */}
+        <div className="lg-guides">
+          <div className="lg-guides-title">처음이신가요? 이용 안내서를 먼저 읽어 보세요.</div>
+          <div className="lg-guides-row">
+            <a className="lg-guide" href="/guides/guide-staff.html" target="_blank" rel="noreferrer">
+              <span className="lp-ico"><Icon name="manual" size={16} /></span>
+              직원용 사용 안내
+              <span className="lg-ext"><Icon name="external" size={12} /></span>
+            </a>
+            <a className="lg-guide" href="/guides/guide-admin.html" target="_blank" rel="noreferrer">
+              <span className="lp-ico"><Icon name="admin" size={16} /></span>
+              관리자용 운영 안내
+              <span className="lg-ext"><Icon name="external" size={12} /></span>
+            </a>
+          </div>
+        </div>
       </div>
 
       <div className={`auth-right${wide ? ' wide' : ''}`}>

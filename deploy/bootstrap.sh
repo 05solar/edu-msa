@@ -93,11 +93,15 @@ EOF
     ok "kind 클러스터 이미 존재: $CLUSTER"
   fi
   kubectl config use-context "kind-$CLUSTER" >/dev/null
-  # 3) 노드 containerd 가 localhost:5001 → kind-registry:5000 로 해석
-  local dir="/etc/containerd/certs.d/localhost:${REG_PORT}"
-  for node in $(kind get nodes --name "$CLUSTER"); do
-    docker exec "$node" mkdir -p "$dir"
-    echo "[host.\"http://${REG_NAME}:5000\"]" | docker exec -i "$node" cp /dev/stdin "$dir/hosts.toml"
+  # 3) 노드 containerd 가 localhost:5001 과 kind-registry:5000 둘 다 HTTP 레지스트리로 해석
+  #    (후자는 real 모드 Kaniko push 대상과 동일한 이미지 접두어를 노드가 pull 할 때 필요)
+  local reghost dir
+  for reghost in "localhost:${REG_PORT}" "${REG_NAME}:5000"; do
+    dir="/etc/containerd/certs.d/${reghost}"
+    for node in $(kind get nodes --name "$CLUSTER"); do
+      docker exec "$node" mkdir -p "$dir"
+      echo "[host.\"http://${REG_NAME}:5000\"]" | docker exec -i "$node" cp /dev/stdin "$dir/hosts.toml"
+    done
   done
   # 4) 레지스트리를 kind 네트워크에 연결
   if [ "$(docker inspect -f '{{json .NetworkSettings.Networks.kind}}' "$REG_NAME" 2>/dev/null || echo null)" = null ]; then
@@ -143,8 +147,8 @@ apply_core(){
   local f base out
   for f in "${files[@]}"; do
     base="$(basename "$f")"; out="$tmp/$base"
-    # 공통: 이미지 접두어 · 도메인 치환
-    sed -e "s#registry.edu.internal/edu-msa-#${REGISTRY}/edu-msa-#g" \
+    # 공통: 레지스트리(이미지 접두어 + EDU_DEPLOY_REGISTRY) · 도메인 치환 — 순서 중요
+    sed -e "s#registry\.edu\.internal#${REGISTRY}#g" \
         -e "s#edu\.internal#${DOMAIN}#g" "$f" > "$out"
     # backend 는 HA(CloudNativePG) 대신 코어 단일 postgres 를 쓰도록 DB 설정 치환
     if [ "$base" = backend.yaml ]; then
@@ -153,6 +157,14 @@ apply_core(){
         -e "s#name: edu-db-app, key: username#name: edu-db, key: POSTGRES_USER#g" \
         -e "s#name: edu-db-app, key: password#name: edu-db, key: POSTGRES_PASSWORD#g" \
         "$out" && rm -f "$out.bak"
+      # kind: Kaniko/노드 모두 도달 가능한 인클러스터 엔드포인트로 배포 레지스트리를 바꾸고
+      #       (localhost:5001 은 파드 안에서 자기 자신을 가리켜 push 불가) HTTP 라서 insecure 켬.
+      if [ "$MODE" = kind ]; then
+        sed -i.bak \
+          -e "/name: EDU_DEPLOY_REGISTRY/{n;s#value: .*#value: ${REG_NAME}:5000#;}" \
+          -e "/name: EDU_DEPLOY_KANIKO_INSECURE/{n;s#value: \"false\"#value: \"true\"#;}" \
+          "$out" && rm -f "$out.bak"
+      fi
     fi
     # kind(HTTP): CORS 오리진 스킴을 http 로 (같은 오리진이라 대개 무해하지만 명시적으로 맞춤)
     if [ "$MODE" = kind ]; then

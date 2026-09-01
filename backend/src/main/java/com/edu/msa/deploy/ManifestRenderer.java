@@ -60,7 +60,10 @@ public class ManifestRenderer {
                 .replace("{{SLUG}}", spec.slug())
                 .replace("{{NAMESPACE}}", namespace)
                 .replace("{{IMAGE}}", image)
-                .replace("{{CONTEXT}}", ctx);
+                .replace("{{CONTEXT}}", ctx)
+                // HTTP(비TLS) 레지스트리 지원 — edu.deploy.kaniko-insecure=true 일 때만
+                .replace("{{EXTRA_ARGS}}",
+                        props.kanikoInsecure() ? "- \"--insecure\"\n            - \"--insecure-pull\"" : "");
     }
 
     private String load() {

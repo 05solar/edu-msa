@@ -103,6 +103,9 @@ metadata:
     nginx.ingress.kubernetes.io/enable-owasp-core-rules: "true"
     # 자동 TLS 인증서(cert-manager). 실서버는 edu-ca 를 ACME(Let's Encrypt) 발급자로 교체.
     cert-manager.io/cluster-issuer: edu-ca
+    # TLS 를 앞단(전면 Nginx 또는 별도 엣지)에서 종료하는 구성에서 강제 https 308 이
+    # 플랫폼 공용 호스트 전체를 막지 않도록 ingress 단 리다이렉트는 끈다.
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
 spec:
   ingressClassName: nginx
   tls:

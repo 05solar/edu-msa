@@ -18,6 +18,7 @@ spec:
             - "--context={{CONTEXT}}"
             - "--dockerfile=Dockerfile"
             - "--destination={{IMAGE}}"
+            {{EXTRA_ARGS}}
           volumeMounts:
             - name: docker-config
               mountPath: /kaniko/.docker

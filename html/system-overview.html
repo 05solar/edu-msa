@@ -164,6 +164,79 @@
   </div>
 </section>
 
+<!-- ===== 0-1. 버전 이력 ===== -->
+<section class="slide">
+  <div class="inner">
+    <div class="kicker">00 · 버전 이력</div>
+    <h2 class="stitle">버전으로 보는 <span>고도화 과정</span></h2>
+    <p class="lead">총 73커밋(2026-08-24~08-31)을 <b>6단계</b>로 나눠 순차 고도화했다. 각 버전은
+      "구현 → kind 실동작 검증 → 리뷰 → 문서화"를 마친 상태를 뜻한다. 태깅 규칙·상세 검증 기록은
+      <b>docs/planning/VERSIONS.md</b>·<b>ROADMAP.md</b> 참고.</p>
+
+    <div class="card" style="padding:8px 22px 14px">
+      <table>
+        <tr><th style="width:90px">버전</th><th style="width:86px">시점</th><th style="width:190px">이름</th><th>주요 내용</th></tr>
+        <tr>
+          <td><b style="color:var(--green)">v0.1.0</b></td><td>08-24</td><td><b>플랫폼 기반 골격</b></td>
+          <td>React+Spring MSA 뼈대 · GitHub Actions CI · 레포 등록→규격 검증→<b>승인 시 자동 배포</b> 파이프라인 1차 ·
+              AI 빌드 지시서(AI_BUILD_SPEC)로 "AI로 만들어 올리는" 흐름 정립</td>
+        </tr>
+        <tr>
+          <td><b style="color:var(--green)">v0.2.0</b></td><td>08-25</td><td><b>인프라 P0~P3</b></td>
+          <td>대규모 대비 13개 축 완성 — 오토스케일(HPA+PDB) · 배포 작업 큐/워커 · DB HA(CloudNativePG 3중, 자동 승격 검증) ·
+              <b>Kaniko 인클러스터 빌드</b>(docker.sock 제거) · Calico NetworkPolicy 강제 · 무중단 롤링 ·
+              KEDA scale-to-zero · Prometheus/Grafana 관측성 · 엣지 TLS+rate-limit+<b>WAF</b> ·
+              cert-manager 자동 인증서 · Loki/Tempo 로그·트레이스 · Alertmanager 알림 · 레지스트리 pull 경로 end-to-end</td>
+        </tr>
+        <tr>
+          <td><b style="color:var(--green)">v0.3.0</b></td><td>08-25</td><td><b>기본 서비스 1차</b></td>
+          <td>부서 업무형 서비스 7종을 Go·Python·Java·TS·C#·Rust·Kotlin 로 구축 — <b>언어별 표준 규격 검증</b>을 겸함 ·
+              Seed 등록 + docker 배포 검증</td>
+        </tr>
+        <tr>
+          <td><b style="color:var(--green)">v0.4.0</b></td><td>08-26</td><td><b>인증 마이크로서비스</b></td>
+          <td>auth-service 분리(계정 단일 소스·BCrypt·HS256) · 각 서비스가 JWT <b>자체 검증</b>(동기 의존 없음) ·
+              HttpOnly Refresh 쿠키 · 경로별 RBAC · <b>최소 권한 가입</b>(항상 USER, 상향은 신청→관리자 승인) ·
+              인증 화면 4종(로그인·가입·아이디/비밀번호 찾기)</td>
+        </tr>
+        <tr>
+          <td><b style="color:var(--green)">v0.5.0</b></td><td>08-26</td><td><b>개인 도구 7종·UI</b></td>
+          <td>기본 서비스를 <b>개인용 단발 도구 7종</b>으로 재편(맞춤법·자리배치·시간표·여비·QR 라벨·통계 차트·OCR) ·
+              <b>서브도메인 라우팅</b>(&lt;slug&gt;.localhost, Traefik/Ingress Host) · 7종 통일 디자인 시스템 · OG/파비콘</td>
+        </tr>
+        <tr>
+          <td><b style="color:var(--blue)">v0.6.0</b></td><td>08-31</td><td><b>원커맨드 배포·GPU</b> <span class="s" style="color:var(--blue)">← 현재</span></td>
+          <td><b>bootstrap.sh + Makefile</b> 원커맨드 설치(클러스터→이미지→코어→운영스택→GPU) ·
+              테넌트 GPU 지원(service.yaml <code>resources.gpu</code>) · 예제 7종 K8s 배포 서브커맨드(<code>examples</code>) ·
+              배포 진행 상태 실시간 표시 · 전체 문서 리뉴얼(system-overview·DEPLOY)</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="grid2" style="margin-top:20px">
+      <div class="card">
+        <div class="kicker" style="color:var(--violet)">예정 · v0.7.0</div>
+        <h3 style="margin:6px 0 10px;font-size:19px">Gitea 내부 저장소</h3>
+        <p style="color:var(--mut);font-size:14.5px;line-height:1.8">
+          내부망에서 코드가 외부로 나가지 않도록 자체 git 호스팅을 스택에 편입한다.
+          <b>① Helm 설치 → ② gitea.&lt;도메인&gt;+TLS → ③ 파이프라인 clone 자격 증명 →
+          ④ push 시 webhook 자동 재배포 → ⑤ 예제 미러링·문서 이관 → ⑥ kind end-to-end 검증</b>.
+          1차 범위 <b>3.5~4일</b>, SSO 계정 연동은 2차(별도 3~5일).
+          상세: docs/planning/GITEA_PLAN.md</p>
+      </div>
+      <div class="card">
+        <div class="kicker" style="color:var(--violet)">예정 · v1.0.0</div>
+        <h3 style="margin:6px 0 10px;font-size:19px">실서버 정식 개통</h3>
+        <p style="color:var(--mut);font-size:14.5px;line-height:1.8">
+          조건: <b>A급 백로그 소진</b>(Gitea · 시크릿 관리 Vault/Sealed Secrets · 감사로그) +
+          <b>실서버(k3s·Calico) 리허설 통과</b>. 이후 B급(교육청 SSO · OTel 실계측 · 알림 수신처),
+          C급(WAF 튜닝 · 대시보드 코드화 · 인증서 최적화)을 순차 진행한다.
+          버전 규칙: 단계 완료마다 MINOR, 수정만은 PATCH, 규격 호환이 깨질 때만 MAJOR.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ===== 1. 시스템 한눈에 ===== -->
 <section class="slide">
   <div class="inner">

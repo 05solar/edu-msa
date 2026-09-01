@@ -45,6 +45,24 @@
     font-size:15px;color:var(--mut);display:flex;align-items:center;gap:9px;box-shadow:var(--sh);font-weight:600}
   .dotc{width:10px;height:10px;border-radius:50%}
   .cover .hint,.hint{margin-top:30px;color:var(--dim);font-size:15px;display:flex;align-items:center;gap:10px}
+  .verbar{margin-top:26px;background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:16px 20px;box-shadow:var(--sh)}
+  .verbar .vb-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+  .verbar .vb-now{background:var(--blue);color:#fff;border-radius:999px;padding:4px 14px;
+    font-weight:800;font-size:14px;letter-spacing:.02em}
+  .verbar .vb-t{font-weight:700;font-size:14.5px}
+  .verbar .vb-link{margin-left:auto;font-size:13px;color:var(--blue);text-decoration:none}
+  .verbar .vb-link:hover{text-decoration:underline}
+  .verbar .vb-steps{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:12.5px}
+  .verbar .vb-step{background:var(--panel2);border:1px solid var(--line);border-radius:8px;
+    padding:5px 10px;color:var(--mut);white-space:nowrap}
+  .verbar .vb-step b{color:var(--ink)}
+  .verbar .vb-step.done b{color:var(--green)}
+  .verbar .vb-step.now{border-color:var(--blue);background:#e8f0fe}
+  .verbar .vb-step.now b{color:var(--blue)}
+  .verbar .vb-step.plan{border-style:dashed}
+  .verbar .vb-step.plan b{color:var(--violet)}
+  .verbar .vb-arrow{color:var(--dim)}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--sh)}
   .stage{overflow-x:auto}
   svg{display:block;width:100%;height:auto;min-width:760px}
@@ -122,6 +140,26 @@
       <div class="chip"><i class="dotc" style="background:var(--violet)"></i>배포 파이프라인 · 서브도메인</div>
       <div class="chip"><i class="dotc" style="background:var(--rose)"></i>Kubernetes · 격리 · 관측성</div>
     </div>
+
+    <!-- 버전 현황 — 상세는 docs/planning/VERSIONS.md -->
+    <div class="verbar">
+      <div class="vb-head">
+        <span class="vb-now">현재 v0.6.0</span>
+        <span class="vb-t">원커맨드 배포·GPU·운영 문서 (2026-08-31)</span>
+        <a class="vb-link" href="../docs/planning/VERSIONS.md">버전 관리 문서(VERSIONS.md) →</a>
+      </div>
+      <div class="vb-steps">
+        <span class="vb-step done"><b>v0.1.0</b> 플랫폼 골격</span><span class="vb-arrow">→</span>
+        <span class="vb-step done"><b>v0.2.0</b> 인프라 P0~P3</span><span class="vb-arrow">→</span>
+        <span class="vb-step done"><b>v0.3.0</b> 기본 서비스 1차</span><span class="vb-arrow">→</span>
+        <span class="vb-step done"><b>v0.4.0</b> 인증(auth-service)</span><span class="vb-arrow">→</span>
+        <span class="vb-step done"><b>v0.5.0</b> 개인 도구 7종·UI</span><span class="vb-arrow">→</span>
+        <span class="vb-step now"><b>v0.6.0</b> 원커맨드 배포·GPU</span><span class="vb-arrow">→</span>
+        <span class="vb-step plan"><b>v0.7.0</b> Gitea 내부 저장소 (예정)</span><span class="vb-arrow">→</span>
+        <span class="vb-step plan"><b>v1.0.0</b> 실서버 정식 개통 (예정)</span>
+      </div>
+    </div>
+
     <div class="hint">아래로 스크롤하며 순서대로 읽으면 된다 · 흐름 그림의 점선과 움직이는 점은 데이터가 흐르는 방향을 뜻한다</div>
   </div>
 </section>

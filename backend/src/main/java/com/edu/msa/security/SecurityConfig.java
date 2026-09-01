@@ -59,6 +59,8 @@ public class SecurityConfig {
                         // 실제 배포는 운영 관리자만.
                         .requestMatchers(HttpMethod.POST, "/api/deploy").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/programs/*/deploy").hasRole("ADMIN")
+                        // 재배포는 소유자 본인용 — 소유자 일치 검증은 ProgramService 가 수행한다.
+                        .requestMatchers(HttpMethod.POST, "/api/programs/*/redeploy").hasAnyRole("CODER", "ADMIN")
 
                         // 레포 규격 검증(정적 검사·빌드/배포 없음)과 프로그램 등록은 바이브 코더 이상.
                         // 등록자가 제출 전 자기 레포를 스스로 점검할 수 있어야 하므로 CODER 에게도 허용한다.

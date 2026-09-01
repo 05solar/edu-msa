@@ -104,6 +104,9 @@ export const api = {
     req<ValidationResult>('/deploy/validate', { method: 'POST', body: JSON.stringify({ repoUrl, branch }) }),
   deployProgram: (id: number, repoUrl: string, branch: string, actor: string) =>
     req<DeploymentResponse>(`/programs/${id}/deploy`, { method: 'POST', body: JSON.stringify({ repoUrl, branch, actor }) }),
+  // 등록자 본인 재배포 — 레포 주소는 서버 저장값을 쓰므로 버전·메모만 보낸다.
+  redeployProgram: (id: number, body: { version?: string; note?: string }) =>
+    req<unknown>(`/programs/${id}/redeploy`, { method: 'POST', body: JSON.stringify(body) }),
   deploymentOf: (id: number) => req<DeploymentResponse | null>(`/programs/${id}/deployment`),
 
   users: () => req<AppUser[]>('/users'),

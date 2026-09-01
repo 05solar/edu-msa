@@ -59,6 +59,33 @@ public class ProgramService {
                 .toList();
     }
 
+    /**
+     * 등록자 본인 재배포 — 레포를 갱신한 소유자가 새 버전으로 다시 배포를 요청한다.
+     * 소유자 검증을 서버에서 강제하고(ADMIN 은 전체 허용), 배포 대상 레포는 저장된
+     * 값만 사용한다. 버전이 바뀌면 업데이트 내역(history)에 기록을 남긴다.
+     */
+    @Transactional
+    public Program requestRedeploy(Long id, String requester, boolean admin, String version, String note) {
+        Program p = programs.findById(id)
+                .orElseThrow(() -> new NotFoundException("프로그램을 찾을 수 없습니다: " + id));
+        if (!admin && !p.getOwner().equals(requester)) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "본인이 등록한 프로그램만 재배포할 수 있습니다.");
+        }
+        if (p.getStatus() != ProgramStatus.PUBLIC) {
+            throw new IllegalArgumentException(
+                    "공개 중인 프로그램만 재배포할 수 있습니다. (현재 상태: " + p.getStatus().code() + ")");
+        }
+        LocalDate today = LocalDate.now();
+        if (version != null && !version.isBlank()) {
+            p.setVersion(version.trim());
+        }
+        p.getHistory().add(new HistoryEntry(p.getVersion(), today.toString(),
+                note != null && !note.isBlank() ? note.trim() : "레포 업데이트 재배포"));
+        p.setUpdatedAt(today);
+        return p;
+    }
+
     @Transactional(readOnly = true)
     public List<ProgramSummaryResponse> pending() {
         return programs.findByStatus(ProgramStatus.PENDING).stream()

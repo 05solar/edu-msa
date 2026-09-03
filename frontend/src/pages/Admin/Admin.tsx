@@ -22,7 +22,7 @@ const ACT_BADGE: Record<AdminAction, { cls: string; label: string }> = {
 }
 
 export function Admin() {
-  const { pendingPrograms, programs, adminLog, users, reviewProgram, setUserRole, go, toast, openModal, me } = useApp()
+  const { pendingPrograms, programs, adminLog, users, reviewProgram, deleteProgram, setUserRole, go, toast, openModal, me } = useApp()
   const [tab, setTab] = useState<Tab>('pending')
   const [rejectingId, setRejectingId] = useState<number | null>(null)
   const [reason, setReason] = useState('')
@@ -179,6 +179,15 @@ export function Admin() {
                     {p.status === 'public' && <button className="btn btn-sm" onClick={() => reviewProgram(p.id, 'stop', '운영 판단에 따른 공개 중지')}>공개 중지</button>}
                     {p.status === 'stopped' && <button className="btn btn-sm btn-ok" onClick={() => reviewProgram(p.id, 'resume', '재공개')}>재공개</button>}
                     {p.status === 'pending' && <button className="btn btn-sm btn-ok" onClick={() => approve(p.id)}>승인</button>}
+                    <button
+                      className="btn btn-sm btn-danger"
+                      title="프로그램과 배포된 서비스를 함께 삭제합니다"
+                      onClick={() => {
+                        if (window.confirm(`「${p.name}」 프로그램을 삭제할까요?\n등록자: ${p.owner} · ${p.dept}\n배포된 서비스와 등록 정보가 함께 삭제되며 되돌릴 수 없습니다.`)) {
+                          deleteProgram(p.id)
+                        }
+                      }}
+                    >삭제</button>
                   </div>
                 </td>
               </tr>

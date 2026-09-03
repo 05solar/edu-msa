@@ -1,8 +1,9 @@
 import './My.css'
-import { useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { num, dot, catOf } from '../../lib/helpers'
 import { ROLE_LABEL } from '../../data/catalog'
 import { useApp } from '../../state/AppContext'
+import { api, USE_API } from '../../api/client'
 import { Icon } from '../../icons/Icon'
 import { StatusBadge } from '../../components/program/Badges'
 import { ProgramCard } from '../../components/program/ProgramCard'
@@ -17,15 +18,57 @@ const NOTI_ICON: Record<NotiKind, Parameters<typeof Icon>[0]['name']> = {
   comment: 'comment', reject: 'warn', submit: 'info', version: 'upload', approve: 'check',
 }
 
+/** '1.0.0' → '1.0.1' — 마지막 숫자 조각만 +1 (관례적 패치 버전 올림 기본값). */
+function bumpPatch(ver: string): string {
+  const m = ver.match(/^(.*?)(\d+)$/)
+  return m ? m[1] + (parseInt(m[2], 10) + 1) : ver
+}
+
+const DEPLOYING = ['pending', 'validating', 'building', 'deploying']
+
 export function My() {
   const { role, myPrograms, favPrograms, myNotis, unreadCount, readNoti, readAllNotis, go, myTab, setMyTab,
-    account, demoMode, requestRoleUpgrade, cancelRoleUpgrade } = useApp()
+    account, demoMode, requestRoleUpgrade, cancelRoleUpgrade, redeployProgram, deleteProgram } = useApp()
   const canRegister = role === 'coder' || role === 'admin'
   const tab: Tab = (!canRegister && myTab === 'mine') ? 'fav' : myTab
   const setTab = setMyTab
   const [status, setStatus] = useState<'all' | ProgramStatus>('all')
   const [reqRole, setReqRole] = useState<'coder' | 'admin' | ''>('')
   const [reqReason, setReqReason] = useState('')
+
+  // 재배포 인라인 패널 + 진행 상태 폴링
+  const [redeployFor, setRedeployFor] = useState<number | null>(null)
+  const [newVer, setNewVer] = useState('')
+  const [redeployNote, setRedeployNote] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [watch, setWatch] = useState<Record<number, string>>({})
+
+  const openRedeploy = (id: number, ver: string) => {
+    setRedeployFor(id); setNewVer(bumpPatch(ver)); setRedeployNote('')
+  }
+  const submitRedeploy = async (id: number) => {
+    setSubmitting(true)
+    const ok = await redeployProgram(id, newVer, redeployNote)
+    setSubmitting(false)
+    if (ok) {
+      setRedeployFor(null)
+      setWatch((w) => ({ ...w, [id]: 'pending' }))
+    }
+  }
+
+  // 재배포를 건 프로그램의 배포 상태를 완료(running/failed)까지 3초마다 폴링한다.
+  useEffect(() => {
+    const ids = Object.entries(watch).filter(([, s]) => DEPLOYING.includes(s)).map(([id]) => Number(id))
+    if (!USE_API || ids.length === 0) return
+    const t = window.setInterval(() => {
+      ids.forEach((id) => {
+        api.deploymentOf(id)
+          .then((d) => { if (d) setWatch((w) => ({ ...w, [id]: d.status })) })
+          .catch(() => { /* 일시 오류 무시 */ })
+      })
+    }, 3000)
+    return () => window.clearInterval(t)
+  }, [watch])
 
   const isUser = role === 'user'
   const title = isUser ? '마이페이지' : '내 프로그램'
@@ -119,33 +162,94 @@ export function My() {
                   <thead><tr><th>프로그램</th><th>업무 분야</th><th>버전</th><th>상태</th><th>조회/다운로드</th><th>최근</th><th></th></tr></thead>
                   <tbody>
                     {filteredMine.map((p) => (
-                      <tr key={p.id}>
-                        <td>
-                          <div style={{ fontWeight: 600, cursor: 'pointer' }} onClick={() => go('detail', p.id)}>{p.name}</div>
-                          {p.status === 'rejected' && p.rejectReason && (
-                            <div className="reject-box">
-                              <h5><Icon name="warn" size={13} /> 반려 사유</h5>
-                              <p>{p.rejectReason}</p>
+                      <Fragment key={p.id}>
+                        <tr>
+                          <td>
+                            <div style={{ fontWeight: 600, cursor: 'pointer' }} onClick={() => go('detail', p.id)}>{p.name}</div>
+                            {p.status === 'rejected' && p.rejectReason && (
+                              <div className="reject-box">
+                                <h5><Icon name="warn" size={13} /> 반려 사유</h5>
+                                <p>{p.rejectReason}</p>
+                              </div>
+                            )}
+                            {p.status === 'stopped' && p.stopReason && (
+                              <div className="reject-box" style={{ borderColor: 'var(--line)', background: 'var(--surface-subtle)' }}>
+                                <h5 style={{ color: '#4A5768' }}><Icon name="info" size={13} /> 공개 중지 사유</h5>
+                                <p>{p.stopReason}</p>
+                              </div>
+                            )}
+                          </td>
+                          <td>{catOf(p.cat).name}</td>
+                          <td><span className="ver-chip">v{p.ver}</span></td>
+                          <td>
+                            <StatusBadge status={p.status} />
+                            {watch[p.id] && (
+                              DEPLOYING.includes(watch[p.id]) ? (
+                                <div style={{ fontSize: 12, color: 'var(--brand)', marginTop: 4 }}>배포 중… ({watch[p.id]})</div>
+                              ) : watch[p.id] === 'running' ? (
+                                <div style={{ fontSize: 12, color: 'var(--ok, #17693a)', marginTop: 4 }}>✓ 새 버전 배포 완료</div>
+                              ) : (
+                                <div style={{ fontSize: 12, color: 'var(--danger, #9c2121)', marginTop: 4 }}>배포 실패 — 상세에서 로그 확인</div>
+                              )
+                            )}
+                          </td>
+                          <td>{num(p.views)} / {num(p.downloads)}</td>
+                          <td>{dot(p.updated)}</td>
+                          <td>
+                            <div className="my-table-actions">
+                              {p.status === 'public' && (
+                                <button
+                                  className="btn btn-sm btn-primary"
+                                  disabled={DEPLOYING.includes(watch[p.id] ?? '')}
+                                  onClick={() => (redeployFor === p.id ? setRedeployFor(null) : openRedeploy(p.id, p.ver))}
+                                  title="GitHub 레포를 갱신했다면 새 버전으로 다시 배포합니다"
+                                >
+                                  <Icon name="upload" size={13} /> 재배포
+                                </button>
+                              )}
+                              <button className="btn btn-sm" onClick={() => go('detail', p.id)}>보기</button>
+                              <button
+                                className="btn btn-sm btn-danger"
+                                title="프로그램과 배포된 서비스를 함께 삭제합니다"
+                                onClick={() => {
+                                  if (window.confirm(`「${p.name}」 프로그램을 삭제할까요?\n배포된 서비스와 등록 정보가 함께 삭제되며 되돌릴 수 없습니다.`)) {
+                                    deleteProgram(p.id)
+                                  }
+                                }}
+                              >삭제</button>
                             </div>
-                          )}
-                          {p.status === 'stopped' && p.stopReason && (
-                            <div className="reject-box" style={{ borderColor: 'var(--line)', background: 'var(--surface-subtle)' }}>
-                              <h5 style={{ color: '#4A5768' }}><Icon name="info" size={13} /> 공개 중지 사유</h5>
-                              <p>{p.stopReason}</p>
-                            </div>
-                          )}
-                        </td>
-                        <td>{catOf(p.cat).name}</td>
-                        <td><span className="ver-chip">v{p.ver}</span></td>
-                        <td><StatusBadge status={p.status} /></td>
-                        <td>{num(p.views)} / {num(p.downloads)}</td>
-                        <td>{dot(p.updated)}</td>
-                        <td>
-                          <div className="my-table-actions">
-                            <button className="btn btn-sm" onClick={() => go('detail', p.id)}>보기</button>
-                          </div>
-                        </td>
-                      </tr>
+                          </td>
+                        </tr>
+                        {redeployFor === p.id && (
+                          <tr>
+                            <td colSpan={7} style={{ background: 'var(--surface-subtle)' }}>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, padding: '6px 2px' }}>
+                                <b style={{ fontSize: 13.5 }}>새 버전으로 재배포</b>
+                                <span style={{ fontSize: 12.5, color: 'var(--ink-400)' }}>
+                                  레포(<code style={{ fontSize: 12 }}>{p.repo}</code> · {p.branch})의 최신 코드를 다시 빌드해 배포합니다.
+                                </span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', width: '100%' }}>
+                                  <span style={{ fontSize: 13 }}>버전 v{p.ver} →</span>
+                                  <input
+                                    className="input" style={{ width: 110 }} value={newVer}
+                                    onChange={(e) => setNewVer(e.target.value)} placeholder={bumpPatch(p.ver)}
+                                  />
+                                  <input
+                                    className="input" style={{ flex: 1, minWidth: 200 }} value={redeployNote}
+                                    onChange={(e) => setRedeployNote(e.target.value)}
+                                    placeholder="변경 내용 (업데이트 내역에 기록, 예: 계산 오류 수정)"
+                                    maxLength={120}
+                                  />
+                                  <button className="btn btn-sm btn-primary" disabled={submitting || !newVer.trim()} onClick={() => submitRedeploy(p.id)}>
+                                    {submitting ? '요청 중…' : '재배포 실행'}
+                                  </button>
+                                  <button className="btn btn-sm" disabled={submitting} onClick={() => setRedeployFor(null)}>취소</button>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
                     ))}
                   </tbody>
                 </table>

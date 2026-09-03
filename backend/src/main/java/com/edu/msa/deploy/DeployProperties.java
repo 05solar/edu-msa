@@ -12,6 +12,8 @@ public class DeployProperties {
     @Value("${edu.deploy.ingress-host:edu.internal}") private String ingressHost;
     @Value("${edu.deploy.registry:registry.edu.internal}") private String registry;
     @Value("${edu.deploy.build-namespace:edu-platform}") private String buildNamespace; // Kaniko 빌드 실행 ns
+    // 레지스트리가 HTTP(비TLS)일 때 Kaniko 에 --insecure 를 준다 (kind 로컬 레지스트리, 일부 사내 레지스트리)
+    @Value("${edu.deploy.kaniko-insecure:false}") private boolean kanikoInsecure;
     @Value("${edu.deploy.replicas:1}")         private int replicas;
     @Value("${edu.deploy.cpu-limit:500m}")     private String cpuLimit;
     @Value("${edu.deploy.memory-limit:512Mi}") private String memoryLimit;
@@ -70,6 +72,7 @@ public class DeployProperties {
     public String ingressHost() { return ingressHost; }
     public String registry() { return registry; }
     public String buildNamespace() { return buildNamespace; }
+    public boolean kanikoInsecure() { return kanikoInsecure; }
     public int replicas() { return replicas; }
     public String cpuLimit() { return cpuLimit; }
     public String memoryLimit() { return memoryLimit; }

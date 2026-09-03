@@ -59,6 +59,56 @@ public class ProgramService {
                 .toList();
     }
 
+    /**
+     * 등록자 본인 재배포 — 레포를 갱신한 소유자가 새 버전으로 다시 배포를 요청한다.
+     * 소유자 검증을 서버에서 강제하고(ADMIN 은 전체 허용), 배포 대상 레포는 저장된
+     * 값만 사용한다. 버전이 바뀌면 업데이트 내역(history)에 기록을 남긴다.
+     */
+    @Transactional
+    public Program requestRedeploy(Long id, String requester, boolean admin, String version, String note) {
+        Program p = programs.findById(id)
+                .orElseThrow(() -> new NotFoundException("프로그램을 찾을 수 없습니다: " + id));
+        if (!admin && !p.getOwner().equals(requester)) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "본인이 등록한 프로그램만 재배포할 수 있습니다.");
+        }
+        if (p.getStatus() != ProgramStatus.PUBLIC) {
+            throw new IllegalArgumentException(
+                    "공개 중인 프로그램만 재배포할 수 있습니다. (현재 상태: " + p.getStatus().code() + ")");
+        }
+        LocalDate today = LocalDate.now();
+        if (version != null && !version.isBlank()) {
+            p.setVersion(version.trim());
+        }
+        p.getHistory().add(new HistoryEntry(p.getVersion(), today.toString(),
+                note != null && !note.isBlank() ? note.trim() : "레포 업데이트 재배포"));
+        p.setUpdatedAt(today);
+        return p;
+    }
+
+    /**
+     * 삭제 권한 검증 — 소유자 본인 또는 운영 관리자(ADMIN)만 삭제할 수 있다.
+     * 배포 흔적 정리(DeploymentService.removeFor)보다 먼저 호출해 권한 없는 삭제 시도를 차단한다.
+     */
+    @Transactional(readOnly = true)
+    public Program requireDeletable(Long id, String requester, boolean admin) {
+        Program p = programs.findById(id)
+                .orElseThrow(() -> new NotFoundException("프로그램을 찾을 수 없습니다: " + id));
+        if (!admin && !p.getOwner().equals(requester)) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "본인이 등록한 프로그램만 삭제할 수 있습니다.");
+        }
+        return p;
+    }
+
+    /** 프로그램과 부속 데이터(의견·알림)를 삭제한다. 권한 검증과 배포 정리는 호출부가 선행한다. */
+    @Transactional
+    public void delete(Long id) {
+        comments.deleteByProgramId(id);
+        notifications.deleteForProgram(id);
+        programs.deleteById(id);
+    }
+
     @Transactional(readOnly = true)
     public List<ProgramSummaryResponse> pending() {
         return programs.findByStatus(ProgramStatus.PENDING).stream()

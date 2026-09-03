@@ -1,5 +1,5 @@
 import './Detail.css'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   catOf, num, dot, cloneCmd, repoName, branchOf, featuresOf, runOf, runTypeOf, initialOf, statusLabel,
 } from '../../lib/helpers'
@@ -11,6 +11,18 @@ import { RunModal } from '../../components/RunModal/RunModal'
 import { USE_API, api, type DeploymentResponse } from '../../api/client'
 
 type Tab = 'desc' | 'readme' | 'history' | 'comments'
+
+/**
+ * 배포 로그에서 실패 원인 줄만 추린다. 로그는 "- " 접두의 진행 줄 목록이며
+ * 실패 시 "검증 오류:"/"배포 실패:" 류의 줄이 원인을 담는다. 원인 줄이 없으면
+ * 마지막 몇 줄을 보여줘 최소한의 단서를 남긴다.
+ */
+function failReasonOf(log: string | null): string[] {
+  if (!log) return []
+  const lines = log.split('\n').map((l) => l.replace(/^-\s*/, '').trim()).filter(Boolean)
+  const errs = lines.filter((l) => /(검증 오류|배포 실패|오류|실패|error)/i.test(l))
+  return (errs.length ? errs : lines).slice(-4)
+}
 
 function renderReadme(lines: string[]): ReactNode[] {
   const out: ReactNode[] = []
@@ -57,6 +69,8 @@ export function Detail() {
     }, 3000)
     return () => window.clearInterval(t)
   }, [detailId, deploy?.status])
+
+  const failReason = useMemo(() => failReasonOf(deploy?.status === 'failed' ? deploy.log : null), [deploy])
 
   const p = detailId ? progOf(detailId) : null
   if (!p) {
@@ -138,9 +152,19 @@ export function Detail() {
                 {deploy && ['pending', 'validating', 'building', 'deploying'].includes(deploy.status)
                   ? '배포가 끝나면 자동으로 "웹에서 바로 사용"으로 바뀝니다. (레포 수집·빌드에 수십 초~수 분 소요)'
                   : deploy?.status === 'failed'
-                    ? '배포에 실패했습니다. 레포 규격(service.yaml·Dockerfile)을 확인한 뒤 다시 시도하세요.'
+                    ? '배포에 실패했습니다. 아래 실패 원인을 확인한 뒤 다시 시도하세요.'
                     : '내부망 전용 · 개인정보 처리 시 주의'}
               </div>
+              {deploy?.status === 'failed' && failReason.length > 0 && (
+                <div className="deploy-fail-box">
+                  <h5><Icon name="warn" size={13} /> 배포 실패 원인</h5>
+                  <ul>
+                    {failReason.map((l, i) => <li key={i}>{l}</li>)}
+                  </ul>
+                  <div className="dfb-hint">레포 규격(service.yaml·Dockerfile·PORT·/healthz)을 점검해 주세요.
+                    수정 후 재배포는 <b>내 프로그램 → 재배포</b>에서 할 수 있습니다.</div>
+                </div>
+              )}
             </div>
           </div>
           <div className="tabs">

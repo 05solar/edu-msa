@@ -21,6 +21,7 @@ spec:
             - "--context={{CONTEXT}}"
             - "--dockerfile=Dockerfile"
             - "--destination={{IMAGE}}"
+            {{EXTRA_ARGS}}
 {{GIT_CRED_ENV}}
           volumeMounts:
             - name: docker-config

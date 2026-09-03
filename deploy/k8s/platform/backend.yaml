@@ -48,6 +48,13 @@ spec:
               value: edu-services
             - name: EDU_DEPLOY_INGRESS_HOST
               value: edu.internal
+# Kaniko push 대상이자 테넌트 매니페스트의 이미지 접두어(노드가 pull 가능해야 함).
+            # bootstrap.sh 가 REGISTRY 값으로 치환한다.
+            - name: EDU_DEPLOY_REGISTRY
+              value: registry.edu.internal
+            # 레지스트리가 HTTP(비TLS)면 "true" (kind 로컬 레지스트리 등)
+            - name: EDU_DEPLOY_KANIKO_INSECURE
+              value: "false"
             # 내부 Gitea 연동(3단계): 비공개 레포 clone 자격 증명.
             # Secret(edu-gitea-token)은 bootstrap stack 이 봇 계정과 함께 생성한다(optional).
             - name: EDU_GITEA_HOST
@@ -60,7 +67,7 @@ spec:
               valueFrom: { secretKeyRef: { name: edu-gitea-token, key: username, optional: true } }
             - name: EDU_GITEA_TOKEN
               valueFrom: { secretKeyRef: { name: edu-gitea-token, key: token, optional: true } }
-            # push webhook 서명 검증 시크릿(4단계) — bootstrap 이 Gitea system webhook 과 함께 생성
+            # push webhook 서명 검증 시크릿(4단계) — bootstrap 이 Gitea default webhook 과 함께 생성
             - name: EDU_GITEA_WEBHOOK_SECRET
               valueFrom: { secretKeyRef: { name: edu-gitea-webhook, key: secret, optional: true } }
           ports:

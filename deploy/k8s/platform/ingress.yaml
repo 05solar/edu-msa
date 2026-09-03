@@ -6,6 +6,11 @@ metadata:
   # rewrite-target 은 두지 않는다.
   # 캡처 그룹 없는 경로에 rewrite-target: / 를 걸면 /api/auth/login 같은 요청이
   # 모두 / 로 재작성되어 백엔드에 도달하지 못한다. 경로를 그대로 전달해야 한다.
+  annotations:
+    # 같은 호스트의 테넌트 Ingress 가 TLS 를 붙이면 ingress-nginx 가 host 전체에
+    # https 308 을 강제해 HTTP 경유(전면 Nginx 종료·로컬 kind) 요청이 막힌다.
+    # TLS 는 엣지에서 종료하므로 ingress 단 리다이렉트는 끈다.
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
 spec:
   ingressClassName: nginx
   rules:

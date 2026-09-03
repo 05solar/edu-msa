@@ -106,6 +106,8 @@ interface AppContextValue {
   setUserRole: (name: string, role: Role) => void
 
   addProgram: (input: NewProgramInput) => void
+  redeployProgram: (id: number, version: string, note: string) => Promise<boolean>
+  deleteProgram: (id: number) => Promise<boolean>
   addComment: (id: number, body: { user: string; dept: string; body: string }) => void
   loadDetail: (id: number) => void
 
@@ -526,6 +528,44 @@ export function AppProvider({ children }: { children: ReactNode }) {
     toast('등록 요청이 접수되었습니다. 운영 관리자 검토 후 공개됩니다.', 'ok')
   }, [programs, me.name, me.dept, pushNoti, toast, refreshPrograms, refreshNotisFor])
 
+  /** 등록자 본인 재배포 — 성공 시 true. 목록 갱신은 호출부가 상태 폴링 후 수행한다. */
+  const redeployProgram = useCallback(async (id: number, version: string, note: string): Promise<boolean> => {
+    if (!USE_API) {
+      toast('재배포는 백엔드 연동 모드(VITE_USE_API=true)에서 동작합니다.', 'warn')
+      return false
+    }
+    try {
+      await api.redeployProgram(id, { version: version.trim() || undefined, note: note.trim() || undefined })
+      refreshPrograms()
+      toast('재배포를 시작했습니다. 빌드가 끝나면 새 버전이 자동 반영됩니다.', 'ok')
+      return true
+    } catch (e) {
+      toast('재배포 요청 실패: ' + (e as Error).message, 'warn')
+      return false
+    }
+  }, [toast, refreshPrograms])
+
+  /**
+   * 프로그램 삭제 — 소유자 본인(관리자는 전체). 서버가 소유자 검증과 배포 흔적 정리를 수행하고,
+   * 성공 시 목록·알림에서 제거한다. 목업 모드에서는 로컬 상태에서만 삭제한다.
+   */
+  const deleteProgram = useCallback(async (id: number): Promise<boolean> => {
+    const target = programs.find((p) => p.id === id)
+    if (USE_API) {
+      try {
+        await api.deleteProgram(id)
+      } catch (e) {
+        toast('삭제 실패: ' + (e as Error).message, 'warn')
+        return false
+      }
+    }
+    setPrograms((prev) => prev.filter((p) => p.id !== id))
+    setNotis((prev) => prev.filter((n) => n.pid !== id))
+    setDetailId((d) => (d === id ? null : d))
+    toast(`「${target?.name ?? '프로그램'}」 프로그램을 삭제했습니다.`, 'ok')
+    return true
+  }, [programs, toast])
+
   const addComment = useCallback((id: number, body: { user: string; dept: string; body: string }) => {
     if (USE_API) {
       api.addComment(id, body).then(() => loadDetail(id)).catch((e) => toast('의견 등록 실패: ' + (e as Error).message, 'warn'))
@@ -551,7 +591,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     favorites, isFav, toggleFav, favPrograms,
     notis, myNotis, unreadCount, readNoti, readAllNotis,
     adminLog, users, pendingPrograms, reviewProgram, setUserRole,
-    addProgram, addComment, loadDetail,
+    addProgram, redeployProgram, deleteProgram, addComment, loadDetail,
     toasts, toast, dismissToast,
     modal, openModal, closeModal,
   }

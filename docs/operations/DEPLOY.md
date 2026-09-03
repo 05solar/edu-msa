@@ -54,6 +54,40 @@ WITH_EXAMPLES=1 ./deploy/bootstrap.sh up
 | `WITH_EXAMPLES` | `0` | `up` 시 서브 프로그램 7종도 함께 배포 |
 | `IMAGE_TAG` | `latest` | 이미지 태그 |
 
+### Production 타겟 (edu-poc.headit.kr 운영 서버)
+
+운영 도메인이 고정된 전용 타겟이 있다. `IMAGE_TAG` 가 실행 시각으로 자동 부여되어
+재배포 때마다 롤링 업데이트가 일어난다.
+
+```bash
+make prod-preflight PROD_REGISTRY=<레지스트리>  # ★ 먼저 — 전제조건 일괄 점검(읽기 전용)
+make prod-deploy    PROD_REGISTRY=<레지스트리>  # 최초/전체 (코어+운영스택)
+make prod-core      PROD_REGISTRY=<레지스트리>  # 코드 반영 재배포 (평시 사용)
+make prod-examples  PROD_REGISTRY=<레지스트리>  # 기본 예제 7종 (와일드카드 DNS 필요)
+make prod-registry-secret PROD_REGISTRY=.. REG_USER=.. REG_PASS=..  # Kaniko push 인증(사설 레지스트리)
+make prod-status                                # 상태 확인
+```
+
+**GitHub 레포 빌드(real 파이프라인)가 실서버에서 동작하기 위한 전제** — `prod-preflight` 가 점검한다:
+
+1. **RBAC** — `rbac.yaml` 이 배포 SA(edu-deployer)에 Kaniko Job(batch)·HPA·PDB 권한까지
+   부여한다(코어 배포에 포함). 이 권한이 없으면 배포가 전부 Forbidden 으로 실패한다.
+2. **레지스트리** — `PROD_REGISTRY` 는 ①운영자 PC(docker push) ②클러스터 안 Kaniko(push)
+   ③노드 kubelet(pull) 세 곳 모두에서 같은 주소로 접근 가능해야 한다.
+   사설이면 `make prod-registry-secret` 으로 push 인증(edu-registry-auth)을 만들고,
+   노드 pull 인증은 노드 containerd 설정 또는 imagePullSecrets 로 별도 구성한다.
+   HTTP(비TLS) 레지스트리면 backend env `EDU_DEPLOY_KANIKO_INSECURE=true`.
+3. **egress** — 클러스터에서 github.com(clone)·gcr.io(Kaniko 이미지) 접근 필요.
+   폐쇄망이면 Kaniko executor 이미지를 사내 레지스트리로 미러링.
+
+**예제 7종의 서브도메인**(`<slug>.edu-poc.headit.kr`)은 ① DNS `*.edu-poc.headit.kr` →
+서버 IP, ② 전면 Nginx 에 `server_name *.edu-poc.headit.kr` 프록시 블록
+(`proxy_set_header Host $host` 필수), ③ 와일드카드 인증서(LE DNS-01) 가 전제다.
+등록 프로그램의 real 파이프라인은 경로 방식(`/svc/<slug>`)이라 이 전제 없이 동작한다.
+(전면 Nginx 가 TLS 종료 후 ingress 로 HTTP 프록시하면 ingress 의 ssl-redirect 로
+308 루프가 날 수 있다 — ingress-nginx 설정 `ssl-redirect: "false"` 또는 HTTPS 프록시
++`proxy_ssl_verify off` 로 해소.)
+
 ### 사전 준비물
 
 - 공통: `docker`, `kubectl`, `git` (실행 중인 docker 데몬)

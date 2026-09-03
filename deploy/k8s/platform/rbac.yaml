@@ -23,6 +23,13 @@ rules:
   - apiGroups: [""]
     resources: ["pods"]
     verbs: ["get", "list", "watch"]
+  # 서비스 템플릿에 포함된 오토스케일(HPA)·무중단(PDB) 리소스 — 없으면 kubectl apply 가 Forbidden
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["policy"]
+    resources: ["poddisruptionbudgets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -36,4 +43,74 @@ subjects:
 roleRef:
   kind: Role
   name: edu-deployer
+  apiGroup: rbac.authorization.k8s.io
+---
+# 비신뢰(외부 사용자) 서비스가 배치되는 edu-services-public 에도 동일 권한이 필요하다.
+# (네임스페이스는 hardening/00-namespaces-tiers.yaml 이 만든다 — 없으면 이 Role 적용은 무시해도 됨)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: edu-deployer
+  namespace: edu-services-public
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["policy"]
+    resources: ["poddisruptionbudgets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: edu-deployer
+  namespace: edu-services-public
+subjects:
+  - kind: ServiceAccount
+    name: edu-deployer
+    namespace: edu-platform
+roleRef:
+  kind: Role
+  name: edu-deployer
+  apiGroup: rbac.authorization.k8s.io
+---
+# Kaniko 인클러스터 빌드 — 백엔드가 빌드 네임스페이스(edu-platform)에 Job 을 생성/감시한다.
+# (real 모드 필수. 이 권한이 없으면 "Kaniko 빌드 Job 생성 실패"로 GitHub 레포 배포가 전부 실패)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: edu-builder
+  namespace: edu-platform
+rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: edu-builder
+  namespace: edu-platform
+subjects:
+  - kind: ServiceAccount
+    name: edu-deployer
+    namespace: edu-platform
+roleRef:
+  kind: Role
+  name: edu-builder
   apiGroup: rbac.authorization.k8s.io

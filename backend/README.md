@@ -59,6 +59,7 @@ com.edu.msa
 | `GET /api/health`, `/api/healthz`, `/api/catalog/**`, `/actuator/**` | 공개 |
 | `GET /api/programs`, `/api/programs/{id}`, 의견 등록 등 | 로그인 사용자 |
 | `POST /api/programs` (프로그램 등록), `POST /api/deploy/validate` (레포 규격 정적 검증) | CODER 이상 |
+| `DELETE /api/programs/{id}` (프로그램 삭제 — 소유자 본인, ADMIN은 전체. 배포 컨테이너/K8s 리소스·라우트·의견·알림도 함께 정리) | CODER 이상(소유자 검증) |
 | `/api/programs/all`, `/api/programs/pending`, `/api/programs/*/review`, `/api/review/logs`, `/api/programs/*/deploy`, `/api/deploy`, `/api/users`, `/api/users/*/role` | ADMIN |
 
 계정·권한의 단일 소스는 auth-service다. 회원가입은 항상 최소 권한(USER)으로 만들어지고,

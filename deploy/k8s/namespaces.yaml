@@ -12,3 +12,12 @@ metadata:
   labels:
     app.kubernetes.io/part-of: edu-msa
     # 바이브 코더가 올린 서비스가 배포되는 네임스페이스
+---
+# 비신뢰(외부 사용자·소유 불명) 서비스 배치 네임스페이스 — real 모드 배포 대상.
+# 격리 라벨(PodSecurity restricted 등)은 hardening/00-namespaces-tiers.yaml 이 덧씌운다.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: edu-services-public
+  labels:
+    app.kubernetes.io/part-of: edu-msa

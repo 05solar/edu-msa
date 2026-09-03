@@ -31,6 +31,12 @@ public final class DeployDtos {
             String actor
     ) {}
 
+    /** 등록자 본인 재배포 요청 — 레포 주소는 서버에 저장된 값을 쓰므로 받지 않는다. */
+    public record RedeployRequest(
+            String version,
+            String note
+    ) {}
+
     public record DeploymentResponse(
             Long id, Long programId, String slug, String name,
             DeploymentStatus status, String url, String imageTag, String mode,

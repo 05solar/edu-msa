@@ -65,6 +65,9 @@ public class ManifestRenderer {
                 .replace("{{NAMESPACE}}", namespace)
                 .replace("{{IMAGE}}", image)
                 .replace("{{CONTEXT}}", ctx)
+                // HTTP(비TLS) 레지스트리 지원 — edu.deploy.kaniko-insecure=true 일 때만
+                .replace("{{EXTRA_ARGS}}",
+                        props.kanikoInsecure() ? "- \"--insecure\"\n            - \"--insecure-pull\"" : "")
                 // 내부 Gitea 비공개 레포일 때만 봇 자격 증명 env 를 Secret 참조로 주입한다
                 // (매니페스트에 토큰 평문이 들어가지 않음). 그 외 레포는 빈 문자열.
                 .replace("{{GIT_CRED_ENV}}", props.isGiteaRepo(repoUrl) ? GIT_CRED_ENV : "");

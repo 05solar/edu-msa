@@ -106,3 +106,11 @@
   border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;
   animation:dh-spin .7s linear infinite}
 @keyframes dh-spin{to{transform:rotate(360deg)}}
+
+/* 배포 실패 원인 박스 — 실패 버튼 아래에 로그의 원인 줄을 그대로 보여준다 */
+.deploy-fail-box{border:1px solid #F5C7C2;background:var(--danger-soft);border-radius:var(--r);
+  padding:12px 14px;margin-top:10px;max-width:340px;text-align:left}
+.deploy-fail-box h5{font-size:13px;color:var(--danger);margin:0 0 6px;display:flex;align-items:center;gap:6px}
+.deploy-fail-box ul{margin:0;padding-left:18px}
+.deploy-fail-box li{font-size:12.5px;color:var(--ink-700);line-height:1.6;word-break:break-all}
+.deploy-fail-box .dfb-hint{font-size:12px;color:var(--ink-400);margin-top:8px;line-height:1.6}

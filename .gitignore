@@ -20,3 +20,9 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+
+# 대외 검토용 시각 문서 — 로컬에만 두고 원격에 올리지 않는다
+html/capacity-plan.html
+html/ismp-response.html
+html/service-feature-summary.html
+html/service-intro-slides.html

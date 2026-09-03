@@ -95,7 +95,9 @@ metadata:
   name: {{SLUG}}
   namespace: {{NAMESPACE}}
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
+    # 하위 경로 보존 rewrite — /svc/<slug>/foo → /foo (고정 '/' 는 모든 하위 경로를 루트로 밀어버린다)
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
     # 엣지 보안: 서비스별 rate-limit + WAF(ModSecurity/OWASP CRS)
     nginx.ingress.kubernetes.io/limit-rps: "20"
     nginx.ingress.kubernetes.io/limit-connections: "10"
@@ -115,8 +117,8 @@ spec:
     - host: {{HOST}}
       http:
         paths:
-          - path: /svc/{{SLUG}}
-            pathType: Prefix
+          - path: /svc/{{SLUG}}(/|$)(.*)
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: {{SLUG}}

@@ -195,3 +195,6 @@ database:
   비 push 이벤트 무시) 통과. 부수 확인: 최신 kind 의 NetworkPolicy 강제(egress 차단
   실증), admin hooks API 는 default webhook(신규 레포 자동 적용)을 만들며 기존 레포는
   개별 등록 필요.
+- 2026-09-03 — 6단계 통합 검증(전 구간 인클러스터): bootstrap 클린 배선 → 비공개
+  레포 등록→승인→Kaniko(봇 자격)→배포→ingress 200 → push→webhook→재배포 v2 →
+  파드 재시작 데이터 유지 → gitea dump 백업·추출 판독. 상세는 GITEA_PLAN.md 진행 기록.

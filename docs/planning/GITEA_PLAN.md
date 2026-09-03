@@ -230,3 +230,19 @@ auth-service는 자체 HS256 JWT 발급기로 **OIDC Provider가 아니다.** Gi
   / GitHub(병용)"으로 갱신, 비공개 레포 봇 초대·push 자동 재배포 안내 추가.
   검증(kind) — 스크립트 실행으로 7개 레포 생성·push, 조직 레포 목록 7종·raw
   service.yaml 200·웹 페이지 200, 재실행 멱등 확인.
+- 2026-09-03 — **6단계 완료·통합 검증** (feature/gitea, main 병합 포함): `bootstrap.sh up`
+  클린 실행으로 코어+운영스택+Gitea+봇/웹훅 Secret+default webhook 자동 배선(시나리오 1).
+  비공개 신규 레포 생성(default webhook 자동 적용 확인)→push→등록→승인→real 모드
+  Kaniko 빌드(봇 자격 증명)→K8s 배포→자동 공개→ingress 200(시나리오 2). 코드 push→
+  인클러스터 webhook(gitea→backend.svc)→자동 재배포→v2 반영(시나리오 3). gitea 파드
+  재시작 후 레포·파일·훅 유지(시나리오 4). `gitea dump` 백업 아카이브(DB+레포) 생성·
+  추출 판독(시나리오 5). 전체 스모크 — 비정상 파드 0, 3역할 로그인·카탈로그·상세·
+  Gitea·배포 서비스 전부 200, 종료 시 삭제 API 로 real 모드 리소스 정리까지 검증.
+  **발견·수정 3건**: ① 코어가 스택보다 먼저 떠서 Gitea Secret env 미주입 → bootstrap 에
+  Secret 신규 생성 시 backend 재기동 추가 ② Kaniko 가 git 컨텍스트를 https 로 강제 →
+  fetch 주소가 http 면 GIT_PULL_METHOD=http env 자동 주입 ③ 서비스 템플릿 ingress
+  `rewrite-target: /` 고정으로 모든 하위 경로가 루트로 소실(기존 버그) → 정규식 캡처
+  (`/svc/<slug>(/|$)(.*)` + `/$2`)로 수정, deploy/k8s 사본 동기화.
+  **한계·백로그 2건**: 동일 슬러그 동시 배포 직렬화 부재(두 워커가 같은 빌드 Job 경합),
+  워커 파드 중단 시 RUNNING 고아 작업 미회수 — VERSIONS 백로그 등재.
+  v0.7.0 태깅은 main 병합 시점에 수행.

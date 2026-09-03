@@ -313,8 +313,12 @@ EOF
 
   # 3단계(파이프라인 연동): 읽기 전용 배포 봇 + 토큰 → edu-platform Secret(edu-gitea-token).
   # backend 가 비공개 Gitea 레포 clone 에 사용한다. 이미 있으면 건너뜀(재실행 안전).
+  # Secret 을 이번 실행에서 새로 만들면 backend 를 재기동해 env 로 주입한다
+  # (코어가 스택보다 먼저 떠서 optional secretKeyRef 가 비어 있는 상태를 해소).
+  local gitea_secrets_created=0
   if kubectl get ns edu-platform >/dev/null 2>&1 \
       && ! kubectl -n edu-platform get secret edu-gitea-token >/dev/null 2>&1; then
+    gitea_secrets_created=1
     log "· Gitea 배포 봇(edu-deploy-bot) 계정·토큰 준비"
     local bpass btoken
     bpass="$(openssl rand -hex 12 2>/dev/null || head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')"
@@ -347,7 +351,7 @@ EOF
       whsecret="$(openssl rand -hex 16 2>/dev/null || head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')"
       kubectl -n edu-platform create secret generic edu-gitea-webhook \
         --from-literal=secret="$whsecret" >/dev/null 2>&1 \
-        && ok "edu-gitea-webhook Secret 생성 (edu-platform)" \
+        && { ok "edu-gitea-webhook Secret 생성 (edu-platform)"; gitea_secrets_created=1; } \
         || warn "edu-gitea-webhook Secret 생성 실패"
     fi
     # system webhook 등록(관리자 API) — 이미 같은 대상이 있으면 건너뜀(재실행 안전)
@@ -367,6 +371,12 @@ JSON
 )" >/dev/null 2>&1 \
         && ok "Gitea default webhook 등록 (신규 레포 push → ${hookurl})" \
         || warn "Gitea default webhook 등록 실패 — 관리자 화면에서 수동 등록 가능"
+    fi
+    if [ "$gitea_secrets_created" = 1 ]; then
+      log "· backend 재기동 (Gitea Secret env 주입)"
+      kubectl -n edu-platform rollout restart deploy/backend >/dev/null 2>&1 || true
+      kubectl -n edu-platform rollout status deploy/backend --timeout=180s >/dev/null 2>&1 \
+        || warn "backend 재기동 대기 초과"
     fi
   fi
 

@@ -68,19 +68,31 @@ public class ManifestRenderer {
                 // HTTP(비TLS) 레지스트리 지원 — edu.deploy.kaniko-insecure=true 일 때만
                 .replace("{{EXTRA_ARGS}}",
                         props.kanikoInsecure() ? "- \"--insecure\"\n            - \"--insecure-pull\"" : "")
-                // 내부 Gitea 비공개 레포일 때만 봇 자격 증명 env 를 Secret 참조로 주입한다
-                // (매니페스트에 토큰 평문이 들어가지 않음). 그 외 레포는 빈 문자열.
-                .replace("{{GIT_CRED_ENV}}", props.isGiteaRepo(repoUrl) ? GIT_CRED_ENV : "");
+                .replace("{{GIT_CRED_ENV}}", gitEnvBlock(repoUrl, fetchUrl));
     }
 
-    /** Kaniko git 컨텍스트 자격 증명 — edu-gitea-token Secret(username/token) 참조.
-     *  들여쓰기는 kaniko-job.yaml 의 컨테이너 키(10칸)에 맞춘다. */
-    private static final String GIT_CRED_ENV =
-            "          env:\n"
-            + "            - name: GIT_USERNAME\n"
-            + "              valueFrom: { secretKeyRef: { name: edu-gitea-token, key: username, optional: true } }\n"
-            + "            - name: GIT_PASSWORD\n"
-            + "              valueFrom: { secretKeyRef: { name: edu-gitea-token, key: token, optional: true } }";
+    /**
+     * Kaniko git 컨텍스트용 env 블록. 들여쓰기는 kaniko-job.yaml 의 컨테이너 키(10칸)에 맞춘다.
+     * - fetch 주소가 http 면 GIT_PULL_METHOD=http (kaniko 는 git 컨텍스트를 기본 https 로 받는다)
+     * - 내부 Gitea 레포면 봇 자격 증명을 Secret 참조로 주입(매니페스트에 토큰 평문 없음)
+     */
+    private String gitEnvBlock(String repoUrl, String fetchUrl) {
+        boolean plainHttp = fetchUrl.startsWith("http://");
+        boolean cred = props.isGiteaRepo(repoUrl);
+        if (!plainHttp && !cred) return "";
+        StringBuilder b = new StringBuilder("          env:\n");
+        if (plainHttp) {
+            b.append("            - name: GIT_PULL_METHOD\n")
+             .append("              value: \"http\"\n");
+        }
+        if (cred) {
+            b.append("            - name: GIT_USERNAME\n")
+             .append("              valueFrom: { secretKeyRef: { name: edu-gitea-token, key: username, optional: true } }\n")
+             .append("            - name: GIT_PASSWORD\n")
+             .append("              valueFrom: { secretKeyRef: { name: edu-gitea-token, key: token, optional: true } }\n");
+        }
+        return b.toString().stripTrailing();
+    }
 
     private String load() {
         return load("deploy-templates/service-template.yaml");

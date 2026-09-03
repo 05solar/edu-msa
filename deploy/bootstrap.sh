@@ -236,8 +236,64 @@ install_stack(){
       --from-literal=password="$gpass" >/dev/null 2>&1 || warn "gitea-admin Secret 생성 실패"
     warn "Gitea 관리자 Secret(gitea-admin) 생성 — 비밀번호 확인: kubectl -n gitea get secret gitea-admin -o jsonpath='{.data.password}' | base64 -d"
   fi
+  # 2단계(도메인·TLS·Ingress): 호스트는 예제 패턴과 동일 — kind gitea.localhost / server gitea.<DOMAIN>.
+  # ROOT_URL/DOMAIN 을 환경에 맞게 주입해 웹 링크·clone URL 이 Ingress 주소와 일치하게 한다.
+  local ghost; [ "$MODE" = kind ] && ghost="gitea.localhost" || ghost="gitea.${DOMAIN}"
   _try "Gitea (내부 코드 저장소)" helm upgrade --install gitea gitea-charts/gitea \
-      -n gitea -f "$K8S/platform/gitea/values.yaml" --wait --timeout 6m
+      -n gitea -f "$K8S/platform/gitea/values.yaml" \
+      --set-string "gitea.config.server.ROOT_URL=${SCHEME}://${ghost}/" \
+      --set-string "gitea.config.server.DOMAIN=${ghost}" \
+      --wait --timeout 6m
+
+  # 하드닝(1단계 리뷰 잔여 과제): PodSecurity 라벨 + 기본 차단 NetworkPolicy.
+  kubectl label ns gitea \
+      pod-security.kubernetes.io/enforce=baseline \
+      pod-security.kubernetes.io/warn=restricted \
+      pod-security.kubernetes.io/audit=restricted \
+      --overwrite >/dev/null 2>&1 || warn "gitea PodSecurity 라벨 적용 실패"
+  kubectl apply -f "$K8S/platform/gitea/networkpolicy.yaml" 2>/dev/null || warn "gitea NetworkPolicy 적용 실패"
+
+  # Ingress: 대용량 push 대비 body-size 512m. server 모드는 cert-manager(edu-ca) TLS 자동 발급.
+  local gtmp; gtmp="$(mktemp)"
+  cat > "$gtmp" <<EOF
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gitea
+  namespace: gitea
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 512m
+EOF
+  if [ "$MODE" = server ]; then
+    cat >> "$gtmp" <<EOF
+    cert-manager.io/cluster-issuer: edu-ca
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [ ${ghost} ]
+      secretName: gitea-tls
+EOF
+  else
+    cat >> "$gtmp" <<EOF
+spec:
+  ingressClassName: nginx
+EOF
+  fi
+  cat >> "$gtmp" <<EOF
+  rules:
+    - host: ${ghost}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: gitea-http
+                port: { number: 3000 }
+EOF
+  kubectl apply -f "$gtmp" 2>/dev/null && ok "Gitea Ingress 적용 · ${SCHEME}://${ghost}" \
+      || warn "gitea Ingress 적용 실패"
+  rm -f "$gtmp"
 
   ok "운영스택 설치 시도 완료 — 개별 상태는 kubectl get pods -A 로 확인하세요."
   warn "WAF(ModSecurity/CRS)는 ingress-nginx values 로 활성화합니다: deploy/k8s/platform/edge/README.md"

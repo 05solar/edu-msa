@@ -185,3 +185,13 @@ auth-service는 자체 HS256 JWT 발급기로 **OIDC Provider가 아니다.** Gi
   실행 검증**, 73KB 아카이브 생성), bootstrap Secret 블록 best-effort화 + 무작위
   fallback을 /dev/urandom 128bit로 보강. 남긴 과제: gitea ns NetworkPolicy/PSA는
   2단계(Ingress)에서, SECURITY.md 갱신 병행.
+- 2026-09-03 — **2단계 완료·검증** (feature/gitea): bootstrap `stack`에 Gitea Ingress
+  렌더링(kind `http://gitea.localhost` / server `https://gitea.<DOMAIN>` + edu-ca TLS,
+  `proxy-body-size: 512m`)과 ROOT_URL/DOMAIN `--set-string` 주입 추가. 1단계 잔여
+  과제였던 하드닝 반영 — PodSecurity 라벨(enforce=baseline, warn/audit=restricted) +
+  `platform/gitea/networkpolicy.yaml`(기본 차단, ingress-nginx→3000·DNS만 허용,
+  webhook egress는 4단계에서), SECURITY.md 갱신. kind 검증 — helm upgrade 후
+  app.ini `ROOT_URL=http://gitea.localhost/`·`DOMAIN=gitea.localhost` 확인, Ingress
+  경유 웹 200·API 응답, 테스트 레포 생성(201)→`git clone`/`push` 왕복(서버 파일
+  확인)→삭제(204), PSA 라벨·NetworkPolicy 3종 생성 확인. server 모드 TLS 분기는
+  heredoc 로직 검토·bash -n 통과(실서버 적용 시 edu-ca 인증서 발급 확인 필요).

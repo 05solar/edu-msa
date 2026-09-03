@@ -1,0 +1,39 @@
+# Gitea 네임스페이스 NetworkPolicy — 기본 차단 후 필요한 통신만 허용. (2단계 하드닝)
+# ※ 실제 강제는 CNI가 NetworkPolicy를 지원해야 함(Calico/Cilium 등).
+#    kind 기본 CNI(kindnet)는 미강제이므로, 실서버에서 Calico/Cilium 사용 권장.
+#
+# 허용 범위(1차):
+#   - ingress: ingress-nginx → gitea-http(3000) 만
+#   - egress:  DNS(kube-system:53) 만 — SQLite 내장이라 DB egress 불필요.
+#     webhook(→ backend) egress 는 4단계에서 별도 정책으로 연다.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: default-deny-all, namespace: gitea }
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: allow-dns, namespace: gitea }
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: allow-ingress-from-controller, namespace: gitea }
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: ingress-nginx } }
+      ports:
+        - { protocol: TCP, port: 3000 }

@@ -1,5 +1,6 @@
-# Gitea (내부 코드 저장소) — 1단계(설치) 값.
-# 도메인/TLS/Ingress 배선은 2단계(docs/planning/GITEA_PLAN.md §2)에서 한다.
+# Gitea (내부 코드 저장소) — 1단계(설치) + 2단계(도메인·TLS·Ingress) 값.
+# Ingress/TLS/NetworkPolicy 는 bootstrap.sh 가 배선한다(networkpolicy.yaml 동봉,
+# Ingress 는 모드별 호스트·TLS 분기 때문에 bootstrap 이 렌더링).
 #
 # 설계 결정:
 # - DB: 1단계는 내장 SQLite(단일 replica). 운영 전환 시 플랫폼 CNPG PostgreSQL 에
@@ -51,8 +52,11 @@ gitea:
     queue:
       TYPE: level
     server:
-      # 2단계에서 https://gitea.<DOMAIN>/ 으로 교체
+      # 기본값은 kind(HTTP). bootstrap.sh 가 모드에 맞게 --set-string 으로 덮어쓴다:
+      #   kind:   http://gitea.localhost/          server: https://gitea.<DOMAIN>/
+      # (웹 링크·clone URL 이 Ingress 주소와 일치해야 push/clone 안내가 올바르다)
       ROOT_URL: http://gitea.localhost/
+      DOMAIN: gitea.localhost
       DISABLE_SSH: true
     service:
       DISABLE_REGISTRATION: true  # 1차 운영 방침: 계정은 관리자가 발급

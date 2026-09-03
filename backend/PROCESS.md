@@ -10,6 +10,8 @@
 
 ## 진행 이력 (Change Log)
 
+- 2026-09-03 — 프로그램 삭제 API: DELETE /api/programs/{id} 신설(소유자 본인 또는 ADMIN, SecurityConfig에 CODER+ 규칙 추가). ProgramService.requireDeletable(소유자 검증)+delete(의견·알림·프로그램), DeploymentService.removeFor(모드별 컨테이너/K8s 리소스·Traefik 라우트 정리 + 배포·큐 행 삭제), 리포지토리 4종 deleteByProgramId 추가. 검증: compileJava 통과(test 태스크는 로컬 Gradle 워커 기동 불가 — CI에서 수행).
+
 - 2026-08-24 — Phase 2 시작: Gradle(Kotlin DSL) + Spring Boot 3 + Java 21 프로젝트 스캐폴드, application.yml, Dockerfile, 메타 문서.
 - 2026-08-24 — 도메인/영속화: program·review·notification·user·catalog 패키지, JPA 엔티티/리포지토리, 프론트 데이터 기반 JSON 시더(프로그램 16·사용자 7·알림 7·이력 4).
 - 2026-08-24 — 서비스/REST API: 목록/상세/등록/댓글, 승인·반려·중지·재개, 알림, 사용자 권한, 분류, 헬스. CORS·전역 예외 처리.

@@ -11,6 +11,7 @@ import com.edu.msa.deploy.dto.DeployDtos.SpecView;
 import com.edu.msa.deploy.dto.DeployDtos.ValidateRequest;
 import com.edu.msa.deploy.dto.DeployDtos.ValidationResult;
 import com.edu.msa.common.Role;
+import com.edu.msa.deploy.repository.DeployJobRepository;
 import com.edu.msa.deploy.repository.DeploymentRepository;
 import com.edu.msa.notification.NotificationService;
 import com.edu.msa.program.domain.Program;
@@ -34,6 +35,7 @@ public class DeploymentService {
     private final ServiceSpecValidator validator;
     private final ManifestRenderer renderer;
     private final DeploymentRepository deployments;
+    private final DeployJobRepository deployJobs;
     private final DeployProperties props;
     private final CommandRunner runner;
     private final ProgramRepository programs;
@@ -41,7 +43,8 @@ public class DeploymentService {
     private final AppUserRepository appUsers;
 
     public DeploymentService(SourceResolver resolver, SpecParser parser, ServiceSpecValidator validator,
-                             ManifestRenderer renderer, DeploymentRepository deployments, DeployProperties props,
+                             ManifestRenderer renderer, DeploymentRepository deployments,
+                             DeployJobRepository deployJobs, DeployProperties props,
                              CommandRunner runner, ProgramRepository programs, NotificationService notifications,
                              AppUserRepository appUsers) {
         this.resolver = resolver;
@@ -49,11 +52,45 @@ public class DeploymentService {
         this.validator = validator;
         this.renderer = renderer;
         this.deployments = deployments;
+        this.deployJobs = deployJobs;
         this.props = props;
         this.runner = runner;
         this.programs = programs;
         this.notifications = notifications;
         this.appUsers = appUsers;
+    }
+
+    /**
+     * 프로그램 삭제 시 배포 흔적을 정리한다 — 실행 중 컨테이너/K8s 리소스 제거(모드별),
+     * Traefik 라우트 파일 삭제, 배포 기록·작업 큐 행 삭제.
+     * 런타임 정리는 베스트 에포트로 수행하고 실패해도 예외를 던지지 않는다.
+     */
+    @Transactional
+    public void removeFor(Long programId) {
+        deployments.findTopByProgramIdOrderByIdDesc(programId).ifPresent(d -> {
+            String slug = d.getSlug();
+            if (slug != null && !slug.isBlank()) {
+                if (props.isDocker()) {
+                    runner.run(List.of("docker", "rm", "-f", "edu-svc-" + slug), null, 30);
+                    String dir = props.dynamicDir();
+                    if (dir != null && !dir.isBlank()) {
+                        try {
+                            Files.deleteIfExists(Path.of(dir, slug + ".yml"));
+                        } catch (Exception ignore) {
+                            // 라우트 파일 삭제 실패는 무시(다음 배포 시 덮어씀)
+                        }
+                    }
+                } else if (props.isReal()) {
+                    // 소유자 권한이 이미 바뀌었을 수 있으므로 두 네임스페이스 모두에서 정리한다.
+                    for (String ns : List.of(props.namespace(), props.namespacePublic())) {
+                        runner.run(List.of("kubectl", "delete", "deployment,service,ingress", slug,
+                                "-n", ns, "--ignore-not-found"), null, 60);
+                    }
+                }
+            }
+        });
+        deployJobs.deleteByProgramId(programId);
+        deployments.deleteByProgramId(programId);
     }
 
     /**

@@ -39,6 +39,12 @@ public class NotificationService {
         n.setRead(true);
     }
 
+    /** 프로그램 삭제 시 해당 프로그램을 가리키는 알림을 함께 정리한다(클릭 시 404 방지). */
+    @Transactional
+    public void deleteForProgram(Long programId) {
+        repo.deleteByProgramId(programId);
+    }
+
     @Transactional
     public void markAllRead(String name) {
         repo.findByToUserOrderByIdDesc(name).forEach(n -> n.setRead(true));

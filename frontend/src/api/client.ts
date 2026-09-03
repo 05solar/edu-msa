@@ -107,6 +107,8 @@ export const api = {
   // 등록자 본인 재배포 — 레포 주소는 서버 저장값을 쓰므로 버전·메모만 보낸다.
   redeployProgram: (id: number, body: { version?: string; note?: string }) =>
     req<unknown>(`/programs/${id}/redeploy`, { method: 'POST', body: JSON.stringify(body) }),
+  // 프로그램 삭제 — 소유자 본인(관리자는 전체). 배포 흔적·부속 데이터도 서버가 함께 정리한다.
+  deleteProgram: (id: number) => req<void>(`/programs/${id}`, { method: 'DELETE' }),
   deploymentOf: (id: number) => req<DeploymentResponse | null>(`/programs/${id}/deployment`),
 
   users: () => req<AppUser[]>('/users'),

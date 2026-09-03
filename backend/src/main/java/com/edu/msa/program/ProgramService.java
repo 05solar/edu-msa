@@ -86,6 +86,29 @@ public class ProgramService {
         return p;
     }
 
+    /**
+     * 삭제 권한 검증 — 소유자 본인 또는 운영 관리자(ADMIN)만 삭제할 수 있다.
+     * 배포 흔적 정리(DeploymentService.removeFor)보다 먼저 호출해 권한 없는 삭제 시도를 차단한다.
+     */
+    @Transactional(readOnly = true)
+    public Program requireDeletable(Long id, String requester, boolean admin) {
+        Program p = programs.findById(id)
+                .orElseThrow(() -> new NotFoundException("프로그램을 찾을 수 없습니다: " + id));
+        if (!admin && !p.getOwner().equals(requester)) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "본인이 등록한 프로그램만 삭제할 수 있습니다.");
+        }
+        return p;
+    }
+
+    /** 프로그램과 부속 데이터(의견·알림)를 삭제한다. 권한 검증과 배포 정리는 호출부가 선행한다. */
+    @Transactional
+    public void delete(Long id) {
+        comments.deleteByProgramId(id);
+        notifications.deleteForProgram(id);
+        programs.deleteById(id);
+    }
+
     @Transactional(readOnly = true)
     public List<ProgramSummaryResponse> pending() {
         return programs.findByStatus(ProgramStatus.PENDING).stream()

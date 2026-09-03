@@ -16,4 +16,6 @@ public interface DeployJobRepository extends JpaRepository<DeployJob, Long> {
     Long claimNextId();
 
     List<DeployJob> findAllByOrderByIdDesc();
+
+    void deleteByProgramId(Long programId);
 }

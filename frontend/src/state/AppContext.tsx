@@ -107,6 +107,7 @@ interface AppContextValue {
 
   addProgram: (input: NewProgramInput) => void
   redeployProgram: (id: number, version: string, note: string) => Promise<boolean>
+  deleteProgram: (id: number) => Promise<boolean>
   addComment: (id: number, body: { user: string; dept: string; body: string }) => void
   loadDetail: (id: number) => void
 
@@ -544,6 +545,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [toast, refreshPrograms])
 
+  /**
+   * 프로그램 삭제 — 소유자 본인(관리자는 전체). 서버가 소유자 검증과 배포 흔적 정리를 수행하고,
+   * 성공 시 목록·알림에서 제거한다. 목업 모드에서는 로컬 상태에서만 삭제한다.
+   */
+  const deleteProgram = useCallback(async (id: number): Promise<boolean> => {
+    const target = programs.find((p) => p.id === id)
+    if (USE_API) {
+      try {
+        await api.deleteProgram(id)
+      } catch (e) {
+        toast('삭제 실패: ' + (e as Error).message, 'warn')
+        return false
+      }
+    }
+    setPrograms((prev) => prev.filter((p) => p.id !== id))
+    setNotis((prev) => prev.filter((n) => n.pid !== id))
+    setDetailId((d) => (d === id ? null : d))
+    toast(`「${target?.name ?? '프로그램'}」 프로그램을 삭제했습니다.`, 'ok')
+    return true
+  }, [programs, toast])
+
   const addComment = useCallback((id: number, body: { user: string; dept: string; body: string }) => {
     if (USE_API) {
       api.addComment(id, body).then(() => loadDetail(id)).catch((e) => toast('의견 등록 실패: ' + (e as Error).message, 'warn'))
@@ -569,7 +591,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     favorites, isFav, toggleFav, favPrograms,
     notis, myNotis, unreadCount, readNoti, readAllNotis,
     adminLog, users, pendingPrograms, reviewProgram, setUserRole,
-    addProgram, redeployProgram, addComment, loadDetail,
+    addProgram, redeployProgram, deleteProgram, addComment, loadDetail,
     toasts, toast, dismissToast,
     modal, openModal, closeModal,
   }

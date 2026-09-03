@@ -9,6 +9,8 @@
 
 ## 진행 이력 (Change Log)
 
+- 2026-09-03 — 프로그램 삭제: api.deleteProgram + AppContext.deleteProgram(API/목업 겸용, 목록·알림·detailId 정리, 실패 토스트), 내 프로그램 표와 운영 관리자 전체 프로그램 탭에 확인창 딸린 삭제 버튼 추가. 검증: typecheck/빌드 통과, 목업 모드 E2E(내 프로그램 3→2행, 관리자 15→14행, 토스트·통계 갱신 확인).
+
 - 2026-08-24 — Vite+React+TSX 스캐폴드, tsconfig/index.html/package.json 작성.
 - 2026-08-24 — 디자인 시스템 CSS 이식(tokens/base), 인라인 SVG 아이콘 세트 작성.
 - 2026-08-24 — 목업 데이터/도메인 타입/AppContext 상태·라우팅, 앱 셸(Sidebar/Topbar/Footer/Toast/Modal), 데모 로그인 페이지.

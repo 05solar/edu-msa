@@ -28,7 +28,7 @@ const DEPLOYING = ['pending', 'validating', 'building', 'deploying']
 
 export function My() {
   const { role, myPrograms, favPrograms, myNotis, unreadCount, readNoti, readAllNotis, go, myTab, setMyTab,
-    account, demoMode, requestRoleUpgrade, cancelRoleUpgrade, redeployProgram } = useApp()
+    account, demoMode, requestRoleUpgrade, cancelRoleUpgrade, redeployProgram, deleteProgram } = useApp()
   const canRegister = role === 'coder' || role === 'admin'
   const tab: Tab = (!canRegister && myTab === 'mine') ? 'fav' : myTab
   const setTab = setMyTab
@@ -208,6 +208,15 @@ export function My() {
                                 </button>
                               )}
                               <button className="btn btn-sm" onClick={() => go('detail', p.id)}>보기</button>
+                              <button
+                                className="btn btn-sm btn-danger"
+                                title="프로그램과 배포된 서비스를 함께 삭제합니다"
+                                onClick={() => {
+                                  if (window.confirm(`「${p.name}」 프로그램을 삭제할까요?\n배포된 서비스와 등록 정보가 함께 삭제되며 되돌릴 수 없습니다.`)) {
+                                    deleteProgram(p.id)
+                                  }
+                                }}
+                              >삭제</button>
                             </div>
                           </td>
                         </tr>

@@ -28,6 +28,7 @@ edu-msa/
 │   ├── operations/            # DEPLOY(배포) · SECURITY(보안 하드닝)
 │   └── planning/              # ROADMAP · VERSIONS · PROCESS(이력) · GITEA_PLAN · BASE_SERVICES_PLAN
 ├── html/                      # 시각 문서 — system-overview · feature-guide · guide-staff/admin
+│                              #   + service-feature-summary · service-intro-slides · ismp-response · capacity-plan
 ├── frontend/                  # React + Vite + TSX
 │   ├── README·PROCESS·AGENT·DESIGN·TEST.md
 │   ├── public/guides/         # 다운로드용 AI 빌드 지시서(AI_BUILD_SPEC + 스택 템플릿)
@@ -215,6 +216,10 @@ npm run dev                               # http://localhost:5173
 | [examples/README.md](examples/README.md) | 업무 분야별 실동작 예제 목록·실행법 |
 | [deploy/k8s/README.md](deploy/k8s/README.md) | K8s 매니페스트 구성·적용 순서 |
 | [SECURITY.md](docs/operations/SECURITY.md) | 멀티테넌트 보안 하드닝(신뢰 등급·격리·검증) |
+| [html/service-feature-summary.html](html/service-feature-summary.html) | **전체 기능 정리** — 저장소 전체 기준 12개 섹션(아키텍처·화면·API·배포·보안) |
+| [html/service-intro-slides.html](html/service-intro-slides.html) | **발표용 슬라이드 13장** — 서비스 소개, 실제 화면 스크린샷 8종 포함 |
+| [html/ismp-response.html](html/ismp-response.html) | **ISMP 요구사항 대응 설명서** — 전북교육청 AI통합플랫폼 ISMP 대비 매핑·도면 15종(공문서 형식) |
+| [html/capacity-plan.html](html/capacity-plan.html) | **대규모 인프라 산정서** — 50만 계정·5천 동시접속 기준 구조·서버 사양·도면 6종 |
 | [deploy/PROCESS.md](deploy/PROCESS.md) · [deploy/AGENT.md](deploy/AGENT.md) | 인프라 진행 이력 · 작업 규칙 |
 | [frontend/README.md](frontend/README.md) · [backend/README.md](backend/README.md) | 각 앱 실행·구조·API |
 | 각 폴더 `AGENT.md` · `DESIGN.md` · `TEST.md` · `PROCESS.md` | 작업 규칙 · 설계 원칙 · 테스트 · 진행 이력 |

@@ -1,12 +1,12 @@
 # Gitea 네임스페이스 NetworkPolicy — 기본 차단 후 필요한 통신만 허용. (2단계 하드닝)
-# ※ 실제 강제는 CNI가 NetworkPolicy를 지원해야 함(Calico/Cilium 등).
-#    kind 기본 CNI(kindnet)는 미강제이므로, 실서버에서 Calico/Cilium 사용 권장.
+# ※ 실제 강제는 CNI가 NetworkPolicy를 지원해야 함(실서버 Calico).
+#    최신 kind(kindnet, K8s 1.33+)도 강제한다 — 4단계 검증에서 egress 차단으로 실증됨.
 #
 # 허용 범위:
 #   - ingress: ingress-nginx → 3000 (웹/clone) · edu-platform → 3000 (backend 수집기·Kaniko 의
 #     인클러스터 직접 clone — EDU_GITEA_CLONE_BASE 경로, 3단계)
-#   - egress:  DNS(kube-system:53) 만 — SQLite 내장이라 DB egress 불필요.
-#     webhook(→ backend) egress 는 4단계에서 별도 정책으로 연다.
+#   - egress:  DNS(kube-system:53) + webhook(→ edu-platform backend:8080, 4단계)
+#     — SQLite 내장이라 DB egress 불필요.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata: { name: default-deny-all, namespace: gitea }
@@ -38,6 +38,19 @@ spec:
         - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: ingress-nginx } }
       ports:
         - { protocol: TCP, port: 3000 }
+---
+# push webhook 송신 허용 — 자동 재배포(4단계): gitea → backend(edu-platform:8080)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: allow-webhook-to-backend, namespace: gitea }
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: edu-platform } }
+      ports:
+        - { protocol: TCP, port: 8080 }
 ---
 # backend 수집기·Kaniko(edu-platform)의 인클러스터 직접 clone 허용 (EDU_GITEA_CLONE_BASE)
 apiVersion: networking.k8s.io/v1

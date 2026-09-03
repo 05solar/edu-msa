@@ -209,3 +209,15 @@ auth-service는 자체 HS256 JWT 발급기로 **OIDC Provider가 아니다.** Gi
   Kaniko 템플릿 렌더 YAML 파싱(자격 유무 2종) — 주석 placeholder 치환 버그 발견·수정 /
   compileJava·tsc·bash -n·compose config 통과. 남김: real 모드 Kaniko 실빌드→배포→200
   은 6단계 통합 검증에서(전체 코어 인클러스터 필요).
+- 2026-09-03 — **4단계 완료·검증** (feature/gitea): `POST /api/webhooks/gitea` 신설 —
+  HMAC-SHA256(X-Gitea-Signature) 상수 시간 검증(불일치 401, 시크릿 미설정 404),
+  main 브랜치·공개(PUBLIC) 프로그램만 매칭(주소 정규화: .git/슬래시/대소문자),
+  배포 레포는 서버 저장값만 사용(본문 주입 차단), SecurityConfig permitAll+주석.
+  bootstrap — webhook 시크릿 Secret(edu-gitea-webhook) + Gitea **default webhook**
+  등록(관리자 API 는 system 이 아닌 default 를 만듦 — 신규 레포 자동 적용, 기존 레포는
+  개별 등록. 중복 확인 경로 ?type=default 로 수정). gitea NetworkPolicy egress
+  (→edu-platform:8080)·webhook ALLOWED_HOST_LIST 추가. kind E2E — 등록→승인→자동
+  배포(v1) 후 push → 전송 → 검증·매칭 → 큐 적재(#53) → 재배포 → **v5 서빙**.
+  음성 4종(서명 오류/누락 401, 비 main·비 push 무시) 통과. 부수 발견: 최신 kind 의
+  kindnet 이 NetworkPolicy 를 실제 강제(문서 정정), 랩 한정 우회(수동 Endpoints·
+  egress 허용)는 커밋하지 않음 — 실서버는 인클러스터 backend 라 불필요.

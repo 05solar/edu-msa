@@ -60,6 +60,9 @@ spec:
               valueFrom: { secretKeyRef: { name: edu-gitea-token, key: username, optional: true } }
             - name: EDU_GITEA_TOKEN
               valueFrom: { secretKeyRef: { name: edu-gitea-token, key: token, optional: true } }
+            # push webhook 서명 검증 시크릿(4단계) — bootstrap 이 Gitea system webhook 과 함께 생성
+            - name: EDU_GITEA_WEBHOOK_SECRET
+              valueFrom: { secretKeyRef: { name: edu-gitea-webhook, key: secret, optional: true } }
           ports:
             - name: http
               containerPort: 8080

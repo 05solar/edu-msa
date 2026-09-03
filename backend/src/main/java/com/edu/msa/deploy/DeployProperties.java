@@ -31,6 +31,8 @@ public class DeployProperties {
     // 예: 인클러스터 http://gitea-http.gitea.svc:3000 · 로컬 개발 http://host.docker.internal:3000
     // 비워 두면 등록 주소 그대로 사용. (git/curl 이 *.localhost 를 루프백으로 강제 해석하는 문제도 회피)
     @Value("${edu.deploy.gitea-clone-base:}")           private String giteaCloneBase;
+    // Gitea push webhook 서명 검증 시크릿(4단계). 미설정 시 webhook 엔드포인트 비활성(404).
+    @Value("${edu.deploy.gitea-webhook-secret:}")       private String giteaWebhookSecret;
 
     public boolean isReal() { return "real".equalsIgnoreCase(mode); }
     public boolean isDocker() { return "docker".equalsIgnoreCase(mode); }
@@ -43,6 +45,7 @@ public class DeployProperties {
     public String giteaHost() { return giteaHost; }
     public String giteaUser() { return giteaUser; }
     public String giteaToken() { return giteaToken; }
+    public String giteaWebhookSecret() { return giteaWebhookSecret; }
 
     /** repoUrl 이 설정된 내부 Gitea 호스트의 레포인지 판단한다(자격 증명 주입 대상 선별). */
     public boolean isGiteaRepo(String repoUrl) {

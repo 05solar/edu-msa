@@ -57,6 +57,8 @@ edu:
     gitea-token: ${EDU_GITEA_TOKEN:}
     # clone 실제 접근 주소(내부용, 선택) — 예: http://gitea-http.gitea.svc:3000
     gitea-clone-base: ${EDU_GITEA_CLONE_BASE:}
+    # push webhook 서명 검증 시크릿 — 미설정 시 /api/webhooks/gitea 비활성(404)
+    gitea-webhook-secret: ${EDU_GITEA_WEBHOOK_SECRET:}
     worker:
       enabled: ${EDU_DEPLOY_WORKER_ENABLED:true}          # 배포 작업 큐 워커
       poll-ms: ${EDU_DEPLOY_WORKER_POLL_MS:3000}

@@ -60,6 +60,10 @@ gitea:
       DISABLE_SSH: true
     service:
       DISABLE_REGISTRATION: true  # 1차 운영 방침: 계정은 관리자가 발급
+    webhook:
+      # Gitea 는 기본적으로 사설망 대상 webhook 을 차단한다. 자동 재배포(4단계)용
+      # backend 주소만 허용 목록에 넣는다. (로컬 개발 시험은 bootstrap/helm --set 으로 추가)
+      ALLOWED_HOST_LIST: backend.edu-platform.svc
     repository:
       DEFAULT_BRANCH: main
       # 신규 레포 기본 비공개 — 내부 코드 저장소에서 실수로 만든 public 레포가

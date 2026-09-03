@@ -323,6 +323,41 @@ EOF
     fi
   fi
 
+  # 4단계(자동 재배포): webhook 서명 시크릿 + Gitea default webhook.
+  # default webhook 은 "이후 생성되는 모든 레포"에 자동 복제된다(신규 레포 자동 적용).
+  # 기존 레포는 레포 설정에서 동일 훅을 개별 등록한다(gitea/README.md 참고).
+  # backend 는 edu-gitea-webhook Secret 의 시크릿으로 X-Gitea-Signature 를 검증한다.
+  if kubectl get ns edu-platform >/dev/null 2>&1; then
+    local whsecret
+    if kubectl -n edu-platform get secret edu-gitea-webhook >/dev/null 2>&1; then
+      whsecret="$(kubectl -n edu-platform get secret edu-gitea-webhook -o jsonpath='{.data.secret}' | base64 -d)"
+    else
+      whsecret="$(openssl rand -hex 16 2>/dev/null || head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+      kubectl -n edu-platform create secret generic edu-gitea-webhook \
+        --from-literal=secret="$whsecret" >/dev/null 2>&1 \
+        && ok "edu-gitea-webhook Secret 생성 (edu-platform)" \
+        || warn "edu-gitea-webhook Secret 생성 실패"
+    fi
+    # system webhook 등록(관리자 API) — 이미 같은 대상이 있으면 건너뜀(재실행 안전)
+    local gpass hookurl gitea_api
+    gpass="$(kubectl -n gitea get secret gitea-admin -o jsonpath='{.data.password}' | base64 -d 2>/dev/null)"
+    hookurl="http://backend.edu-platform.svc:8080/api/webhooks/gitea"
+    if [ "$MODE" = kind ]; then
+      gitea_api(){ curl -s -u "${GITEA_ADMIN_USER:-edu-admin}:${gpass}" -H "Host: ${ghost}" "http://127.0.0.1$1" "${@:2}"; }
+    else
+      gitea_api(){ curl -sk -u "${GITEA_ADMIN_USER:-edu-admin}:${gpass}" "${SCHEME}://${ghost}$1" "${@:2}"; }
+    fi
+    if [ -n "$gpass" ] && ! gitea_api "/api/v1/admin/hooks?type=default" | grep -q "$hookurl"; then
+      gitea_api "/api/v1/admin/hooks" -H 'Content-Type: application/json' -X POST -d "$(cat <<JSON
+{"type":"gitea","active":true,"events":["push"],
+ "config":{"url":"${hookurl}","content_type":"json","secret":"${whsecret}"}}
+JSON
+)" >/dev/null 2>&1 \
+        && ok "Gitea default webhook 등록 (신규 레포 push → ${hookurl})" \
+        || warn "Gitea default webhook 등록 실패 — 관리자 화면에서 수동 등록 가능"
+    fi
+  fi
+
   ok "운영스택 설치 시도 완료 — 개별 상태는 kubectl get pods -A 로 확인하세요."
   warn "WAF(ModSecurity/CRS)는 ingress-nginx values 로 활성화합니다: deploy/k8s/platform/edge/README.md"
 }

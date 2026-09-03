@@ -62,7 +62,8 @@ kubectl -n gitea port-forward svc/gitea-http 3000:3000
 - [networkpolicy.yaml](networkpolicy.yaml): 기본 전체 차단 후
   ingress-nginx → 3000 수신과 DNS(53) 송신만 허용. SQLite 내장이라 DB egress 불필요.
   webhook(→ backend) egress 는 4단계에서 별도 정책으로 연다.
-- kind 기본 CNI(kindnet)는 NetworkPolicy 를 강제하지 않는다 — 실서버(Calico)에서 강제됨.
+- NetworkPolicy 강제: 실서버 Calico는 물론, **최신 kind(kindnet)도 강제한다**
+  (4단계 검증 중 egress 차단으로 실증 — 허용 규칙 누락 시 webhook 전송이 막힌다).
 
 ## 배포 파이프라인 연동 (3단계)
 
@@ -99,6 +100,25 @@ EDU_GITEA_CLONE_BASE=http://host.docker.internal:3000 \
 보안: 토큰은 URL·명령 인자에 넣지 않고 **git 환경변수(extraHeader)** 로 주입되어
 프로세스 목록·배포 로그·오류 메시지에 노출되지 않는다. Kaniko 빌드는
 `edu-gitea-token` Secret 참조 env(GIT_USERNAME/GIT_PASSWORD)로 받는다(매니페스트에 평문 없음).
+
+## push 자동 재배포 (4단계)
+
+레포에 push 하면 등록된 프로그램이 자동으로 재배포된다.
+
+```
+push → Gitea webhook(HMAC 서명) → backend /api/webhooks/gitea
+     → 서명 검증 → main 브랜치·공개(PUBLIC) 프로그램 매칭 → 배포 큐 적재 → 재배포
+```
+
+- **서명 검증** — `edu-gitea-webhook` Secret 의 시크릿으로 `X-Gitea-Signature`(HMAC-SHA256)
+  를 상수 시간 비교로 검증한다. 불일치·누락은 401, 시크릿 미설정 시 엔드포인트 자체 비활성(404).
+- **대상 제한** — `refs/heads/main` push + 공개 상태 프로그램만. 그 외(브랜치·이벤트·미등록
+  레포)는 조용히 무시(200). 배포 레포 주소는 webhook 본문이 아니라 **서버 저장값**만 쓴다(주입 차단).
+- **훅 등록** — bootstrap 이 default webhook(관리자 API)을 등록해 **이후 생성되는 레포에
+  자동 적용**된다. 기존 레포는 레포 설정 → Webhooks 에서 동일 URL/시크릿으로 추가한다:
+  `http://backend.edu-platform.svc:8080/api/webhooks/gitea`
+- **주소 매칭** — 등록 주소와 clone_url/html_url 을 정규화(.git·말미 슬래시·대소문자) 비교하므로
+  `.git` 유무는 무관하다.
 
 ## 백업 (필수 운영 절차)
 
@@ -141,3 +161,9 @@ database:
   backend(compose) E2E 로 비공개 레포 규격 검증 valid=true(토큰)·valid=false(무토큰,
   오류에 토큰 비노출) / Kaniko 템플릿 자격 env 렌더 YAML 유효성 확인. (§3 완료 기준 중
   real 모드 Kaniko 실빌드는 6단계 통합 검증으로 이월)
+- 2026-09-03 — 4단계 검증(kind Gitea + compose backend, docker 모드): 비공개 레포
+  등록→승인→자동 배포(v1 서빙) 후 push → webhook 전송 → 서명 검증·매칭 → 배포 큐
+  적재 → 자동 재배포 → v5 서빙 확인. 음성 4종(서명 오류/누락 401, 비 main 브랜치·
+  비 push 이벤트 무시) 통과. 부수 확인: 최신 kind 의 NetworkPolicy 강제(egress 차단
+  실증), admin hooks API 는 default webhook(신규 레포 자동 적용)을 만들며 기존 레포는
+  개별 등록 필요.

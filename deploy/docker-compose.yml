@@ -104,6 +104,13 @@ services:
       EDU_DEPLOY_PROXY_NETWORK: eduproxy
       # Traefik 파일 프로바이더 라우트 파일을 써 넣을 경로(공유 볼륨)
       EDU_DEPLOY_DYNAMIC_DIR: /dynamic
+      # 내부 Gitea 연동(비공개 레포 clone) — 미설정 시 기존 동작(공개 레포만)
+      EDU_GITEA_HOST: ${EDU_GITEA_HOST:-}
+      EDU_GITEA_USER: ${EDU_GITEA_USER:-edu-deploy-bot}
+      EDU_GITEA_TOKEN: ${EDU_GITEA_TOKEN:-}
+      # clone 실제 접근 주소 — git/curl 이 *.localhost 를 루프백으로 강제 해석하므로
+      # 로컬 개발은 직접 주소를 쓴다(예: kubectl port-forward 후 http://host.docker.internal:3000)
+      EDU_GITEA_CLONE_BASE: ${EDU_GITEA_CLONE_BASE:-}
     ports:
       - "8088:8080"
     volumes:

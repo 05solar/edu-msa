@@ -55,13 +55,29 @@ public class ManifestRenderer {
         String br = (branch != null && !branch.isBlank()) ? branch : "main";
         if (!BRANCH_RE.matcher(br).matches())
             throw new DeployException("허용되지 않는 브랜치 이름: " + branch);
-        String ctx = "git://" + repoUrl.replaceFirst("^https?://", "") + "#refs/heads/" + br;
+        // 내부 Gitea 는 clone-base(내부 접근 주소)로 재작성해 받는다 — 재작성 결과도 형식 재검증.
+        String fetchUrl = props.rewriteGiteaUrl(repoUrl);
+        if (!REPO_RE.matcher(fetchUrl).matches())
+            throw new DeployException("허용되지 않는 clone-base 주소 형식");
+        String ctx = "git://" + fetchUrl.replaceFirst("^https?://", "") + "#refs/heads/" + br;
         return load("deploy-templates/kaniko-job.yaml")
                 .replace("{{SLUG}}", spec.slug())
                 .replace("{{NAMESPACE}}", namespace)
                 .replace("{{IMAGE}}", image)
-                .replace("{{CONTEXT}}", ctx);
+                .replace("{{CONTEXT}}", ctx)
+                // 내부 Gitea 비공개 레포일 때만 봇 자격 증명 env 를 Secret 참조로 주입한다
+                // (매니페스트에 토큰 평문이 들어가지 않음). 그 외 레포는 빈 문자열.
+                .replace("{{GIT_CRED_ENV}}", props.isGiteaRepo(repoUrl) ? GIT_CRED_ENV : "");
     }
+
+    /** Kaniko git 컨텍스트 자격 증명 — edu-gitea-token Secret(username/token) 참조.
+     *  들여쓰기는 kaniko-job.yaml 의 컨테이너 키(10칸)에 맞춘다. */
+    private static final String GIT_CRED_ENV =
+            "          env:\n"
+            + "            - name: GIT_USERNAME\n"
+            + "              valueFrom: { secretKeyRef: { name: edu-gitea-token, key: username, optional: true } }\n"
+            + "            - name: GIT_PASSWORD\n"
+            + "              valueFrom: { secretKeyRef: { name: edu-gitea-token, key: token, optional: true } }";
 
     private String load() {
         return load("deploy-templates/service-template.yaml");

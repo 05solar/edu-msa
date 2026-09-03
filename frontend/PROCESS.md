@@ -9,6 +9,8 @@
 
 ## 진행 이력 (Change Log)
 
+- 2026-09-03 — Gitea 3단계: 등록 화면 안내를 "내부 Gitea 주소(권장) 또는 GitHub 주소"로 갱신(placeholder·설명·오류 문구). 타입체크 통과.
+
 - 2026-08-24 — Vite+React+TSX 스캐폴드, tsconfig/index.html/package.json 작성.
 - 2026-08-24 — 디자인 시스템 CSS 이식(tokens/base), 인라인 SVG 아이콘 세트 작성.
 - 2026-08-24 — 목업 데이터/도메인 타입/AppContext 상태·라우팅, 앱 셸(Sidebar/Topbar/Footer/Toast/Modal), 데모 로그인 페이지.

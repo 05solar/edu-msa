@@ -195,3 +195,17 @@ auth-service는 자체 HS256 JWT 발급기로 **OIDC Provider가 아니다.** Gi
   경유 웹 200·API 응답, 테스트 레포 생성(201)→`git clone`/`push` 왕복(서버 파일
   확인)→삭제(204), PSA 라벨·NetworkPolicy 3종 생성 확인. server 모드 TLS 분기는
   heredoc 로직 검토·bash -n 통과(실서버 적용 시 edu-ca 인증서 발급 확인 필요).
+- 2026-09-03 — **3단계 완료·검증** (feature/gitea): 봇 계정·토큰 자동 준비(bootstrap —
+  `edu-deploy-bot` 생성, `read:repository` 토큰 발급, `edu-platform/edu-gitea-token`
+  Secret), backend clone 자격 증명 주입(SourceResolver — 토큰을 인자/URL 이 아닌
+  git extraHeader 환경변수로 전달해 로그·프로세스 목록 비노출), Kaniko Job 에
+  Secret 참조 env(GIT_USERNAME/GIT_PASSWORD) 조건 주입, `EDU_GITEA_CLONE_BASE`
+  분리(공개 등록 주소 vs 내부 수집 주소 — git/curl 의 `*.localhost` 루프백 강제
+  해석 문제 대응, 인클러스터는 `gitea-http.gitea.svc:3000`), gitea NetworkPolicy 에
+  edu-platform→3000 허용 추가, 등록 화면 문구 "내부 Gitea 주소(권장) 또는 GitHub".
+  시드 주소(gitea.edu.internal)는 서버 도메인 규칙과 일치 확인(무변경).
+  검증 — 호스트 git: 무자격 clone 거부·봇 토큰 clone 성공 / backend E2E(compose):
+  비공개 레포 validate 토큰 있음 valid=true·없음 valid=false(오류에 토큰 비노출) /
+  Kaniko 템플릿 렌더 YAML 파싱(자격 유무 2종) — 주석 placeholder 치환 버그 발견·수정 /
+  compileJava·tsc·bash -n·compose config 통과. 남김: real 모드 Kaniko 실빌드→배포→200
+  은 6단계 통합 검증에서(전체 코어 인클러스터 필요).

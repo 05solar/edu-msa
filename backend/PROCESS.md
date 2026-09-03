@@ -10,6 +10,8 @@
 
 ## 진행 이력 (Change Log)
 
+- 2026-09-03 — Gitea 3단계(파이프라인 연동): DeployProperties에 gitea-host/user/token/clone-base 추가, SourceResolver가 내부 Gitea 레포 clone 시 토큰을 git extraHeader 환경변수로 주입(인자·로그 비노출)하고 clone-base로 주소 재작성(split-horizon, *.localhost 루프백 강제 해석 대응), CommandRunner env 오버로드, Kaniko Job 템플릿에 Secret 참조 자격 env 조건 주입(템플릿 주석 placeholder 치환 버그 수정). 검증: compose E2E(비공개 레포 validate 토큰 유/무), Kaniko 렌더 YAML 파싱 2종, compileJava.
+
 - 2026-08-24 — Phase 2 시작: Gradle(Kotlin DSL) + Spring Boot 3 + Java 21 프로젝트 스캐폴드, application.yml, Dockerfile, 메타 문서.
 - 2026-08-24 — 도메인/영속화: program·review·notification·user·catalog 패키지, JPA 엔티티/리포지토리, 프론트 데이터 기반 JSON 시더(프로그램 16·사용자 7·알림 7·이력 4).
 - 2026-08-24 — 서비스/REST API: 목록/상세/등록/댓글, 승인·반려·중지·재개, 알림, 사용자 권한, 분류, 헬스. CORS·전역 예외 처리.

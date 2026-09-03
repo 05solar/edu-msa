@@ -1,4 +1,4 @@
-# Gitea · 내부 코드 저장소 (1단계: 설치 · 2단계: 도메인/TLS/Ingress)
+# Gitea · 내부 코드 저장소 (1단계: 설치 · 2단계: 도메인/TLS/Ingress · 3단계: 파이프라인 연동)
 
 내부망에서 소스코드가 외부(GitHub)로 나가지 않도록 자체 git 호스팅을 플랫폼 스택에
 편입한다. 전체 계획·단계는 [docs/planning/GITEA_PLAN.md](../../../../docs/planning/GITEA_PLAN.md).
@@ -64,6 +64,42 @@ kubectl -n gitea port-forward svc/gitea-http 3000:3000
   webhook(→ backend) egress 는 4단계에서 별도 정책으로 연다.
 - kind 기본 CNI(kindnet)는 NetworkPolicy 를 강제하지 않는다 — 실서버(Calico)에서 강제됨.
 
+## 배포 파이프라인 연동 (3단계)
+
+비공개 레포를 플랫폼이 수집(clone)할 수 있도록 **읽기 전용 봇 + 토큰**을 쓴다.
+`bootstrap.sh stack` 이 자동 준비한다(있으면 건너뜀):
+
+- Gitea 계정 `edu-deploy-bot` 생성 + `read:repository` 스코프 토큰 발급
+- `edu-platform` 네임스페이스에 Secret `edu-gitea-token`(키: `username`/`token`) 생성
+- backend 는 이 Secret 을 env 로 받아 내부 Gitea 레포 clone 시에만 자격 증명을 주입한다
+
+**비공개 레포 공유 방법** — 봇이 읽을 수 있어야 배포된다. 레포에 `edu-deploy-bot` 을
+협업자(read)로 초대하거나, 조직 레포는 봇을 조직의 read 팀에 넣는다.
+
+**backend 환경변수**
+
+| 변수 | 의미 | 예 |
+| --- | --- | --- |
+| `EDU_GITEA_HOST` | 사용자 등록용 공개 호스트(이 호스트의 레포만 자격 증명 주입) | `gitea.edu.internal` |
+| `EDU_GITEA_USER` / `EDU_GITEA_TOKEN` | 봇 계정·토큰(Secret 참조) | `edu-deploy-bot` |
+| `EDU_GITEA_CLONE_BASE` | clone 실제 접근 주소(내부용, 선택) | `http://gitea-http.gitea.svc:3000` |
+
+`EDU_GITEA_CLONE_BASE` 를 두는 이유 — 사용자는 공개 주소로 등록하지만 수집기는
+내부 주소로 받는 분리(split-horizon) 구성이며, **git/curl 이 `*.localhost` 호스트를
+RFC 6761 에 따라 무조건 루프백으로 해석**하므로 kind 로컬에서는 필수다.
+로컬 compose 개발 시험은:
+
+```bash
+kubectl -n gitea port-forward svc/gitea-http 3000:3000 --address 0.0.0.0
+EDU_GITEA_HOST=gitea.localhost EDU_GITEA_TOKEN=<봇 토큰> \
+EDU_GITEA_CLONE_BASE=http://host.docker.internal:3000 \
+  docker compose up -d backend
+```
+
+보안: 토큰은 URL·명령 인자에 넣지 않고 **git 환경변수(extraHeader)** 로 주입되어
+프로세스 목록·배포 로그·오류 메시지에 노출되지 않는다. Kaniko 빌드는
+`edu-gitea-token` Secret 참조 env(GIT_USERNAME/GIT_PASSWORD)로 받는다(매니페스트에 평문 없음).
+
 ## 백업 (필수 운영 절차)
 
 레포 데이터는 PVC `gitea-shared-storage` 에 있다(차트는 Deployment + 단일 PVC).
@@ -100,3 +136,8 @@ database:
 - 2026-09-03 — kind 에서 2단계 검증: helm upgrade 로 ROOT_URL/DOMAIN 반영(app.ini 확인),
   Ingress(gitea.localhost) 경유 웹 200·API 응답, 테스트 레포 생성→`git clone`/`push`
   왕복→삭제 성공. PodSecurity 라벨·NetworkPolicy 3종 적용 확인. (GITEA_PLAN.md §2 완료 기준)
+- 2026-09-03 — 3단계 검증: 봇 계정+`read:repository` 토큰 발급, 비공개 레포에 봇
+  read 협업자 초대 후 — 무자격 clone 거부 / 봇 토큰(extraHeader 환경변수) clone 성공 /
+  backend(compose) E2E 로 비공개 레포 규격 검증 valid=true(토큰)·valid=false(무토큰,
+  오류에 토큰 비노출) / Kaniko 템플릿 자격 env 렌더 YAML 유효성 확인. (§3 완료 기준 중
+  real 모드 Kaniko 실빌드는 6단계 통합 검증으로 이월)

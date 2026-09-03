@@ -48,6 +48,18 @@ spec:
               value: edu-services
             - name: EDU_DEPLOY_INGRESS_HOST
               value: edu.internal
+            # 내부 Gitea 연동(3단계): 비공개 레포 clone 자격 증명.
+            # Secret(edu-gitea-token)은 bootstrap stack 이 봇 계정과 함께 생성한다(optional).
+            - name: EDU_GITEA_HOST
+              value: gitea.edu.internal
+            # 인클러스터 수집은 Ingress 를 거치지 않고 서비스 주소로 직접 받는다
+            # (kind 의 *.localhost 루프백 강제 해석 문제도 함께 회피).
+            - name: EDU_GITEA_CLONE_BASE
+              value: http://gitea-http.gitea.svc:3000
+            - name: EDU_GITEA_USER
+              valueFrom: { secretKeyRef: { name: edu-gitea-token, key: username, optional: true } }
+            - name: EDU_GITEA_TOKEN
+              valueFrom: { secretKeyRef: { name: edu-gitea-token, key: token, optional: true } }
           ports:
             - name: http
               containerPort: 8080

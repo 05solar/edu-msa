@@ -157,6 +157,10 @@ apply_core(){
     # kind(HTTP): CORS 오리진 스킴을 http 로 (같은 오리진이라 대개 무해하지만 명시적으로 맞춤)
     if [ "$MODE" = kind ]; then
       sed -i.bak -e "s#https://${DOMAIN}#http://${DOMAIN}#g" "$out" && rm -f "$out.bak"
+      # Gitea 공개 호스트는 예제 패턴과 동일한 gitea.localhost (도메인 치환 부산물 보정)
+      if [ "$base" = backend.yaml ]; then
+        sed -i.bak -e "s#gitea\.${DOMAIN}#gitea.localhost#g" "$out" && rm -f "$out.bak"
+      fi
     fi
   done
   # kind(HTTP): auth-service 의 Refresh 쿠키 Secure 를 끈다(HTTPS 아님 → Secure 쿠키는 전송 안 됨).
@@ -294,6 +298,30 @@ EOF
   kubectl apply -f "$gtmp" 2>/dev/null && ok "Gitea Ingress 적용 · ${SCHEME}://${ghost}" \
       || warn "gitea Ingress 적용 실패"
   rm -f "$gtmp"
+
+  # 3단계(파이프라인 연동): 읽기 전용 배포 봇 + 토큰 → edu-platform Secret(edu-gitea-token).
+  # backend 가 비공개 Gitea 레포 clone 에 사용한다. 이미 있으면 건너뜀(재실행 안전).
+  if kubectl get ns edu-platform >/dev/null 2>&1 \
+      && ! kubectl -n edu-platform get secret edu-gitea-token >/dev/null 2>&1; then
+    log "· Gitea 배포 봇(edu-deploy-bot) 계정·토큰 준비"
+    local bpass btoken
+    bpass="$(openssl rand -hex 12 2>/dev/null || head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+    kubectl -n gitea exec deploy/gitea -c gitea -- \
+      gitea admin user create --username edu-deploy-bot --password "$bpass" \
+        --email edu-deploy-bot@edu.local --must-change-password=false >/dev/null 2>&1 \
+      || true   # 계정이 이미 있으면 무시
+    btoken="$(kubectl -n gitea exec deploy/gitea -c gitea -- \
+        gitea admin user generate-access-token --username edu-deploy-bot \
+          --token-name "edu-deploy-$(date +%s)" --scopes read:repository --raw 2>/dev/null | tail -1)"
+    if [ -n "$btoken" ]; then
+      kubectl -n edu-platform create secret generic edu-gitea-token \
+        --from-literal=username=edu-deploy-bot --from-literal=token="$btoken" >/dev/null 2>&1 \
+        && ok "edu-gitea-token Secret 생성 (edu-platform) — 비공개 레포는 봇을 협업자/조직 read 로 초대" \
+        || warn "edu-gitea-token Secret 생성 실패"
+    else
+      warn "Gitea 봇 토큰 발급 실패 — 수동 발급 후 Secret 생성: deploy/k8s/platform/gitea/README.md 참고"
+    fi
+  fi
 
   ok "운영스택 설치 시도 완료 — 개별 상태는 kubectl get pods -A 로 확인하세요."
   warn "WAF(ModSecurity/CRS)는 ingress-nginx values 로 활성화합니다: deploy/k8s/platform/edge/README.md"

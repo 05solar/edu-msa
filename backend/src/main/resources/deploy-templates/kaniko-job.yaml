@@ -1,5 +1,8 @@
 # Kaniko 인클러스터 빌드 Job (real 모드). 호스트 docker.sock 미사용(rootless).
-# 플레이스홀더: {{SLUG}} {{NAMESPACE}} {{IMAGE}} {{CONTEXT}}
+# 플레이스홀더: SLUG · NAMESPACE · IMAGE · CONTEXT · GIT_CRED_ENV (모두 이중 중괄호 표기)
+# GIT_CRED_ENV 자리는 내부 Gitea 비공개 레포일 때만 GIT_USERNAME/GIT_PASSWORD
+# (edu-gitea-token Secret 참조) env 블록으로 치환된다 — 그 외에는 빈 줄.
+# ※ 주석에 이중 중괄호 리터럴을 쓰지 말 것 — 렌더러가 주석까지 치환한다.
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -18,6 +21,7 @@ spec:
             - "--context={{CONTEXT}}"
             - "--dockerfile=Dockerfile"
             - "--destination={{IMAGE}}"
+{{GIT_CRED_ENV}}
           volumeMounts:
             - name: docker-config
               mountPath: /kaniko/.docker

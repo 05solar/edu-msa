@@ -221,3 +221,12 @@ auth-service는 자체 HS256 JWT 발급기로 **OIDC Provider가 아니다.** Gi
   음성 4종(서명 오류/누락 401, 비 main·비 push 무시) 통과. 부수 발견: 최신 kind 의
   kindnet 이 NetworkPolicy 를 실제 강제(문서 정정), 랩 한정 우회(수동 Endpoints·
   egress 허용)는 커밋하지 않음 — 실서버는 인클러스터 backend 라 불필요.
+- 2026-09-03 — **5단계 완료·검증** (feature/gitea): `deploy/gitea-seed.sh` 신설 —
+  edu-examples 조직 생성 + 예제 7종 레포 재생성·push(재실행 안전, 자격은
+  extraHeader 환경변수·Secret 폴백). 발견: 비 UTF-8 셸(Git Bash)에서 한글 설명이
+  CP949 로 전송돼 Gitea 422 — 설명을 ASCII 로 제한(주석 명시). 시드 주소 전환은
+  1차 수동 절차(SQL)로 README §5 에 문서화(2차 시드 옵션화는 백로그).
+  문서 이관 — VIBE_CODING_GUIDE·AI_BUILD_SPEC 의 GitHub 안내를 "내부 Gitea(권장)
+  / GitHub(병용)"으로 갱신, 비공개 레포 봇 초대·push 자동 재배포 안내 추가.
+  검증(kind) — 스크립트 실행으로 7개 레포 생성·push, 조직 레포 목록 7종·raw
+  service.yaml 200·웹 페이지 200, 재실행 멱등 확인.

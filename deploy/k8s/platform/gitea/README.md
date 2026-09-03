@@ -1,4 +1,4 @@
-# Gitea · 내부 코드 저장소 (1단계: 설치 · 2단계: 도메인/TLS/Ingress · 3단계: 파이프라인 연동)
+# Gitea · 내부 코드 저장소 (1~5단계: 설치 · Ingress/TLS · 파이프라인 · webhook · 예제 미러링)
 
 내부망에서 소스코드가 외부(GitHub)로 나가지 않도록 자체 git 호스팅을 플랫폼 스택에
 편입한다. 전체 계획·단계는 [docs/planning/GITEA_PLAN.md](../../../../docs/planning/GITEA_PLAN.md).
@@ -119,6 +119,34 @@ push → Gitea webhook(HMAC 서명) → backend /api/webhooks/gitea
   `http://backend.edu-platform.svc:8080/api/webhooks/gitea`
 - **주소 매칭** — 등록 주소와 clone_url/html_url 을 정규화(.git·말미 슬래시·대소문자) 비교하므로
   `.git` 유무는 무관하다.
+
+## 예제 미러링 + 시드 주소 전환 (5단계)
+
+예제 7종을 Gitea `edu-examples` 조직으로 미러링한다(재실행 안전 — 레포 재생성 방식):
+
+```bash
+./deploy/gitea-seed.sh                       # kind 기본(http://gitea.localhost)
+GITEA_URL=https://gitea.edu.internal INSECURE=1 ./deploy/gitea-seed.sh   # 실서버(자체 CA)
+```
+
+- 자격은 `GITEA_ADMIN_USER`/`GITEA_ADMIN_PASSWORD` 또는 클러스터 `gitea-admin` Secret 에서 읽는다.
+- push 자격 증명은 3단계와 동일하게 extraHeader 환경변수로 주입한다(프로세스 목록 비노출).
+- 레포 설명에 한글을 넣지 않는다 — 비 UTF-8 로캘 셸(Windows Git Bash 등)에서 CP949 로
+  전송되어 Gitea 가 422 로 거부한다(스크립트 주석 참고).
+
+**시드 프로그램 주소 전환(1차: 수동 절차)** — 시드의 기본 서비스 7종은
+`local://examples/<slug>` 주소로 등록돼 있다. Gitea 미러링 후 레포 기반 재배포·webhook
+자동 재배포로 전환하려면 플랫폼 DB 의 repo 주소를 바꾼다:
+
+```sql
+-- 프로그램 id 1..7 = 예제 7종(seed/programs.json 순서)
+UPDATE programs SET repo_url = 'https://gitea.edu.internal/edu-examples/' || slug
+ WHERE id BETWEEN 1 AND 7;
+```
+
+전환 후에는 각 레포에 배포 봇(`edu-deploy-bot`)을 read 로 초대해야 하며(공개 레포는 불필요),
+webhook 은 default webhook 이후 생성 레포엔 자동, 기존 레포엔 개별 등록한다(§4).
+2차(시드 로직 옵션화)는 백로그.
 
 ## 백업 (필수 운영 절차)
 

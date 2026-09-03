@@ -1,0 +1,1168 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI통합플랫폼 ISMP 요구사항 대응 현황 및 목표 시스템 구조 설명서</title>
+<style>
+/* ── 서체: 단일 서체 통일 (본문·표제 동일 계열) ───────────── */
+:root{
+  --ink:#1a1a1a; --ink-soft:#1a1a1a; --line:#8a9199; --line-soft:#c9ced3;
+  --paper:#ffffff; --canvas:#e8eaec; --head-bg:#eef1f3; --band:#f4f6f7;
+  --done:#0b5c3c; --done-bg:#e9f3ed; --done-ln:#6faa8d;
+  --part:#8a5a00; --part-bg:#faf3e0; --part-ln:#c9a45a;
+  --plan:#0f4c81; --plan-bg:#eaf1f8; --plan-ln:#7aa2c6;
+  --dark:#22303c;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--canvas); color:var(--ink);
+  font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;
+  font-size:15.5px; line-height:1.72; letter-spacing:-0.01em;
+  word-break:keep-all;
+}
+.sheet{max-width:1000px; margin:36px auto 60px; background:var(--paper);
+  padding:56px 56px 48px; box-shadow:0 1px 2px rgba(26,26,26,.14),0 16px 40px rgba(26,26,26,.10)}
+
+/* ── 공문서 표제부 ── */
+.doc-title{border:2px solid var(--ink); padding:26px 28px 22px; margin-bottom:10px; position:relative}
+.doc-title::before{content:""; position:absolute; inset:4px; border:1px solid var(--line-soft); pointer-events:none}
+.doc-title .cls{display:flex; justify-content:space-between; font-size:13px; color:var(--ink-soft); margin-bottom:14px}
+.doc-title h1{font-size:27px; font-weight:800; text-align:center; margin:0 0 6px; letter-spacing:.01em; line-height:1.45}
+.doc-title .sub{text-align:center; font-size:14.5px; color:var(--ink-soft); margin:0}
+.doc-meta{width:100%; border-collapse:collapse; margin:14px 0 0; font-size:14px}
+.doc-meta th{width:120px; background:var(--head-bg); border:1px solid var(--line); padding:7px 12px; font-weight:700; text-align:center; white-space:nowrap}
+.doc-meta td{border:1px solid var(--line); padding:7px 14px}
+
+/* ── 범례 ── */
+.legend{display:flex; flex-wrap:wrap; gap:8px 24px; border:1px solid var(--line); background:var(--band);
+  padding:12px 18px; margin:14px 0 0; font-size:13.5px; align-items:center}
+.legend .lt{font-weight:800; letter-spacing:.2em; margin-right:2px}
+.lg{display:inline-flex; align-items:center; gap:7px}
+.sw{width:32px; height:15px; flex:none}
+.sw.d{background:var(--done-bg); border:1.4px solid var(--done-ln)}
+.sw.p{background:var(--part-bg); border:1.4px solid var(--part-ln)}
+.sw.f{background:var(--plan-bg); border:1.4px dashed var(--plan)}
+
+/* ── 목차 ── */
+.toc{border:1px solid var(--line); padding:18px 24px; margin:26px 0 0; font-size:14.5px; background:var(--band)}
+.toc h2{font-size:15px; letter-spacing:.3em; margin:0 0 10px; font-weight:800}
+.toc ol{margin:0; padding:0; list-style:none; columns:2; column-gap:40px}
+.toc li{margin-bottom:4px}
+.toc a{color:inherit; text-decoration:none}
+.toc a:hover{color:var(--plan); text-decoration:underline}
+@media (max-width:720px){ .toc ol{columns:1} }
+
+/* ── 장·절 표제 (공문서 기호 체계) ── */
+.chap{display:flex; align-items:center; gap:14px; margin:54px 0 24px; border-top:2px solid var(--ink);
+  border-bottom:1px solid var(--ink); padding:11px 4px}
+.chap .rn{font-size:19px; font-weight:800; background:var(--ink); color:#fff; padding:2px 14px; flex:none}
+.chap h2{font-size:21px; font-weight:800; margin:0; letter-spacing:.02em}
+h3.sec{font-size:17.5px; font-weight:800; margin:34px 0 14px; padding-left:0}
+h3.sec::before{content:"□ "; font-weight:400}
+h4.sub{font-size:15.5px; font-weight:700; margin:22px 0 10px; color:var(--ink)}
+h4.sub::before{content:"○ "; font-weight:400; color:var(--ink-soft)}
+
+p{margin:0 0 10px; max-width:78ch}
+p.gd{color:var(--ink-soft); font-size:14px; margin-bottom:14px}
+ul.dash{margin:0 0 12px; padding:0; list-style:none}
+ul.dash>li{padding-left:1.1em; text-indent:-1.1em; margin-bottom:5px; font-size:14.5px; color:var(--ink-soft)}
+ul.dash>li::before{content:"– "; color:var(--line)}
+ul.dash>li b{color:var(--ink)}
+
+/* ── 상태 배지 ── */
+.tag{display:inline-block; font-size:12px; font-weight:700; padding:1.5px 10px; white-space:nowrap; vertical-align:middle; border-radius:2px}
+.tag.done{background:var(--done-bg); color:var(--done); border:1px solid var(--done-ln)}
+.tag.part{background:var(--part-bg); color:var(--part); border:1px solid var(--part-ln)}
+.tag.plan{background:var(--plan-bg); color:var(--plan); border:1px dashed var(--plan)}
+
+/* ── 표 공통 (공문서형) ── */
+.tw{overflow-x:auto; margin:0 0 8px}
+table.doc{width:100%; border-collapse:collapse; border-top:2px solid var(--ink); border-bottom:2px solid var(--ink); font-size:13.8px; min-width:720px}
+table.doc th{background:var(--head-bg); border:1px solid var(--line); border-top:none; padding:8px 10px; font-weight:700; text-align:center; white-space:nowrap; font-size:13px}
+table.doc td{border:1px solid var(--line-soft); padding:9px 12px; vertical-align:top}
+table.doc tr>*:first-child{border-left:none}
+table.doc tr>*:last-child{border-right:none}
+table.doc td.c{text-align:center; white-space:nowrap}
+table.doc td.id{font-weight:700; white-space:nowrap; text-align:center}
+table.doc td .nx{color:var(--plan); font-size:13px; display:block; margin-top:3px}
+table.doc td .nx::before{content:"▸ 예정: "; font-weight:700}
+table.doc ul{margin:0; padding:0; list-style:none}
+table.doc li{padding-left:1em; text-indent:-1em; margin-bottom:3px}
+table.doc li::before{content:"· "}
+.cap{margin:8px 0 0; font-size:12.8px; color:var(--ink-soft)}
+.cap::before{content:"※ "}
+
+/* ── 도면 공통 ── */
+.fig{border:1.5px solid var(--ink); margin:16px 0 6px; background:#fff}
+.fig-head{display:flex; justify-content:space-between; align-items:center; background:var(--dark); color:#fff;
+  padding:7px 16px; font-size:13px; letter-spacing:.06em}
+.fig-head b{font-weight:700}
+.fig-head span{color:#e9eef3; font-size:12px}
+.fig-body{padding:22px 20px 18px; background:#fbfcfc}
+.fig-note{border-top:1px dashed var(--line-soft); padding:9px 16px; font-size:12.8px; color:var(--ink-soft); background:var(--band)}
+.fig-note b{color:var(--ink)}
+.figno{margin:6px 0 0; font-size:13px; text-align:center; color:var(--ink-soft)}
+
+.lane{margin:0 0 2px}
+.lane-t{font-size:11.5px; font-weight:700; color:#fff; background:var(--dark); display:inline-block; padding:2px 10px; margin-bottom:7px; letter-spacing:.12em}
+.row{display:flex; flex-wrap:wrap; gap:8px}
+.row.center{justify-content:center}
+.nd{background:#fff; border:1.3px solid var(--ink); padding:8px 11px; font-size:12.8px; line-height:1.48; flex:1; min-width:118px; text-align:center}
+.nd b{display:block; font-size:13.2px; margin-bottom:1px}
+.nd small{color:var(--ink-soft); font-size:11.6px; display:block}
+.nd.d{border-color:var(--done-ln); background:var(--done-bg)}
+.nd.p{border-color:var(--part-ln); background:var(--part-bg)}
+.nd.f{border:1.3px dashed var(--plan); background:var(--plan-bg)}
+.nd.hub{background:var(--dark); color:#fff; border-color:var(--dark)}
+.nd.hub small{color:#e2e9ef}
+.nd.wide{flex:100%}
+.dn{display:flex; justify-content:center; margin:5px 0}
+.dn::after{content:""; width:0; height:0; border-left:8px solid transparent; border-right:8px solid transparent; border-top:10px solid var(--line)}
+.dn.lbl{position:relative}
+.dn-t{font-size:11.5px; color:var(--ink-soft); margin-left:8px; align-self:center}
+
+/* 가로 파이프라인 */
+.pipe{display:flex; align-items:stretch; flex-wrap:wrap}
+.pipe .st{flex:1; min-width:100px; background:#fff; border:1.3px solid var(--ink); padding:9px 7px; text-align:center;
+  font-size:12px; line-height:1.42; position:relative; margin-right:20px; margin-bottom:6px}
+.pipe .st:last-child{margin-right:0}
+.pipe .st::after{content:""; position:absolute; right:-15px; top:50%; transform:translateY(-50%);
+  width:0; height:0; border-top:7px solid transparent; border-bottom:7px solid transparent; border-left:10px solid var(--line)}
+.pipe .st:last-child::after{content:none}
+.pipe .st b{display:block; font-size:12.6px; margin-bottom:1px}
+.pipe .st small{color:var(--ink-soft); font-size:11.2px; display:block}
+.pipe .st.d{border-color:var(--done-ln); background:var(--done-bg)}
+.pipe .st.p{border-color:var(--part-ln); background:var(--part-bg)}
+.pipe .st.f{border:1.3px dashed var(--plan); background:var(--plan-bg)}
+
+/* 좌우 2열 도면 */
+.duo{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+@media (max-width:760px){ .duo{grid-template-columns:1fr} .pipe{flex-direction:column} .pipe .st{margin-right:0; margin-bottom:18px}
+  .pipe .st::after{right:50%; top:auto; bottom:-14px; transform:translateX(50%) rotate(90deg)} }
+
+/* 상태 머신 */
+.smrow{display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:center; margin-bottom:8px}
+.state{border:1.3px solid var(--ink); padding:6px 16px; font-weight:700; font-size:13px; background:#fff}
+.state.d{border-color:var(--done-ln); background:var(--done-bg); color:var(--done)}
+.state.w{border-color:var(--part-ln); background:var(--part-bg); color:var(--part)}
+.state.x{border-color:#b98080; background:#f7e9e9; color:#8c3535}
+.state.g{border-color:var(--line); background:var(--band); color:var(--ink-soft)}
+.tr{font-size:12px; color:var(--ink-soft); padding:0 2px; white-space:nowrap}
+.tr::after{content:" →"}
+
+/* 로드맵 */
+.phase{display:flex; gap:14px; border:1px solid var(--line-soft); background:#fff; padding:13px 16px; align-items:flex-start; margin-bottom:8px}
+.phase .pn{flex:none; width:96px; text-align:center; font-weight:800; font-size:13.5px; color:#fff; background:var(--dark); padding:5px 0}
+.phase.now .pn{background:var(--done)}
+.phase.fut .pn{background:var(--plan)}
+.phase .pb b{display:block; font-size:14.5px; margin-bottom:2px}
+.phase .pb p{margin:0; font-size:13.5px; color:var(--ink-soft); max-width:none}
+
+.admin{margin-top:44px; border-top:2px solid var(--ink); padding-top:14px; font-size:13.5px}
+.admin b{display:block; margin-bottom:6px; font-size:14.5px}
+.admin li{margin-bottom:4px}
+
+@media (max-width:640px){ .sheet{margin:0; padding:28px 14px; box-shadow:none} .doc-title h1{font-size:20px} }
+@media print{
+  body{background:#fff; font-size:10.5pt}
+  .sheet{box-shadow:none; margin:0; padding:0; max-width:none}
+  .fig,.tw,.phase{break-inside:avoid}
+  .chap{break-before:page}
+  .chap:first-of-type{break-before:auto}
+  .nd,.tag,.sw,.pipe .st,.phase .pn,.lane-t,.fig-head,.state,table.doc th,.chap .rn{-webkit-print-color-adjust:exact; print-color-adjust:exact}
+  @page{size:A4; margin:15mm}
+}
+</style>
+</head>
+<body>
+<main class="sheet">
+
+<!-- ═══════════════ 표제부 ═══════════════ -->
+<header class="doc-title">
+  <div class="cls"><span>기술검토자료</span></div>
+  <h1>AI통합플랫폼 ISMP 요구사항 대응 현황 및<br>목표 시스템 구조 설명서</h1>
+  <p class="sub">전북특별자치도교육청 「AI통합플랫폼 정보시스템마스터플랜(ISMP) 수립」 대응</p>
+</header>
+
+<table class="doc-meta">
+  <tr>
+    <th>관련 근거</th>
+    <td>「AI통합플랫폼 정보시스템마스터플랜(ISMP) 수립」 사업 안내·추진 방안·제안 요청 내용(통합본)</td>
+  </tr>
+  <tr>
+    <th>작성 목적</th>
+    <td>ISMP 제안요청 내용(핵심과제 4개, 컨설팅 요구사항 CNR-001~015) 대비 현행 시스템(edu-msa)의
+    <b>구현 현황과 구현 예정 사항</b>을 구조 도면 중심으로 제시</td>
+  </tr>
+  <tr>
+    <th>작성 기준일</th>
+    <td>2026. 9. 3. (현행 시스템 v0.6 기준)</td>
+  </tr>
+</table>
+
+<div class="legend">
+  <span class="lt">범 례</span>
+  <span class="lg"><span class="sw d"></span><b>구현 완료</b> — 실동작·검증 완료</span>
+  <span class="lg"><span class="sw p"></span><b>부분 구현</b> — 구조·화면 확보, 연동 보강 필요</span>
+  <span class="lg"><span class="sw f"></span><b>구현 예정</b> — 설계 반영·확장 지점 확보(점선)</span>
+</div>
+
+<nav class="toc">
+  <h2>목 차</h2>
+  <ol>
+    <li><a href="#c1">Ⅰ. 개요 및 대응 총괄</a></li>
+    <li><a href="#c2">Ⅱ. 목표 시스템 총괄 구조</a></li>
+    <li><a href="#c3">Ⅲ. 통합 인증·통합로그인 부문</a></li>
+    <li><a href="#c4">Ⅳ. 프로그램 저장소 부문</a></li>
+    <li><a href="#c5">Ⅴ. 자동 배포 파이프라인 부문</a></li>
+    <li><a href="#c6">Ⅵ. 웹서비스(웹앱) 제공 플랫폼 부문</a></li>
+    <li><a href="#c7">Ⅶ. 업무용 LLM·AI 연계 부문</a></li>
+    <li><a href="#c8">Ⅷ. 인프라·보안·데이터 부문</a></li>
+    <li><a href="#c9">Ⅸ. ISMP 요구사항 상세 매핑표</a></li>
+    <li><a href="#c10">Ⅹ. 단계별 추진 로드맵</a></li>
+    <li><a href="#c11">Ⅺ. 행정사항</a></li>
+  </ol>
+</nav>
+
+<!-- ═══════════════ Ⅰ ═══════════════ -->
+<div class="chap" id="c1"><span class="rn">Ⅰ</span><h2>개요 및 대응 총괄</h2></div>
+
+<h3 class="sec">작성 배경</h3>
+<ul class="dash">
+  <li>ISMP 추진목적은 <b>"교직원 업무경감용으로 개발된 여러 소프트웨어를 검색·공유하고, 기 구축된
+  AI LLM 서비스와 신규 구축 서비스를 하나의 플랫폼에서 교직원·학생·학부모·일반인이 활용"</b>하는
+  플랫폼 구축입니다.</li>
+  <li>현행 시스템(edu-msa)은 위 목적의 중심 축인 <b>프로그램 저장소</b>와 <b>웹서비스 제공 플랫폼</b>,
+  <b>통합 인증 관문</b>을 실동작 수준으로 구현·검증한 상태입니다.</li>
+  <li>본 문서는 ISMP 핵심과제·제안요청 항목을 기준으로 <b>구현 완료 / 부분 구현 / 구현 예정</b>을
+  구분하고, 부문별 구조 도면과 기능 명세로 그 근거를 제시합니다.</li>
+</ul>
+
+<h3 class="sec">현행 시스템 개요</h3>
+<div class="tw"><table class="doc">
+  <thead><tr><th style="width:140px">구분</th><th>내용</th></tr></thead>
+  <tbody>
+    <tr><td class="c"><b>시스템 성격</b></td>
+      <td>교육청 구성원이 제작한 업무 프로그램을 저장소(레포)로 등록하면, 플랫폼이 표준 규격을 검증하고
+      컨테이너 서비스로 자동 배포하여 전 직원이 웹에서 즉시 사용하도록 하는 내부 포털</td></tr>
+    <tr><td class="c"><b>구성</b></td>
+      <td>통합 포털(웹) · 플랫폼 API · 통합 인증 서비스의 3개 응용과 2개 데이터베이스(플랫폼용·인증용 분리),
+      컨테이너 오케스트레이션 기반 배포 파이프라인 및 운영 스택</td></tr>
+    <tr><td class="c"><b>검증 상태</b></td>
+      <td>등록→검증→승인→자동배포→공개 전 과정 실동작, 기본 업무 도구 7종(6개 언어) 배포 서비스 중,
+      실서버(PoC 도메인) 배포 검증 완료</td></tr>
+    <tr><td class="c"><b>기술 원칙</b></td>
+      <td>전 구성요소 공개 소프트웨어(오픈소스) 사용, 플랫폼 코어는 CPU 전용(기존 가상화 장비 활용 가능),
+      기능별 독립 서비스 분리로 외부 연계 시 변경 범위 최소화</td></tr>
+  </tbody>
+</table></div>
+
+<h3 class="sec">ISMP 핵심과제 대응 총괄</h3>
+<div class="tw"><table class="doc">
+  <thead><tr><th style="width:190px">ISMP 핵심과제</th><th>현행 대응</th><th style="width:160px">구현 예정</th><th style="width:88px">상태</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><b>자동화도구 보관소 구축</b></td>
+      <td>프로그램 등록·버전 이력·승인 워크플로·검색/공유 포털 동작</td>
+      <td>내부망 Gitea 전환, 정부 저장소 연계 검토</td>
+      <td class="c"><span class="tag done">구현 완료</span></td>
+    </tr>
+    <tr>
+      <td><b>통합플랫폼 구축</b></td>
+      <td>단일 포털·단일 로그인으로 등록 웹앱 자동 서비스, 서브도메인 접속</td>
+      <td>홈 개인화, 비로그인 공개 화면, 외부 플랫폼 연결 허브</td>
+      <td class="c"><span class="tag done">구현 완료</span></td>
+    </tr>
+    <tr>
+      <td><b>프론티어 LLM 업무 활용 기반</b></td>
+      <td>AI 검색 화면·모델 선택 구조·GPU 스케줄링 기반 확보</td>
+      <td>AI 게이트웨이(비식별 처리), 전북GPT·프론티어 LLM 연동, RAG/MCP</td>
+      <td class="c"><span class="tag part">부분 구현</span></td>
+    </tr>
+    <tr>
+      <td><b>정부AI 기반 연계 검토</b></td>
+      <td>커넥터 수용 구조(게이트웨이 방식) 설계 반영</td>
+      <td>범정부 AI·AI정부실험실 연동(제공 API 확정 후)</td>
+      <td class="c"><span class="tag plan">구현 예정</span></td>
+    </tr>
+  </tbody>
+</table></div>
+
+<!-- ═══════════════ Ⅱ ═══════════════ -->
+<div class="chap" id="c2"><span class="rn">Ⅱ</span><h2>목표 시스템 총괄 구조</h2></div>
+
+<h3 class="sec">전체 구성도</h3>
+<p class="gd">ISMP 목표상(통합플랫폼·통합로그인·프로그램 저장소·웹앱 서비스·업무용 LLM·외부 연계)을
+현행 시스템 위에 겹쳐 표기하였습니다. <b>실선 채움 상자는 현행 동작 부분</b>, <b>점선 상자는 구현 예정 부분</b>입니다.</p>
+
+<div class="fig">
+  <div class="fig-head"><b>도면 1</b><span>AI 통합플랫폼 전체 구성도 (현행 + 목표)</span></div>
+  <div class="fig-body">
+    <div class="lane"><span class="lane-t">사용자 계층</span>
+      <div class="row">
+        <div class="nd d"><b>교직원 (제작자)</b><small>도구 제작·등록·재배포</small></div>
+        <div class="nd d"><b>운영 관리자</b><small>승인·배포·권한·운영</small></div>
+        <div class="nd d"><b>일반 사용자</b><small>검색·바로 사용·의견</small></div>
+        <div class="nd f"><b>학생·학부모·일반인</b><small>그룹 세분화·비로그인 화면</small></div>
+      </div>
+    </div>
+    <div class="dn"></div>
+    <div class="lane"><span class="lane-t">접속 계층 (관문)</span>
+      <div class="row">
+        <div class="nd d"><b>웹 방화벽(WAF)</b><small>OWASP 규칙 적용 게이트웨이</small></div>
+        <div class="nd d"><b>TLS 암호화</b><small>인증서 자동 발급·갱신</small></div>
+        <div class="nd d"><b>서브도메인 라우팅</b><small>포털·웹앱별 고유 주소</small></div>
+      </div>
+    </div>
+    <div class="dn"></div>
+    <div class="lane"><span class="lane-t">통합 포털 계층</span>
+      <div class="row">
+        <div class="nd d"><b>포털 화면 8종</b><small>홈·탐색·AI찾기·등록·상세·마이·관리자·안내</small></div>
+        <div class="nd f"><b>홈 화면 개인화</b><small>사용자별 위젯 구성</small></div>
+        <div class="nd f"><b>비로그인 공개 화면</b><small>일반인용 별도 화면</small></div>
+        <div class="nd f"><b>외부 플랫폼 연결 허브</b><small>AIEP 등 기존 서비스 연동 진입점</small></div>
+      </div>
+    </div>
+    <div class="dn"></div>
+    <div class="lane"><span class="lane-t">공통 서비스 계층</span>
+      <div class="row">
+        <div class="nd d"><b>통합 인증 서비스</b><small>계정·권한 단일 소스, 토큰 발급 관문</small></div>
+        <div class="nd d"><b>플랫폼 API</b><small>프로그램·검토·배포·알림·분류</small></div>
+        <div class="nd f"><b>AI 게이트웨이</b><small>LLM 호출 중계·비식별 처리·커넥터</small></div>
+      </div>
+    </div>
+    <div class="dn"></div>
+    <div class="lane"><span class="lane-t">핵심 기능 계층</span>
+      <div class="row">
+        <div class="nd d"><b>프로그램 저장소</b><small>레포 등록·버전 이력·승인 워크플로</small></div>
+        <div class="nd d"><b>배포 파이프라인</b><small>검증→빌드→배포→상태확인 자동화</small></div>
+        <div class="nd d"><b>웹앱 서비스 런타임</b><small>격리 실행·서브도메인·유휴 절전</small></div>
+        <div class="nd f"><b>내부 Gitea 저장소</b><small>내부망 소스 보관·자동 재배포</small></div>
+      </div>
+    </div>
+    <div class="dn"></div>
+    <div class="lane"><span class="lane-t">외부 연계 계층 (전량 구현 예정)</span>
+      <div class="row">
+        <div class="nd f"><b>전북GPT API</b><small>도교육청 공용 LLM</small></div>
+        <div class="nd f"><b>NEIS·교육청 SSO</b><small>교직원 계정 연동</small></div>
+        <div class="nd f"><b>범정부 AI·AI정부실험실</b><small>정부 제공 AI 서비스</small></div>
+        <div class="nd f"><b>RAG 데이터 MCP 서버</b><small>타 AI 서비스에 데이터 개방</small></div>
+      </div>
+    </div>
+    <div class="dn"></div>
+    <div class="lane"><span class="lane-t">인프라 계층 (전량 오픈소스)</span>
+      <div class="row">
+        <div class="nd d"><b>컨테이너 오케스트레이션</b><small>Kubernetes — 기존 가상화 장비 활용 가능</small></div>
+        <div class="nd d"><b>보안 격리</b><small>신뢰등급 구역 분리·네트워크 통제</small></div>
+        <div class="nd d"><b>DB 고가용성</b><small>PostgreSQL 3중화(플랫폼/인증 분리)</small></div>
+        <div class="nd d"><b>관측성·알림</b><small>메트릭·로그·트레이스·경보</small></div>
+      </div>
+    </div>
+  </div>
+  <div class="fig-note"><b>설계 원칙</b> — 인증·AI·저장소를 독립 서비스로 분리하여, 외부 연계(점선)가 추가되어도
+  변경 범위가 해당 서비스 내부에 국한되고 그 외 구간은 무변경으로 수용됩니다.</div>
+</div>
+
+<h3 class="sec">사용자 요청 흐름도</h3>
+<p class="gd">사용자의 요청은 목적에 따라 <b>3개 경로</b>로 분기되며, 세 경로 모두 <b>동일한 토큰 신뢰 체계</b>를 사용합니다.</p>
+
+<div class="fig">
+  <div class="fig-head"><b>도면 2</b><span>요청 경로 분기 구조</span></div>
+  <div class="fig-body">
+    <div class="row center"><div class="nd hub" style="max-width:300px"><b>사용자 브라우저</b><small>단일 진입 · 단일 로그인</small></div></div>
+    <div class="dn"></div>
+    <div class="row">
+      <div class="nd d"><b>경로 1 — 인증 요청</b><small>/api/auth/** → 통합 인증 서비스<br>로그인·토큰 갱신·권한 신청</small></div>
+      <div class="nd d"><b>경로 2 — 플랫폼 기능</b><small>/api/** → 플랫폼 API<br>프로그램 조회·등록·검토·배포</small></div>
+      <div class="nd d"><b>경로 3 — 배포된 웹앱</b><small>웹앱별 서브도메인 → 해당 컨테이너<br>업무 도구 직접 사용</small></div>
+    </div>
+    <div class="dn"></div>
+    <div class="row">
+      <div class="nd d"><b>인증 DB</b><small>계정·권한·세션 (전용 DB)</small></div>
+      <div class="nd d"><b>플랫폼 DB</b><small>프로그램·배포·알림 (전용 DB)</small></div>
+      <div class="nd d"><b>각 웹앱 컨테이너</b><small>격리 구역 내 독립 실행</small></div>
+    </div>
+  </div>
+  <div class="fig-note"><b>무상태 인증</b> — 경로 2·3은 요청마다 인증 서비스를 호출하지 않고 공유 서명키로
+  토큰을 자체 검증하므로, 인증 서비스가 단일 장애점이 되지 않습니다.</div>
+</div>
+
+<h3 class="sec">구성요소 정의</h3>
+<div class="tw"><table class="doc">
+  <thead><tr><th style="width:150px">구성요소</th><th style="width:190px">적용 기술(오픈소스)</th><th>책임 범위</th><th style="width:86px">상태</th></tr></thead>
+  <tbody>
+    <tr><td class="c"><b>통합 포털</b></td><td>React 18 + TypeScript</td>
+      <td>화면 8종 제공, 역할별 메뉴 분기, 글자 크기 8단계·명암 모드 등 접근성 기능</td>
+      <td class="c"><span class="tag done">구현 완료</span></td></tr>
+    <tr><td class="c"><b>플랫폼 API</b></td><td>Spring Boot 3 (Java 21)</td>
+      <td>프로그램 생애주기(등록→검토→배포→공개) 관리, 알림, 분류 체계, 접근 통제</td>
+      <td class="c"><span class="tag done">구현 완료</span></td></tr>
+    <tr><td class="c"><b>통합 인증 서비스</b></td><td>Spring Boot 3 + 전용 DB</td>
+      <td>계정·권한 단일 소스, 토큰 발급·갱신·폐기, 권한 신청/승인 처리</td>
+      <td class="c"><span class="tag done">구현 완료</span></td></tr>
+    <tr><td class="c"><b>배포 파이프라인</b></td><td>작업 큐 + Kaniko + kubectl</td>
+      <td>소스 수집, 규격 검증, 이미지 빌드, 매니페스트 적용, 상태 확인</td>
+      <td class="c"><span class="tag done">구현 완료</span></td></tr>
+    <tr><td class="c"><b>웹앱 런타임</b></td><td>Kubernetes + KEDA</td>
+      <td>격리 실행, 서브도메인 라우팅, 자동 확장·유휴 절전, GPU 선택 할당</td>
+      <td class="c"><span class="tag done">구현 완료</span></td></tr>
+    <tr><td class="c"><b>데이터베이스</b></td><td>PostgreSQL (CloudNativePG)</td>
+      <td>플랫폼 DB·인증 DB 물리 분리, 3-인스턴스 고가용성</td>
+      <td class="c"><span class="tag done">구현 완료</span></td></tr>
+    <tr><td class="c"><b>AI 게이트웨이</b></td><td>(설계) 경량 중계 서비스</td>
+      <td>내·외부 LLM 호출 중계, 비식별 처리, 사용량·이력 관리, 정부AI 커넥터</td>
+      <td class="c"><span class="tag plan">구현 예정</span></td></tr>
+    <tr><td class="c"><b>내부 소스 저장소</b></td><td>(계획) Gitea</td>
+      <td>내부망 소스 보관, 저장 이벤트(webhook) 기반 자동 재배포</td>
+      <td class="c"><span class="tag plan">구현 예정</span></td></tr>
+  </tbody>
+</table></div>
+
+<!-- ═══════════════ Ⅲ ═══════════════ -->
+<div class="chap" id="c3"><span class="rn">Ⅲ</span><h2>통합 인증·통합로그인 부문 (CNR-008·009)</h2></div>
+
+<h3 class="sec">요구사항 요지</h3>
+<ul class="dash">
+  <li>하나의 로그인으로 플랫폼과 다른 서비스를 연동하는 통합로그인 구현 방법 제시 (CNR-008)</li>
+  <li>교육행정정보시스템(NEIS) 사용자 연동 및 외부 플랫폼 사용자 연동 방안 제시 (CNR-009)</li>
+  <li>기 구축된 로그인 서비스를 적극 활용할 것 (사업범위 다.항)</li>
+</ul>
+
+<h3 class="sec">인증 구조 도면</h3>
+<div class="fig">
+  <div class="fig-head"><b>도면 3</b><span>통합 인증 구조 — 인증 경로 확장형 관문 모델</span></div>
+  <div class="fig-body">
+    <div class="lane"><span class="lane-t">인증 경로 (확장 가능)</span>
+      <div class="row">
+        <div class="nd d"><b>자체 계정</b><small>ID/PW·비밀번호 해시(BCrypt)<br>아이디/이메일 중복확인</small></div>
+        <div class="nd d"><b>데모 로그인</b><small>시연용 · 역할 전환<br>세션 1일 제한 · 설정으로 차단 가능</small></div>
+        <div class="nd f"><b>NEIS·교육청 SSO</b><small>교직원 자동 식별<br>최초 로그인 시 계정 자동 생성</small></div>
+        <div class="nd f"><b>외부 플랫폼 계정(OIDC)</b><small>타 시스템 사용자 연동<br>외부 식별값 매핑</small></div>
+      </div>
+    </div>
+    <div class="dn"></div>
+    <div class="row center">
+      <div class="nd hub" style="max-width:460px"><b>통합 인증 서비스 (토큰 발급 관문)</b>
+        <small>계정·권한 단일 소스 · 접근 토큰 30분 / 갱신 토큰 14일 ·
+        갱신 시 토큰 회전 · 폐기 토큰 재사용 감지 시 전체 세션 무효화(탈취 대응)</small></div>
+    </div>
+    <div class="dn"></div>
+    <div class="lane"><span class="lane-t">토큰 소비 구간 (인증 경로와 무관하게 무변경)</span>
+      <div class="row">
+        <div class="nd d"><b>통합 포털</b><small>접근 토큰은 메모리 보관<br>갱신 토큰은 보안 쿠키(HttpOnly)</small></div>
+        <div class="nd d"><b>플랫폼 API</b><small>공유 서명키로 자체 검증<br>역할 기반 접근 통제(RBAC)</small></div>
+        <div class="nd d"><b>배포된 각 웹앱</b><small>동일 방식 자체 검증<br>인증 서버 무호출(무상태)</small></div>
+        <div class="nd f"><b>연계 외부 서비스</b><small>동일 토큰 신뢰 체계로 확장</small></div>
+      </div>
+    </div>
+  </div>
+  <div class="fig-note"><b>CNR-009 대응 방식</b> — 발급 토큰의 형태가 인증 경로와 무관하게 동일하므로,
+  NEIS/SSO 추가 시 변경은 인증 서비스 내부(콜백 처리, 계정 매핑 컬럼 추가)로 국한됩니다.
+  "기 구축 로그인 서비스 적극 활용" 요구를 구조적으로 충족합니다.</div>
+</div>
+
+<h3 class="sec">권한 체계 도면</h3>
+<div class="fig">
+  <div class="fig-head"><b>도면 4</b><span>권한 3등급 및 상향 승인 절차 — 최소 권한 원칙</span></div>
+  <div class="fig-body">
+    <div class="row">
+      <div class="nd d"><b>USER (일반 사용자)</b><small>가입 기본값 · 검색·사용·의견·즐겨찾기</small></div>
+      <div class="nd d"><b>CODER (제작 직원)</b><small>USER 전체 + 등록·규격검증·재배포</small></div>
+      <div class="nd d"><b>ADMIN (운영 관리자)</b><small>CODER 전체 + 승인·배포·중지·권한·통계</small></div>
+    </div>
+    <div class="dn"></div>
+    <div class="pipe">
+      <div class="st d"><b>① 신청</b><small>가입 시 또는 마이페이지에서<br>상향 권한 + 사유 제출</small></div>
+      <div class="st d"><b>② 대기</b><small>계정은 USER 유지<br>신청 정보만 보관</small></div>
+      <div class="st d"><b>③ 관리자 심사</b><small>이름·부서·사유 확인<br>승인 또는 반려</small></div>
+      <div class="st d"><b>④ 반영</b><small>승인 시에만 권한 상향<br>신청자 취소 가능(승인 전)</small></div>
+    </div>
+  </div>
+  <div class="fig-note"><b>통제 사항</b> — 자가 가입·자가 신청만으로는 권한이 상승하지 않습니다(전 구간 서버 강제).
+  화면 전환이 아닌 서버 권한 기준으로 모든 보호 기능이 통제됩니다.</div>
+</div>
+
+<h3 class="sec">기능 명세</h3>
+<div class="tw"><table class="doc">
+  <thead><tr><th style="width:170px">기능</th><th>상세 내용</th><th style="width:86px">상태</th></tr></thead>
+  <tbody>
+    <tr><td><b>회원가입·중복확인</b></td>
+      <td>아이디 형식·비밀번호 복잡도(8~64자, 영문/숫자/특수문자) 실시간 검증, 아이디·이메일 중복확인,
+      가입 시 상향 권한 신청 동봉 가능</td>
+      <td class="c"><span class="tag done">구현 완료</span></td></tr>
+    <tr><td><b>로그인·세션 관리</b></td>
+      <td>접근 토큰(30분)은 응답 본문→메모리 보관(스크립트 탈취 대비), 갱신 토큰(14일)은 HttpOnly 쿠키.
+      만료 60초 전 자동 재발급, 새로고침 시 세션 복구</td>
+      <td class="c"><span class="tag done">구현 완료</span></td></tr>
+    <tr><td><b>토큰 보안</b></td>
+      <td>갱신 토큰은 원문이 아닌 해시(SHA-256)로 저장, 갱신 시 회전(기존 폐기), 폐기 토큰 재사용 감지 시
+      해당 계정 전체 세션 무효화. 서명키 미설정·32바이트 미만 시 기동 거부</td>
+      <td class="c"><span class="tag done">구현 완료</span></td></tr>
+    <tr><td><b>권한 신청·승인</b></td>
+      <td>신청 접수(2경로)→승인 대기→관리자 승인/반려→반영. 신청자 취소, 관리자 직접 부여 겸용</td>
+      <td class="c"><span class="tag done">구현 완료</span></td></tr>
+    <tr><td><b>아이디·비밀번호 찾기</b></td>
+      <td>2단계 화면·입력 검증까지 동작, 실제 조회·재설정 메일 발송은 메일서버(SMTP) 연동 후 완성</td>
+      <td class="c"><span class="tag part">부분 구현</span></td></tr>
+    <tr><td><b>NEIS·SSO 연동</b></td>
+      <td>인증 서비스에 SSO 콜백 처리·인증 출처 컬럼·외부 식별값 매핑·계정 자동 생성 추가(설계 반영 완료).
+      토큰 소비 구간은 무변경</td>
+      <td class="c"><span class="tag plan">구현 예정</span></td></tr>
+    <tr><td><b>사용자 그룹 세분화</b></td>
+      <td>학생·학부모·일반인 구분 및 그룹별 이용 범위 설정(ISMP 사용자 그룹 정의와 연동하여 확정)</td>
+      <td class="c"><span class="tag plan">구현 예정</span></td></tr>
+  </tbody>
+</table></div>
+
+<!-- ═══════════════ Ⅳ ═══════════════ -->
+<div class="chap" id="c4"><span class="rn">Ⅳ</span><h2>프로그램 저장소 부문 (CNR-010)</h2></div>
+
+<h3 class="sec">요구사항 요지</h3>
+<ul class="dash">
+  <li>프로그램(실행파일 등)·소스를 이력 관리하고 등록·사용이 편리한 프로그램 저장소 기능 (CNR-010)</li>
+  <li>정부기관 제공 AI서비스(예: AI정부실험실)와의 연동·공동활용 가능성 분석 (CNR-010)</li>
+</ul>
+
+<h3 class="sec">저장소 구조 도면</h3>
+<div class="fig">
+  <div class="fig-head"><b>도면 5</b><span>프로그램 저장소 구성 — 소스·메타데이터·이력의 3중 관리</span></div>
+  <div class="fig-body">
+    <div class="lane"><span class="lane-t">등록 창구</span>
+      <div class="row">
+        <div class="nd d"><b>5단계 등록 화면</b><small>기본정보→분류→저장소→제공방식→공개범위</small></div>
+        <div class="nd d"><b>사전 규격 검증</b><small>등록 전 자가 점검 버튼 · 실패 항목 즉시 표시</small></div>
+        <div class="nd d"><b>비전공자 지원</b><small>AI 빌드 지시서·언어별 템플릿 내려받기</small></div>
+      </div>
+    </div>
+    <div class="dn"></div>
+    <div class="lane"><span class="lane-t">저장 계층</span>
+      <div class="row">
+        <div class="nd d"><b>소스 저장 (현행)</b><small>GitHub 레포 연동 — 지정 브랜치 수집</small></div>
+        <div class="nd f"><b>소스 저장 (전환 예정)</b><small>내부 Gitea — 내부망 보관·봇 계정·접근 토큰</small></div>
+        <div class="nd d"><b>이미지 저장</b><small>사내 컨테이너 레지스트리 — 배포본 태그 보관</small></div>
+      </div>
+    </div>
+    <div class="dn"></div>
+    <div class="lane"><span class="lane-t">이력·메타데이터 계층 (플랫폼 DB)</span>
+      <div class="row">
+        <div class="nd d"><b>프로그램 정보</b><small>이름·분류·소개·기술·공개범위·상태</small></div>
+        <div class="nd d"><b>버전 이력</b><small>버전·변경 로그·일자 — 화면 "업데이트 내역"으로 노출</small></div>
+        <div class="nd d"><b>처리 이력</b><small>승인·반려·중지·재개 기록(처리자·사유·시각)</small></div>
+        <div class="nd d"><b>배포 이력</b><small>이미지 태그·배포 로그·상태 — 직전 태그로 롤백 근거</small></div>
+      </div>
+    </div>
+    <div class="dn"></div>
+    <div class="row">
+      <div class="nd d"><b>검색·공유 포털</b><small>7개 업무분야·기능유형·기술 필터, 정렬 3종, 부서별 공개범위</small></div>
+      <div class="nd d"><b>소통 기능</b><small>의견·답글, 즐겨찾기, 종류별 알림함</small></div>
+      <div class="nd f"><b>정부 저장소 연계</b><small>AI정부실험실 등 공동활용 검토</small></div>
+    </div>
+  </div>
+  <div class="fig-note"><b>CNR-010 "이력 관리" 대응</b> — 소스(레포 커밋), 이미지(태그), 메타데이터(버전·처리·배포
+  이력 테이블)의 3개 층위에서 이력이 보존되어 임의 삭제·변조 없이 추적이 가능합니다.</div>
+</div>
+
+<h3 class="sec">프로그램 상태 관리 도면</h3>
+<div class="fig">
+  <div class="fig-head"><b>도면 6</b><span>프로그램 생애주기 상태 머신 — 승인 없이 공개 불가</span></div>
+  <div class="fig-body">
+    <div class="smrow">
+      <span class="state g">작성 중(draft)</span><span class="tr">등록 요청</span>
+      <span class="state w">승인 대기(pending)</span><span class="tr">관리자 승인 + 배포 성공</span>
+      <span class="state d">공개(public)</span>
+    </div>
+    <div class="smrow">
+      <span class="state w">승인 대기</span><span class="tr">관리자 반려(사유 필수)</span>
+      <span class="state x">반려(rejected)</span>
+    </div>
+    <div class="smrow">
+      <span class="state d">공개</span><span class="tr">중지(사유 기록)</span>
+      <span class="state g">공개 중지(stopped)</span><span class="tr">재개</span>
+      <span class="state d">공개</span>
+    </div>
+  </div>
+  <div class="fig-note"><b>자동 공개 규칙</b> — 승인 시 즉시 공개하지 않고 배포 작업 큐에 적재하며,
+  <b>배포·상태확인이 성공해야 자동으로 공개 상태로 전환</b>됩니다(불량 서비스의 목록 노출 차단).
+  반려·중지 사유는 등록자 화면에 그대로 표시되며 알림이 발송됩니다.</div>
+</div>
+
+<h3 class="sec">기능 명세</h3>
+<div class="tw"><table class="doc">
+  <thead><tr><th style="width:170px">기능</th><th>상세 내용</th><th style="width:86px">상태</th></tr></thead>
+  <tbody>
+    <tr><td><b>프로그램 등록</b></td>
+      <td>제작 직원(CODER 이상)이 5단계 화면으로 등록 요청. 업무분야 7종·기능유형 7종·기술 태그·제공방식·
+      공개범위(전체/부서) 지정</td>
+      <td class="c"><span class="tag done">구현 완료</span></td></tr>
+    <tr><td><b>사전 규격 검증</b></td>
+      <td>등록 화면에서 저장소 주소 입력 후 즉시 7개 항목 정적 검사(설정파일 존재·필수값·식별자 규칙·분류값·
+      Dockerfile 존재·저장소 접근성·상태확인 경로), 실패 항목을 사유로 표시</td>
+      <td class="c"><span class="tag done">구현 완료</span></td></tr>
+    <tr><td><b>버전 이력 관리</b></td>
+      <td>버전·변경 로그를 프로그램별 이력으로 축적, 상세 화면 "업데이트 내역" 탭 노출, 직전 이미지 태그 보관(롤백 근거)</td>
+      <td class="c"><span class="tag done">구현 완료</span></td></tr>
+    <tr><td><b>재배포(신규 버전)</b></td>
+      <td>소유자 본인만 실행 가능(관리자는 전체), 공개 상태에서만 허용, 저장소 주소는 서버 저장값만 사용하여
+      임의 주소 주입 차단</td>
+      <td class="c"><span class="tag done">구현 완료</span></td></tr>
+    <tr><td><b>검색·공유</b></td>
+      <td>키워드·분야·기능·기술·공개범위 복합 필터, 최신/조회/다운로드 정렬, 인기 순위, 대화형 AI 추천 화면</td>
+      <td class="c"><span class="tag done">구현 완료</span></td></tr>
+    <tr><td><b>내부 Gitea 전환</b></td>
+      <td>내부망 코드 반출 불가 제약 대응. 설치→도메인/TLS→파이프라인 자격증명→저장 이벤트 자동 재배포→
+      예제 미러링→통합 검증의 6단계 계획 수립 완료</td>
+      <td class="c"><span class="tag plan">구현 예정</span></td></tr>
+    <tr><td><b>정부 AI서비스 공동활용</b></td>
+      <td>AI정부실험실 등 정부 제공 서비스·저장소와의 연동 접점을 저장소 계층 커넥터로 수용</td>
+      <td class="c"><span class="tag plan">구현 예정</span></td></tr>
+  </tbody>
+</table></div>
+
+<!-- ═══════════════ Ⅴ ═══════════════ -->
+<div class="chap" id="c5"><span class="rn">Ⅴ</span><h2>자동 배포 파이프라인 부문</h2></div>
+
+<h3 class="sec">개요</h3>
+<ul class="dash">
+  <li>승인된 프로그램을 사람 개입 없이 서비스로 전환하는 자동화 구간으로서, ISMP의 "통합플랫폼 구현"
+  (CNR-008)과 "웹서비스 제공 플랫폼 구현"(CNR-011)의 실행 기반입니다.</li>
+  <li>요청 즉시 실행이 아닌 <b>작업 큐 적재 → 워커 처리</b> 구조로, 플랫폼 API가 다중 인스턴스로
+  운영되어도 동일 작업의 중복 처리가 발생하지 않습니다.</li>
+</ul>
+
+<h3 class="sec">파이프라인 도면</h3>
+<div class="fig">
+  <div class="fig-head"><b>도면 7</b><span>배포 파이프라인 전체 흐름 — 승인부터 공개까지 자동화</span></div>
+  <div class="fig-body">
+    <div class="pipe">
+      <div class="st d"><b>① 배포 지시</b><small>관리자 승인 시 자동<br>또는 소유자 재배포</small></div>
+      <div class="st d"><b>② 큐 적재</b><small>DB 작업 큐<br>행 잠금으로 중복 방지</small></div>
+      <div class="st d"><b>③ 소스 수집</b><small>레포 얕은 복제<br>지정 브랜치</small></div>
+      <div class="st d"><b>④ 규격 검증</b><small>설정파일·Dockerfile<br>식별자·포트·경로</small></div>
+      <div class="st d"><b>⑤ 이미지 빌드</b><small>클러스터 내 안전 빌드<br>(도커 소켓 미노출)</small></div>
+      <div class="st d"><b>⑥ 배포 적용</b><small>Deployment·Service<br>·Ingress 생성</small></div>
+      <div class="st d"><b>⑦ 상태 확인</b><small>상태 응답 통과까지<br>라우팅 보류</small></div>
+      <div class="st d"><b>⑧ 자동 공개</b><small>프로그램 공개 전환<br>소유자 알림 발송</small></div>
+    </div>
+    <div class="dn"></div>
+    <div class="row">
+      <div class="nd d"><b>실패 처리</b><small>최대 2회 자동 재시도 → 초과 시 실패 확정,
+      실패 원인을 상세 화면에 표시하고 "다시 시도" 제공</small></div>
+      <div class="nd d"><b>배포 모드 3종</b><small>모의(검증·미리보기) / 단일 서버(Docker) /
+      실서버(K8s) — 운영 환경에 맞게 전환</small></div>
+      <div class="nd d"><b>진행 상태 노출</b><small>대기→검증→빌드→배포→가동/실패 단계를
+      사용자 화면에서 자동 갱신 표시</small></div>
+    </div>
+  </div>
+  <div class="fig-note"><b>보안 빌드</b> — 이미지 빌드는 도커 소켓을 노출하지 않는 클러스터 내 Kaniko Job으로
+  수행하며, 저장소 주소·브랜치는 형식 검증을 거쳐 인자 주입 공격을 차단합니다.</div>
+</div>
+
+<div class="fig">
+  <div class="fig-head"><b>도면 8</b><span>배포 오케스트레이션 — 작업 큐·워커 구조</span></div>
+  <div class="fig-body">
+    <div class="row">
+      <div class="nd d"><b>배포 요청자</b><small>관리자 승인 / 소유자 재배포</small></div>
+    </div>
+    <div class="dn"></div>
+    <div class="row center">
+      <div class="nd hub" style="max-width:430px"><b>DB 작업 큐 (deploy_jobs)</b>
+        <small>상태: 대기→처리중→완료/실패 · 시도 횟수·오류 기록 ·
+        선점 시 행 잠금(FOR UPDATE SKIP LOCKED)</small></div>
+    </div>
+    <div class="dn"></div>
+    <div class="row">
+      <div class="nd d"><b>워커 #1</b><small>3초 주기 선점·처리</small></div>
+      <div class="nd d"><b>워커 #2</b><small>다중 인스턴스 안전</small></div>
+      <div class="nd d"><b>워커 #n</b><small>수평 확장 가능</small></div>
+    </div>
+    <div class="dn"></div>
+    <div class="row center">
+      <div class="nd d" style="max-width:430px"><b>배포 실행·기록 (deployments)</b>
+        <small>이미지 태그·접속 주소·배포 로그·매니페스트 원문 보존</small></div>
+    </div>
+  </div>
+  <div class="fig-note"><b>대규모 대비</b> — 배포 요청 폭주 시에도 큐가 완충하며, 워커 수 증가만으로 처리량을
+  확장합니다. 실패한 작업은 한도 내에서 자동 복귀·재시도됩니다.</div>
+</div>
+
+<!-- ═══════════════ Ⅵ ═══════════════ -->
+<div class="chap" id="c6"><span class="rn">Ⅵ</span><h2>웹서비스(웹앱) 제공 플랫폼 부문 (CNR-011)</h2></div>
+
+<h3 class="sec">요구사항 요지</h3>
+<ul class="dash">
+  <li>AI 등을 활용해 다양하게 개발된 웹기능(웹앱)을 등록하여 서비스·관리하는 기능 (CNR-011)</li>
+  <li>백엔드(DB 등)가 필요한 경우 이를 서비스해 줄 수 있는 방안 (CNR-011)</li>
+  <li>사용자가 원하는 기능만 적용해 사용하는 방안, 최적 제공 방식(웹/데스크톱) 검토 (CNR-008)</li>
+</ul>
+
+<h3 class="sec">표준 규격 도면</h3>
+<div class="fig">
+  <div class="fig-head"><b>도면 9</b><span>표준 서비스 규격(기술 계약) — 언어 무관 수용 구조</span></div>
+  <div class="fig-body">
+    <div class="row">
+      <div class="nd d wide"><b>규격 5원칙 (제작자가 지킬 전부)</b>
+        <small>① 레포 하나 = 서비스 하나 ② 레포 루트에 설정파일(service.yaml: 이름·식별자·분류·포트)
+        ③ 레포 루트에 Dockerfile ④ 플랫폼이 주입하는 PORT 환경변수로 기동(하드코딩 금지)
+        ⑤ 상태확인 경로(/healthz) 200 응답</small></div>
+    </div>
+    <div class="dn"></div>
+    <div class="row">
+      <div class="nd d"><b>자동 검증 7항목</b><small>설정파일 파싱·필수값·식별자 규칙(전역 유일)·분류값·
+      Dockerfile·저장소 접근성·상태확인 경로</small></div>
+      <div class="nd d"><b>선택 항목</b><small>기능유형·기술·소개문·자원량(CPU/메모리)·GPU 수(0~8)·
+      환경변수(민감정보 금지)</small></div>
+      <div class="nd d"><b>운영 계약</b><small>무상태 권장·로그는 표준출력·30초 내 기동·
+      통일 오류 형식(JSON)</small></div>
+    </div>
+    <div class="dn"></div>
+    <div class="row">
+      <div class="nd d"><b>Python</b><small>자리배치·데이터요약·OCR</small></div>
+      <div class="nd d"><b>Go</b><small>맞춤법 검사</small></div>
+      <div class="nd d"><b>TypeScript</b><small>시간표 검사</small></div>
+      <div class="nd d"><b>C#</b><small>여비 계산</small></div>
+      <div class="nd d"><b>Java</b><small>QR 라벨</small></div>
+    </div>
+  </div>
+  <div class="fig-note"><b>검증 실적</b> — 위 규격으로 6개 언어·7종 업무 도구가 동일 파이프라인을 통해 배포·서비스
+  중이며, 언어 다양성 자체가 규격의 범용성 검증 근거입니다.</div>
+</div>
+
+<h3 class="sec">런타임 격리 구조 도면</h3>
+<div class="fig">
+  <div class="fig-head"><b>도면 10</b><span>웹앱 런타임 격리 — 신뢰등급별 이중 구역</span></div>
+  <div class="fig-body">
+    <div class="row center"><div class="nd d" style="max-width:380px"><b>격리 배치 판정</b>
+      <small>업로더 권한 기준 자동 판정 · 판단 불가 시 더 엄격한 구역으로(fail-closed)</small></div></div>
+    <div class="dn"></div>
+    <div class="duo">
+      <div class="fig" style="margin:0">
+        <div class="fig-head" style="background:#3a5a48"><b>내부 신뢰 구역</b><span>edu-services</span></div>
+        <div class="fig-body" style="padding:12px">
+          <div class="row">
+            <div class="nd d"><b>대상</b><small>내부 직원(CODER)·관리자 제작 웹앱</small></div>
+            <div class="nd d"><b>보안 수준</b><small>PodSecurity baseline</small></div>
+          </div>
+        </div>
+      </div>
+      <div class="fig" style="margin:0">
+        <div class="fig-head" style="background:#5a4a3a"><b>비신뢰 구역</b><span>edu-services-public</span></div>
+        <div class="fig-body" style="padding:12px">
+          <div class="row">
+            <div class="nd d"><b>대상</b><small>외부·불특정 업로더 제작 웹앱</small></div>
+            <div class="nd d"><b>보안 수준</b><small>restricted + 샌드박스 권장</small></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="dn"></div>
+    <div class="row">
+      <div class="nd d"><b>네트워크 통제</b><small>기본 전체 차단 → DNS·수신 경로만 허용,
+      사설망·클라우드 메타데이터 접근 차단</small></div>
+      <div class="nd d"><b>실행 통제</b><small>비루트 실행·권한 상승 금지·커널 권한 전부 제거·
+      기본 seccomp·서비스계정 토큰 미장착</small></div>
+      <div class="nd d"><b>자원 통제</b><small>구역별 총량 제한(ResourceQuota)·
+      개별 상한(LimitRange)</small></div>
+    </div>
+    <div class="dn"></div>
+    <div class="row">
+      <div class="nd d"><b>유휴 절전</b><small>이용 없는 웹앱은 0대로 축소, 접속 시 자동 기동(KEDA)</small></div>
+      <div class="nd d"><b>GPU 선택 할당</b><small>설정파일에 GPU 수 명시 시에만 전용 노드 배치</small></div>
+      <div class="nd f"><b>테넌트 DB 제공</b><small>DB 필요 웹앱에 스키마/인스턴스 프로비저닝
+      (기존 CNPG 운영 기반 확장)</small></div>
+    </div>
+  </div>
+  <div class="fig-note"><b>CNR-011 "백엔드 제공" 대응</b> — 현행 기본 도구는 무상태 원칙으로 DB가 불필요하나,
+  DB 필요 웹앱을 위해 운영 중인 PostgreSQL(HA) 기반으로 프로그램별 스키마를 자동 발급·주입하는
+  프로비저닝을 확장 항목으로 계획하고 있습니다.</div>
+</div>
+
+<!-- ═══════════════ Ⅶ ═══════════════ -->
+<div class="chap" id="c7"><span class="rn">Ⅶ</span><h2>업무용 LLM·AI 연계 부문 (CNR-007·012)</h2></div>
+
+<h3 class="sec">요구사항 요지</h3>
+<ul class="dash">
+  <li>구축 예정인 전북GPT API를 최대한 활용하는 방안 (CNR-007·012)</li>
+  <li>각종 특화 RAG를 연동·오케스트레이션하고, RAG 데이터를 MCP화하여 타 AI 서비스에서 이용 (CNR-012)</li>
+  <li>프론티어 LLM의 업무 활용 — 블라인드(비식별) 처리 방식 우선 검토 (CNR-012)</li>
+  <li>행정안전부 범정부 AI 등 타 기관 제공 AI 서비스 연동 (CNR-007)</li>
+</ul>
+
+<h3 class="sec">AI 게이트웨이 도면</h3>
+<div class="fig">
+  <div class="fig-head"><b>도면 11</b><span>AI 게이트웨이 목표 구조 — 모든 LLM 호출의 단일 관문</span></div>
+  <div class="fig-body">
+    <div class="lane"><span class="lane-t">호출 주체</span>
+      <div class="row">
+        <div class="nd p"><b>AI 프로그램 검색</b><small>대화형 화면·모델 선택 구조 구현<br>실 LLM 추론 연동 예정</small></div>
+        <div class="nd f"><b>업무 보조 AI</b><small>공문 초안·요약·번역 등 신규 화면</small></div>
+        <div class="nd d"><b>각 웹앱의 AI 기능</b><small>OCR·통계 등 자체 처리형 동작 중</small></div>
+        <div class="nd f"><b>외부 연계 서비스</b><small>MCP 경유 타 AI 서비스</small></div>
+      </div>
+    </div>
+    <div class="dn"></div>
+    <div class="row center">
+      <div class="nd f" style="max-width:560px"><b>AI 게이트웨이 (구현 예정 · 신설 독립 서비스)</b>
+        <small>모델 라우팅(용도별 최적 모델 선택) · 사용량/이력 관리(부서·사용자 단위) ·
+        접근 통제(플랫폼 토큰 검증 재사용) · <b>블라인드 처리기: 개인정보·민감정보 자동 탐지→치환 후
+        외부 전송, 응답 수신 시 복원</b></small></div>
+    </div>
+    <div class="dn"></div>
+    <div class="lane"><span class="lane-t">모델·서비스 계층</span>
+      <div class="row">
+        <div class="nd f"><b>전북GPT API</b><small>도교육청 공용 LLM(구축 예정 자원)<br>업무 질의 기본 경로</small></div>
+        <div class="nd p"><b>내부 자원 LLM</b><small>Ollama·vLLM 서빙 — GPU 스케줄링<br>기반 구축 완료, 모델 탑재 예정</small></div>
+        <div class="nd f"><b>프론티어 LLM</b><small>외부 상용 모델 —<br>비식별 처리 통과분만 호출</small></div>
+        <div class="nd f"><b>범정부 AI</b><small>행정안전부 등 정부 제공<br>서비스 커넥터</small></div>
+      </div>
+    </div>
+  </div>
+  <div class="fig-note"><b>게이트웨이 방식의 이점</b> — 호출 경로를 한 관문으로 모아 비식별 처리·이력·통제를
+  일괄 적용하며, 모델을 추가·교체하여도 호출 측(포털·웹앱)은 변경이 없습니다. 정부AI 연계(CNR-007)도 커넥터 추가로 수용합니다.</div>
+</div>
+
+<h3 class="sec">RAG·MCP 데이터 흐름 도면</h3>
+<div class="fig">
+  <div class="fig-head"><b>도면 12</b><span>특화 RAG·MCP 개방 구조 (구현 예정)</span></div>
+  <div class="fig-body">
+    <div class="row">
+      <div class="nd f"><b>업무 문서·규정</b><small>공문·지침·규정집</small></div>
+      <div class="nd f"><b>교육과정 자료</b><small>교과·연수 자료</small></div>
+      <div class="nd f"><b>플랫폼 지식</b><small>프로그램 소개·사용법(현행 데이터 활용)</small></div>
+    </div>
+    <div class="dn"></div>
+    <div class="row center">
+      <div class="nd f" style="max-width:420px"><b>특화 RAG 저장소(벡터화)</b>
+        <small>분야별 지식베이스 구축 · 접근 권한 구분</small></div>
+    </div>
+    <div class="dn"></div>
+    <div class="row">
+      <div class="nd f"><b>RAG 오케스트레이션</b><small>질의 의도에 맞는 지식베이스 조합·중계
+      — 전북GPT 과업과 역할 분담 협의 필요</small></div>
+      <div class="nd f"><b>MCP 서버</b><small>RAG 데이터를 표준 프로토콜(MCP)로 노출 —
+      전북GPT·타 기관 AI 서비스가 직접 활용</small></div>
+    </div>
+  </div>
+  <div class="fig-note"><b>협의 필요 사항</b> — RAG 오케스트레이션은 전북GPT 과업에도 포함된 내용으로 명시되어
+  있어(ISMP CNR-012), 중복 투자 방지를 위한 역할 분담 협의를 선행 조건으로 두었습니다.</div>
+</div>
+
+<h3 class="sec">기능 명세</h3>
+<div class="tw"><table class="doc">
+  <thead><tr><th style="width:170px">기능</th><th>상세 내용</th><th style="width:86px">상태</th></tr></thead>
+  <tbody>
+    <tr><td><b>AI 프로그램 검색 화면</b></td>
+      <td>업무를 문장으로 설명하면 프로그램을 추천하는 대화형 화면·모델 선택 구조 동작(현재는 로컬 매칭 방식,
+      외부 전송 없음)</td>
+      <td class="c"><span class="tag part">부분 구현</span></td></tr>
+    <tr><td><b>GPU 실행 기반</b></td>
+      <td>GPU 장비 플러그인·전용 노드 배치 설정 완료 — 내부 LLM 서빙은 모델 탑재만으로 개시 가능</td>
+      <td class="c"><span class="tag done">구현 완료</span></td></tr>
+    <tr><td><b>AI 게이트웨이</b></td>
+      <td>비식별 처리·모델 라우팅·사용 이력의 단일 관문 신설(독립 서비스로 추가 — 기존 구조 무변경 수용)</td>
+      <td class="c"><span class="tag plan">구현 예정</span></td></tr>
+    <tr><td><b>전북GPT 연동</b></td>
+      <td>게이트웨이의 기본 경로로 연결, API 규격 확정 후 착수</td>
+      <td class="c"><span class="tag plan">구현 예정</span></td></tr>
+    <tr><td><b>블라인드(비식별) 처리</b></td>
+      <td>개인정보·민감정보 자동 탐지·치환 후 외부 LLM 전송, 응답 복원. 외부 모델 활용의 선행 안전장치로
+      우선 구현(ISMP "우선 검토" 지침 반영)</td>
+      <td class="c"><span class="tag plan">구현 예정</span></td></tr>
+    <tr><td><b>RAG·MCP</b></td>
+      <td>분야별 지식베이스 구축, 오케스트레이션(역할 협의 후), MCP 서버로 타 AI 서비스에 개방</td>
+      <td class="c"><span class="tag plan">구현 예정</span></td></tr>
+    <tr><td><b>범정부 AI 연계</b></td>
+      <td>행정안전부 등 정부 제공 AI를 게이트웨이 커넥터로 연동(제공 API·이용 기준 확정 후)</td>
+      <td class="c"><span class="tag plan">구현 예정</span></td></tr>
+  </tbody>
+</table></div>
+
+<!-- ═══════════════ Ⅷ ═══════════════ -->
+<div class="chap" id="c8"><span class="rn">Ⅷ</span><h2>인프라·보안·데이터 부문 (CNR-006·014)</h2></div>
+
+<h3 class="sec">요구사항 요지</h3>
+<ul class="dash">
+  <li>기존 하드웨어(가상화 장비)를 최대한 활용하고 최소한의 인프라 도입으로 설계 (CNR-006)</li>
+  <li>기존 도입 소프트웨어와 오픈소스 소프트웨어를 최대한 활용하여 설계 (CNR-006·014)</li>
+  <li>AI 관련 법·제도를 검토하여 보안에 적합하도록 네트워크·보안 구성 (CNR-006)</li>
+</ul>
+
+<h3 class="sec">인프라 계층 구조 도면</h3>
+<div class="fig">
+  <div class="fig-head"><b>도면 13</b><span>인프라 4계층 구조 — 전 구성요소 오픈소스·실동작 검증</span></div>
+  <div class="fig-body">
+    <div class="lane"><span class="lane-t">EDGE — 경계 관문</span>
+      <div class="row">
+        <div class="nd d"><b>ingress-nginx + WAF</b><small>ModSecurity/OWASP CRS 규칙</small></div>
+        <div class="nd d"><b>cert-manager</b><small>TLS 인증서 자동 발급·갱신</small></div>
+        <div class="nd d"><b>서브도메인 라우팅</b><small>포털·웹앱별 고유 주소 분기</small></div>
+      </div>
+    </div>
+    <div class="dn"></div>
+    <div class="lane"><span class="lane-t">PLATFORM — 플랫폼 코어 (CPU 전용)</span>
+      <div class="row">
+        <div class="nd d"><b>포털·API·인증 서비스</b><small>각 2복제 + 무중단 롤링 + 중단허용치(PDB)</small></div>
+        <div class="nd d"><b>오토스케일(HPA)</b><small>부하 시 자동 증설</small></div>
+        <div class="nd d"><b>사내 레지스트리</b><small>이미지 보관·클러스터 pull 경로</small></div>
+        <div class="nd d"><b>Kaniko 빌드</b><small>도커 소켓 미노출 안전 빌드</small></div>
+      </div>
+    </div>
+    <div class="dn"></div>
+    <div class="lane"><span class="lane-t">TENANT — 배포 웹앱 구역</span>
+      <div class="row">
+        <div class="nd d"><b>신뢰 구역 2종</b><small>baseline / restricted 분리(도면 10)</small></div>
+        <div class="nd d"><b>Calico 네트워크 정책</b><small>기본 차단·허용 목록 방식</small></div>
+        <div class="nd d"><b>KEDA 절전</b><small>유휴 웹앱 0대 축소</small></div>
+        <div class="nd d"><b>GPU 노드(선택)</b><small>NVIDIA 플러그인·전용 배치</small></div>
+      </div>
+    </div>
+    <div class="dn"></div>
+    <div class="lane"><span class="lane-t">DATA·관측 — 저장·감시</span>
+      <div class="row">
+        <div class="nd d"><b>CloudNativePG</b><small>PostgreSQL 3-인스턴스 HA</small></div>
+        <div class="nd d"><b>Prometheus·Grafana</b><small>메트릭·대시보드·경보(Alertmanager)</small></div>
+        <div class="nd d"><b>Loki·Tempo</b><small>로그 집계·분산 트레이스(로그↔트레이스 상호 연결)</small></div>
+        <div class="nd f"><b>Vault·감사로그</b><small>시크릿 금고화·행위 추적(보안 잔여 과제)</small></div>
+      </div>
+    </div>
+  </div>
+  <div class="fig-note"><b>CNR-006 대응</b> — 플랫폼 코어는 <b>GPU 없이 동작하므로 기존 가상화 장비 위에 구성
+  가능</b>하고, GPU는 필요한 웹앱·LLM만 선택적으로 요청합니다. 원커맨드 부트스트랩으로 로컬 검증 환경과 실서버를
+  동일 절차로 구축·이전합니다(최소 도입·재활용 원칙 충족).</div>
+</div>
+
+<h3 class="sec">데이터베이스 구성 도면</h3>
+<div class="fig">
+  <div class="fig-head"><b>도면 14</b><span>데이터 저장 구성 — 목적별 분리·고가용성</span></div>
+  <div class="fig-body">
+    <div class="duo">
+      <div class="fig" style="margin:0">
+        <div class="fig-head" style="background:#39506a"><b>플랫폼 DB (edumsa)</b><span>플랫폼 API 전용</span></div>
+        <div class="fig-body" style="padding:12px">
+          <div class="row">
+            <div class="nd d"><b>programs</b><small>프로그램·상태·공개범위</small></div>
+            <div class="nd d"><b>이력 계열</b><small>버전·처리·배포 이력</small></div>
+            <div class="nd d"><b>deploy_jobs</b><small>배포 작업 큐</small></div>
+            <div class="nd d"><b>부가</b><small>의견·알림·분류</small></div>
+          </div>
+        </div>
+      </div>
+      <div class="fig" style="margin:0">
+        <div class="fig-head" style="background:#4a3a5a"><b>인증 DB (eduauth)</b><span>인증 서비스 전용</span></div>
+        <div class="fig-body" style="padding:12px">
+          <div class="row">
+            <div class="nd d"><b>accounts</b><small>계정·권한·신청(비밀번호는 해시)</small></div>
+            <div class="nd d"><b>refresh_tokens</b><small>갱신 토큰 해시·회전·폐기</small></div>
+            <div class="nd d wide"><b>분리 효과</b><small>개인 식별정보와 업무 데이터의 저장소·접근 경로 분리
+            → 유출 영향 최소화, SSO 확장 시 변경 국소화</small></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="dn"></div>
+    <div class="row center">
+      <div class="nd d" style="max-width:520px"><b>고가용성 운영 (CloudNativePG)</b>
+        <small>주 1 + 복제 2의 3-인스턴스 · 장애 시 자동 승격 · 무중단 유지보수</small></div>
+    </div>
+  </div>
+  <div class="fig-note"><b>확장 지점</b> — 테넌트 DB 제공(CNR-011)·RAG 벡터 저장소(CNR-012)는 동일 CNPG 운영
+  기반 위에 전용 데이터베이스를 증설하는 방식으로 수용할 예정입니다.</div>
+</div>
+
+<h3 class="sec">적용 오픈소스 목록 (CNR-014 대응)</h3>
+<div class="tw"><table class="doc">
+  <thead><tr><th style="width:190px">소프트웨어</th><th style="width:190px">용도</th><th>적용 상태·비고</th></tr></thead>
+  <tbody>
+    <tr><td class="c">Kubernetes (k3s/kind)</td><td class="c">컨테이너 오케스트레이션</td><td>실서버·로컬 검증 겸용 구성, 원커맨드 부트스트랩</td></tr>
+    <tr><td class="c">ingress-nginx + ModSecurity</td><td class="c">게이트웨이·웹 방화벽</td><td>OWASP CRS 적용</td></tr>
+    <tr><td class="c">cert-manager</td><td class="c">TLS 자동화</td><td>인증서 발급·갱신 자동</td></tr>
+    <tr><td class="c">Calico</td><td class="c">네트워크 정책</td><td>기본 차단·허용 목록 강제</td></tr>
+    <tr><td class="c">Kaniko</td><td class="c">컨테이너 이미지 빌드</td><td>클러스터 내 무특권 빌드</td></tr>
+    <tr><td class="c">CloudNativePG</td><td class="c">PostgreSQL 고가용성</td><td>3-인스턴스, 자동 승격</td></tr>
+    <tr><td class="c">KEDA</td><td class="c">유휴 절전(scale-to-zero)</td><td>HTTP 트래픽 기반 0대 축소·기동</td></tr>
+    <tr><td class="c">Prometheus·Grafana·Alertmanager</td><td class="c">메트릭·대시보드·경보</td><td>kube-prometheus-stack</td></tr>
+    <tr><td class="c">Loki·Promtail·Tempo</td><td class="c">로그·분산 트레이스</td><td>로그↔트레이스 상호 연결</td></tr>
+    <tr><td class="c">Spring Boot 3 · React 18</td><td class="c">응용 계층</td><td>플랫폼 API·인증 서비스·포털</td></tr>
+    <tr><td class="c">Traefik</td><td class="c">단일 서버 모드 프록시</td><td>개발·소규모 운영용 서브도메인 라우팅</td></tr>
+    <tr><td class="c">Gitea <span class="tag plan">예정</span></td><td class="c">내부 소스 저장소</td><td>내부망 보관·자동 재배포(1단계 확장)</td></tr>
+    <tr><td class="c">Ollama·vLLM <span class="tag plan">예정</span></td><td class="c">내부 LLM 서빙</td><td>GPU 기반 준비 완료, 모델 탑재 단계</td></tr>
+    <tr><td class="c">Vault/Sealed Secrets <span class="tag plan">예정</span></td><td class="c">시크릿 금고화</td><td>서명키 보관·회전(보안 최우선 잔여)</td></tr>
+  </tbody>
+</table></div>
+<p class="cap">전 항목이 성공 구축 사례가 풍부한 공개 소프트웨어이며, 본 시스템 자체가 실구축·검증 사례로서
+CNR-014의 "적용 가능성 평가" 실증 근거가 됩니다.</p>
+
+<!-- ═══════════════ Ⅸ ═══════════════ -->
+<div class="chap" id="c9"><span class="rn">Ⅸ</span><h2>ISMP 요구사항 상세 매핑표</h2></div>
+
+<p class="gd">제안요청 세부내용을 <b>항목 단위로 분해</b>하여 대응 상태를 표기하였습니다. CNR-001~004·013·015는 컨설팅
+용역 수행 항목으로 시스템 매핑 대상에서 제외하되, 본 문서와 현행 시스템이 그 수행 근거 자료(현황·검증된
+아키텍처·단계 이력)를 제공합니다. CNR-005는 원문 누락으로 제외하였습니다.</p>
+
+<div class="tw"><table class="doc">
+  <thead><tr><th style="width:96px">요구번호</th><th style="width:250px">세부 요구 항목</th><th>현행 대응 / 구현 예정</th><th style="width:86px">상태</th></tr></thead>
+  <tbody>
+    <tr><td class="id" rowspan="3">CNR-006<br><small>인프라 구성</small></td>
+      <td>기존 하드웨어(가상화) 최대 활용·최소 도입</td>
+      <td>플랫폼 코어 CPU 전용 — 기존 가상화 장비 위 구성 가능, GPU는 선택 할당</td>
+      <td class="c"><span class="tag done">구현 완료</span></td></tr>
+    <tr><td>오픈소스 소프트웨어 최대 활용</td>
+      <td>상용 종속 없이 전 스택을 공개 소프트웨어로 구성(Ⅷ장 목록)</td>
+      <td class="c"><span class="tag done">구현 완료</span></td></tr>
+    <tr><td>보안 지침·법률 적합 네트워크/보안 구성</td>
+      <td>WAF·TLS·기본차단 네트워크 정책·격리 구역·비루트 실행 적용
+      <span class="nx">시크릿 금고화(Vault)·감사로그로 지침 대응 완성</span></td>
+      <td class="c"><span class="tag part">부분 구현</span></td></tr>
+
+    <tr><td class="id" rowspan="3">CNR-007<br><small>내·외부 AI 연계</small></td>
+      <td>전북GPT API 최대 활용 구성</td>
+      <td><span class="nx">AI 게이트웨이의 기본 경로로 연결(API 규격 확정 후)</span></td>
+      <td class="c"><span class="tag plan">구현 예정</span></td></tr>
+    <tr><td>내부 AI 자원 활용</td>
+      <td>GPU 스케줄링·전용 노드 기반 구축 완료, 모델 선택 화면 구조 확보
+      <span class="nx">Ollama·vLLM 모델 탑재·서빙 연동</span></td>
+      <td class="c"><span class="tag part">부분 구현</span></td></tr>
+    <tr><td>행정안전부 범정부 AI 등 연동</td>
+      <td><span class="nx">게이트웨이 커넥터 방식으로 수용(제공 API·이용 기준 확정 후)</span></td>
+      <td class="c"><span class="tag plan">구현 예정</span></td></tr>
+
+    <tr><td class="id" rowspan="7">CNR-008<br><small>통합플랫폼</small></td>
+      <td>하나의 로그인으로 다른 서비스 연동</td>
+      <td>단일 토큰으로 포털·API·전체 배포 웹앱 이용(공유 서명키 자체 검증)</td>
+      <td class="c"><span class="tag done">구현 완료</span></td></tr>
+    <tr><td>다른 서비스와 연동하여 플랫폼 안에서 구동</td>
+      <td>등록 웹앱은 플랫폼 내 자동 배포·서브도메인 구동
+      <span class="nx">기 구축 외부 서비스(AIEP 등)는 연결 허브로 수용</span></td>
+      <td class="c"><span class="tag part">부분 구현</span></td></tr>
+    <tr><td>AI로 개발된 자동화 도구 연동 사용</td>
+      <td>표준 규격 준수 도구는 언어 무관 등록 즉시 서비스화(7종 검증)</td>
+      <td class="c"><span class="tag done">구현 완료</span></td></tr>
+    <tr><td>사용자가 원하는 기능만 적용하여 사용</td>
+      <td>프로그램 단위 선택 사용·즐겨찾기 제공
+      <span class="nx">홈 위젯 구성 등 기능 단위 개인화</span></td>
+      <td class="c"><span class="tag part">부분 구현</span></td></tr>
+    <tr><td>데스크톱앱/웹서비스 최적 제공 방식 검토</td>
+      <td>설치 부담 없는 웹 기반 확정, 프로그램별 제공 방식(웹/다운로드/매뉴얼) 병기 구조</td>
+      <td class="c"><span class="tag done">구현 완료</span></td></tr>
+    <tr><td>메인 홈화면 표시 정보 사용자 선택</td>
+      <td><span class="nx">홈 화면 위젯 선택·배치 개인화</span></td>
+      <td class="c"><span class="tag plan">구현 예정</span></td></tr>
+    <tr><td>비로그인 사용자(일반인) 별도 화면</td>
+      <td>이용 안내서는 비로그인 열람 가능
+      <span class="nx">일반인용 공개 카탈로그 화면 신설</span></td>
+      <td class="c"><span class="tag plan">구현 예정</span></td></tr>
+
+    <tr><td class="id" rowspan="2">CNR-009<br><small>통합로그인</small></td>
+      <td>NEIS 사용자 연동</td>
+      <td>확장형 인증 관문 구조 완성(토큰 소비 구간 무변경)
+      <span class="nx">SSO 콜백·계정 매핑·자동 생성</span></td>
+      <td class="c"><span class="tag part">부분 구현</span></td></tr>
+    <tr><td>다른 외부 플랫폼 사용자 연동</td>
+      <td><span class="nx">OIDC 방식 외부 계정 연동(동일 확장 지점)</span></td>
+      <td class="c"><span class="tag plan">구현 예정</span></td></tr>
+
+    <tr><td class="id" rowspan="2">CNR-010<br><small>프로그램 저장소</small></td>
+      <td>프로그램·소스 이력 관리, 등록·사용 편의</td>
+      <td>소스·이미지·메타데이터 3중 이력(도면 5), 5단계 등록·사전 검증·AI 빌드 지시서
+      <span class="nx">내부 Gitea 전환(6단계 계획 수립 완료)</span></td>
+      <td class="c"><span class="tag done">구현 완료</span></td></tr>
+    <tr><td>정부 AI서비스(AI정부실험실 등) 연동·공동활용</td>
+      <td><span class="nx">저장소 계층 커넥터로 연동 접점 확보(공동활용 조건 확정 후)</span></td>
+      <td class="c"><span class="tag plan">구현 예정</span></td></tr>
+
+    <tr><td class="id" rowspan="2">CNR-011<br><small>웹앱 플랫폼</small></td>
+      <td>웹서비스(웹앱) 등록·서비스·관리</td>
+      <td>표준 규격→자동 배포→서브도메인 서비스→격리·절전·상태관리 전 과정 동작(도면 9·10)</td>
+      <td class="c"><span class="tag done">구현 완료</span></td></tr>
+    <tr><td>백엔드(DB 등) 필요 시 서비스 제공</td>
+      <td>운영 중인 PostgreSQL HA 기반 확보
+      <span class="nx">웹앱별 스키마/DB 자동 프로비저닝·접속정보 주입</span></td>
+      <td class="c"><span class="tag part">부분 구현</span></td></tr>
+
+    <tr><td class="id" rowspan="4">CNR-012<br><small>업무용 LLM</small></td>
+      <td>전북GPT API 최대 활용</td>
+      <td><span class="nx">게이트웨이 기본 경로 연결(CNR-007과 동일 지점)</span></td>
+      <td class="c"><span class="tag plan">구현 예정</span></td></tr>
+    <tr><td>특화 RAG 연동·오케스트레이션</td>
+      <td><span class="nx">분야별 지식베이스·조합 중계 — 전북GPT 과업과 역할 분담 협의 선행</span></td>
+      <td class="c"><span class="tag plan">구현 예정</span></td></tr>
+    <tr><td>RAG 데이터 MCP화·타 AI 서비스 이용</td>
+      <td><span class="nx">MCP 서버로 표준 프로토콜 개방(도면 12)</span></td>
+      <td class="c"><span class="tag plan">구현 예정</span></td></tr>
+    <tr><td>프론티어 LLM 업무 활용(블라인드 처리 우선)</td>
+      <td><span class="nx">비식별 처리기를 게이트웨이에 내장, 통과분만 외부 호출 — 우선 구현 항목</span></td>
+      <td class="c"><span class="tag plan">구현 예정</span></td></tr>
+
+    <tr><td class="id" rowspan="2">CNR-014<br><small>공개 S/W</small></td>
+      <td>요구 충족 공개 S/W 조사(성공 사례 보유)</td>
+      <td>적용 오픈소스 14종 목록·용도·실적용 상태 제시(Ⅷ장)</td>
+      <td class="c"><span class="tag done">구현 완료</span></td></tr>
+    <tr><td>적용 가능성 평가·시스템S/W 도입 방안</td>
+      <td>본 시스템의 실구축·검증 이력이 적용 가능성 평가의 실증 근거로 활용 가능</td>
+      <td class="c"><span class="tag done">구현 완료</span></td></tr>
+  </tbody>
+</table></div>
+<p class="cap">상태 판정 기준 — <b>"구현 완료"</b>는 실동작 코드·배포 검증 기준, <b>"부분 구현"</b>은 구조·화면 확보 후
+연동 보강이 필요한 항목, <b>"구현 예정"</b>은 설계 문서에 반영되어 확장 지점이 확보된 항목입니다.</p>
+
+<!-- ═══════════════ Ⅹ ═══════════════ -->
+<div class="chap" id="c10"><span class="rn">Ⅹ</span><h2>단계별 추진 로드맵 (CNR-013 대응)</h2></div>
+
+<p class="gd">ISMP가 요구하는 <b>"필요 기능 우선 개발·단계적 확대"</b> 원칙에 따라, 현행 시스템은 버전 단위의
+단계 개발→검증→문서화를 반복해 왔으며 이후 단계도 동일 절차로 확장합니다.</p>
+
+<div class="fig">
+  <div class="fig-head"><b>도면 15</b><span>단계별 확장 경로 — 각 단계는 독립 서비스 추가로 기존 구간 무변경</span></div>
+  <div class="fig-body">
+    <div class="pipe">
+      <div class="st d"><b>현행 (v0.6)</b><small>플랫폼 코어<br>저장소·웹앱·인증·인프라</small></div>
+      <div class="st f"><b>1단계</b><small>내부 Gitea<br>내부망 소스·자동 재배포</small></div>
+      <div class="st f"><b>2단계</b><small>통합로그인 확장<br>NEIS·SSO·그룹 세분화</small></div>
+      <div class="st f"><b>3단계</b><small>업무용 LLM<br>게이트웨이·전북GPT·RAG</small></div>
+      <div class="st f"><b>4단계</b><small>정부AI 연계<br>보안 성숙화·정식 개통</small></div>
+    </div>
+  </div>
+</div>
+
+<div class="phase now"><span class="pn">현행 v0.6</span>
+  <div class="pb"><b>플랫폼 코어 완성 — 구현 완료 상태</b>
+  <p>등록→검증→승인→자동배포→공개 전 과정이 실동작하며, 오토스케일·DB 고가용성·격리·관측성·원커맨드 배포까지
+  실서버(PoC 도메인)에서 검증을 완료하였습니다. 기본 업무 도구 7종을 서비스 중입니다.</p></div></div>
+<div class="phase fut"><span class="pn">1단계</span>
+  <div class="pb"><b>내부망 소스 저장소(Gitea) 전환</b>
+  <p>내부망 코드 반출 불가 제약에 대응하는 단계입니다. 설치·도메인/TLS·파이프라인 자격증명·저장 이벤트 자동 재배포·예제
+  미러링·통합 검증의 6단계 세부 계획 수립을 완료하였으며, 소요 기간은 3.5~4일로 예상합니다(계획서 기준).</p></div></div>
+<div class="phase fut"><span class="pn">2단계</span>
+  <div class="pb"><b>통합로그인 확장 — NEIS·교육청 SSO</b>
+  <p>인증 서비스에 SSO 콜백·계정 매핑·자동 생성을 추가합니다(토큰 소비 구간 무변경). 사용자 그룹(학생·학부모·일반인)
+  세분화와 비로그인 공개 화면·홈 개인화를 병행합니다.</p></div></div>
+<div class="phase fut"><span class="pn">3단계</span>
+  <div class="pb"><b>업무용 LLM — AI 게이트웨이·전북GPT 연동</b>
+  <p>비식별(블라인드) 처리 게이트웨이를 우선 신설한 뒤 전북GPT API·내부 LLM(Ollama/vLLM)·프론티어 LLM을
+  연결합니다. 특화 RAG·MCP 개방은 전북GPT 과업과의 역할 분담 협의 후 착수합니다.</p></div></div>
+<div class="phase fut"><span class="pn">4단계</span>
+  <div class="pb"><b>정부AI 연계·운영 성숙화 — 정식 개통(v1.0)</b>
+  <p>범정부 AI·AI정부실험실 커넥터를 연동하고, 시크릿 금고화(Vault/Sealed Secrets)·감사로그 등 공공 보안 지침
+  대응을 완성합니다. 테넌트 DB 프로비저닝 등 확장 기능 반영 후 정식 개통합니다.</p></div></div>
+
+<!-- ═══════════════ Ⅺ ═══════════════ -->
+<div class="chap" id="c11"><span class="rn">Ⅺ</span><h2>행정사항</h2></div>
+
+<div class="admin">
+  <b>□ 작성 근거 및 유의사항</b>
+  <ul class="dash">
+    <li>본 문서의 "구현 완료" 표기는 현행 저장소(edu-msa)의 실동작 코드와 배포 검증 이력을,
+    "구현 예정" 표기는 설계 문서(아키텍처·Gitea 계획·로드맵·백로그)에 반영된 항목을 근거로 합니다.</li>
+    <li>ISMP 원문 중 <b>CNR-005 및 원본 10~11쪽</b>은 통합본에서 누락되어 본 매핑에 반영하지 못하였습니다(해당 자료 수령 시 보완 예정).</li>
+    <li><b>협의 필요 사항</b>: ① RAG 오케스트레이션의 전북GPT 과업과의 역할 분담(CNR-012 원문에도
+    "검토 필요"로 명시) ② NEIS 연동 방식·범위 ③ 범정부 AI 제공 API·이용 기준 ④ 사용자 그룹
+    (학생·학부모·일반인)별 이용 범위 정의</li>
+    <li>단계 구분·일정은 발주처 협의 및 예산에 따라 조정 가능하며, 각 단계는 독립 서비스 추가 방식이므로
+    상호 순서의 조정이 가능합니다.</li>
+  </ul>
+</div>
+
+</main>
+</body>
+</html>

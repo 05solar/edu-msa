@@ -169,6 +169,10 @@ apply_core(){
     # kind(HTTP): CORS 오리진 스킴을 http 로 (같은 오리진이라 대개 무해하지만 명시적으로 맞춤)
     if [ "$MODE" = kind ]; then
       sed -i.bak -e "s#https://${DOMAIN}#http://${DOMAIN}#g" "$out" && rm -f "$out.bak"
+      # Gitea 공개 호스트는 예제 패턴과 동일한 gitea.localhost (도메인 치환 부산물 보정)
+      if [ "$base" = backend.yaml ]; then
+        sed -i.bak -e "s#gitea\.${DOMAIN}#gitea.localhost#g" "$out" && rm -f "$out.bak"
+      fi
     fi
   done
   # kind(HTTP): auth-service 의 Refresh 쿠키 Secure 를 끈다(HTTPS 아님 → Secure 쿠키는 전송 안 됨).
@@ -207,11 +211,12 @@ EOF
 # ---- 운영스택 (helm, 각 단계 best-effort) -----------------------------------
 install_stack(){
   need helm
-  log "운영스택 설치 (모니터링·KEDA·cert-manager·로그·트레이스) — 각 단계 best-effort"
+  log "운영스택 설치 (모니터링·KEDA·cert-manager·로그·트레이스·Gitea) — 각 단계 best-effort"
   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts >/dev/null 2>&1 || true
   helm repo add kedacore https://kedacore.github.io/charts >/dev/null 2>&1 || true
   helm repo add jetstack https://charts.jetstack.io >/dev/null 2>&1 || true
   helm repo add grafana https://grafana.github.io/helm-charts >/dev/null 2>&1 || true
+  helm repo add gitea-charts https://dl.gitea.com/charts/ >/dev/null 2>&1 || true
   helm repo update >/dev/null 2>&1 || true
 
   _try(){ log "· $1"; shift; "$@" || warn "실패(건너뜀): $*"; }
@@ -235,6 +240,145 @@ install_stack(){
 
   _try "Tempo (트레이스)" helm upgrade --install tempo grafana/tempo \
       -n tracing --create-namespace --wait --timeout 5m
+
+  # Gitea (내부 코드 저장소) — 관리자 계정 Secret 을 먼저 만든다.
+  # GITEA_ADMIN_USER / GITEA_ADMIN_PASSWORD 로 지정 가능, 미지정 시 무작위 생성.
+  kubectl get ns gitea >/dev/null 2>&1 || kubectl create ns gitea >/dev/null 2>&1 || warn "gitea 네임스페이스 생성 실패"
+  if ! kubectl -n gitea get secret gitea-admin >/dev/null 2>&1; then
+    # openssl(96bit) → /dev/urandom(128bit) 순서로 무작위 생성. RANDOM 은 엔트로피가 약해 쓰지 않는다.
+    local gpass="${GITEA_ADMIN_PASSWORD:-$(openssl rand -hex 12 2>/dev/null || head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')}"
+    kubectl -n gitea create secret generic gitea-admin \
+      --from-literal=username="${GITEA_ADMIN_USER:-edu-admin}" \
+      --from-literal=password="$gpass" >/dev/null 2>&1 || warn "gitea-admin Secret 생성 실패"
+    warn "Gitea 관리자 Secret(gitea-admin) 생성 — 비밀번호 확인: kubectl -n gitea get secret gitea-admin -o jsonpath='{.data.password}' | base64 -d"
+  fi
+  # 2단계(도메인·TLS·Ingress): 호스트는 예제 패턴과 동일 — kind gitea.localhost / server gitea.<DOMAIN>.
+  # ROOT_URL/DOMAIN 을 환경에 맞게 주입해 웹 링크·clone URL 이 Ingress 주소와 일치하게 한다.
+  local ghost; [ "$MODE" = kind ] && ghost="gitea.localhost" || ghost="gitea.${DOMAIN}"
+  _try "Gitea (내부 코드 저장소)" helm upgrade --install gitea gitea-charts/gitea \
+      -n gitea -f "$K8S/platform/gitea/values.yaml" \
+      --set-string "gitea.config.server.ROOT_URL=${SCHEME}://${ghost}/" \
+      --set-string "gitea.config.server.DOMAIN=${ghost}" \
+      --wait --timeout 6m
+
+  # 하드닝(1단계 리뷰 잔여 과제): PodSecurity 라벨 + 기본 차단 NetworkPolicy.
+  kubectl label ns gitea \
+      pod-security.kubernetes.io/enforce=baseline \
+      pod-security.kubernetes.io/warn=restricted \
+      pod-security.kubernetes.io/audit=restricted \
+      --overwrite >/dev/null 2>&1 || warn "gitea PodSecurity 라벨 적용 실패"
+  kubectl apply -f "$K8S/platform/gitea/networkpolicy.yaml" 2>/dev/null || warn "gitea NetworkPolicy 적용 실패"
+
+  # Ingress: 대용량 push 대비 body-size 512m. server 모드는 cert-manager(edu-ca) TLS 자동 발급.
+  local gtmp; gtmp="$(mktemp)"
+  cat > "$gtmp" <<EOF
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gitea
+  namespace: gitea
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 512m
+EOF
+  if [ "$MODE" = server ]; then
+    cat >> "$gtmp" <<EOF
+    cert-manager.io/cluster-issuer: edu-ca
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [ ${ghost} ]
+      secretName: gitea-tls
+EOF
+  else
+    cat >> "$gtmp" <<EOF
+spec:
+  ingressClassName: nginx
+EOF
+  fi
+  cat >> "$gtmp" <<EOF
+  rules:
+    - host: ${ghost}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: gitea-http
+                port: { number: 3000 }
+EOF
+  kubectl apply -f "$gtmp" 2>/dev/null && ok "Gitea Ingress 적용 · ${SCHEME}://${ghost}" \
+      || warn "gitea Ingress 적용 실패"
+  rm -f "$gtmp"
+
+  # 3단계(파이프라인 연동): 읽기 전용 배포 봇 + 토큰 → edu-platform Secret(edu-gitea-token).
+  # backend 가 비공개 Gitea 레포 clone 에 사용한다. 이미 있으면 건너뜀(재실행 안전).
+  # Secret 을 이번 실행에서 새로 만들면 backend 를 재기동해 env 로 주입한다
+  # (코어가 스택보다 먼저 떠서 optional secretKeyRef 가 비어 있는 상태를 해소).
+  local gitea_secrets_created=0
+  if kubectl get ns edu-platform >/dev/null 2>&1 \
+      && ! kubectl -n edu-platform get secret edu-gitea-token >/dev/null 2>&1; then
+    gitea_secrets_created=1
+    log "· Gitea 배포 봇(edu-deploy-bot) 계정·토큰 준비"
+    local bpass btoken
+    bpass="$(openssl rand -hex 12 2>/dev/null || head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+    kubectl -n gitea exec deploy/gitea -c gitea -- \
+      gitea admin user create --username edu-deploy-bot --password "$bpass" \
+        --email edu-deploy-bot@edu.local --must-change-password=false >/dev/null 2>&1 \
+      || true   # 계정이 이미 있으면 무시
+    btoken="$(kubectl -n gitea exec deploy/gitea -c gitea -- \
+        gitea admin user generate-access-token --username edu-deploy-bot \
+          --token-name "edu-deploy-$(date +%s)" --scopes read:repository --raw 2>/dev/null | tail -1)"
+    if [ -n "$btoken" ]; then
+      kubectl -n edu-platform create secret generic edu-gitea-token \
+        --from-literal=username=edu-deploy-bot --from-literal=token="$btoken" >/dev/null 2>&1 \
+        && ok "edu-gitea-token Secret 생성 (edu-platform) — 비공개 레포는 봇을 협업자/조직 read 로 초대" \
+        || warn "edu-gitea-token Secret 생성 실패"
+    else
+      warn "Gitea 봇 토큰 발급 실패 — 수동 발급 후 Secret 생성: deploy/k8s/platform/gitea/README.md 참고"
+    fi
+  fi
+
+  # 4단계(자동 재배포): webhook 서명 시크릿 + Gitea default webhook.
+  # default webhook 은 "이후 생성되는 모든 레포"에 자동 복제된다(신규 레포 자동 적용).
+  # 기존 레포는 레포 설정에서 동일 훅을 개별 등록한다(gitea/README.md 참고).
+  # backend 는 edu-gitea-webhook Secret 의 시크릿으로 X-Gitea-Signature 를 검증한다.
+  if kubectl get ns edu-platform >/dev/null 2>&1; then
+    local whsecret
+    if kubectl -n edu-platform get secret edu-gitea-webhook >/dev/null 2>&1; then
+      whsecret="$(kubectl -n edu-platform get secret edu-gitea-webhook -o jsonpath='{.data.secret}' | base64 -d)"
+    else
+      whsecret="$(openssl rand -hex 16 2>/dev/null || head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+      kubectl -n edu-platform create secret generic edu-gitea-webhook \
+        --from-literal=secret="$whsecret" >/dev/null 2>&1 \
+        && { ok "edu-gitea-webhook Secret 생성 (edu-platform)"; gitea_secrets_created=1; } \
+        || warn "edu-gitea-webhook Secret 생성 실패"
+    fi
+    # system webhook 등록(관리자 API) — 이미 같은 대상이 있으면 건너뜀(재실행 안전)
+    local gpass hookurl gitea_api
+    gpass="$(kubectl -n gitea get secret gitea-admin -o jsonpath='{.data.password}' | base64 -d 2>/dev/null)"
+    hookurl="http://backend.edu-platform.svc:8080/api/webhooks/gitea"
+    if [ "$MODE" = kind ]; then
+      gitea_api(){ curl -s -u "${GITEA_ADMIN_USER:-edu-admin}:${gpass}" -H "Host: ${ghost}" "http://127.0.0.1$1" "${@:2}"; }
+    else
+      gitea_api(){ curl -sk -u "${GITEA_ADMIN_USER:-edu-admin}:${gpass}" "${SCHEME}://${ghost}$1" "${@:2}"; }
+    fi
+    if [ -n "$gpass" ] && ! gitea_api "/api/v1/admin/hooks?type=default" | grep -q "$hookurl"; then
+      gitea_api "/api/v1/admin/hooks" -H 'Content-Type: application/json' -X POST -d "$(cat <<JSON
+{"type":"gitea","active":true,"events":["push"],
+ "config":{"url":"${hookurl}","content_type":"json","secret":"${whsecret}"}}
+JSON
+)" >/dev/null 2>&1 \
+        && ok "Gitea default webhook 등록 (신규 레포 push → ${hookurl})" \
+        || warn "Gitea default webhook 등록 실패 — 관리자 화면에서 수동 등록 가능"
+    fi
+    if [ "$gitea_secrets_created" = 1 ]; then
+      log "· backend 재기동 (Gitea Secret env 주입)"
+      kubectl -n edu-platform rollout restart deploy/backend >/dev/null 2>&1 || true
+      kubectl -n edu-platform rollout status deploy/backend --timeout=180s >/dev/null 2>&1 \
+        || warn "backend 재기동 대기 초과"
+    fi
+  fi
 
   ok "운영스택 설치 시도 완료 — 개별 상태는 kubectl get pods -A 로 확인하세요."
   warn "WAF(ModSecurity/CRS)는 ingress-nginx values 로 활성화합니다: deploy/k8s/platform/edge/README.md"

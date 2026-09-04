@@ -10,6 +10,9 @@
 
 ## 진행 이력 (Change Log)
 
+- 2026-09-03 — Gitea 6단계 통합 검증 중 수정 2건: ManifestRenderer.gitEnvBlock — fetch 주소가 http면 Kaniko에 GIT_PULL_METHOD=http env 자동 주입(kaniko는 git 컨텍스트 기본 https), 서비스 템플릿 ingress rewrite를 정규식 캡처(/svc/slug(/|$)(.*) → /$2)로 수정해 하위 경로 소실 버그 해결(deploy/k8s 사본 동기화). 검증: 비공개 Gitea 레포 real 모드 Kaniko 빌드→배포→ingress 하위 경로 200, 삭제 API real 모드 리소스 정리.
+- 2026-09-03 — Gitea 4단계(webhook 자동 재배포): deploy/webhook/GiteaWebhookController 신설 — X-Gitea-Signature HMAC-SHA256 상수 시간 검증(401), 시크릿 미설정 시 404, main 브랜치·PUBLIC 프로그램 매칭(주소 정규화) 후 서버 저장 레포 주소로만 배포 큐 적재. DeployProperties gitea-webhook-secret, SecurityConfig permitAll(서명이 인증 대체 주석). 검증: kind E2E push→재배포(v5 서빙), 음성 4종 통과.
+- 2026-09-03 — Gitea 3단계(파이프라인 연동): DeployProperties에 gitea-host/user/token/clone-base 추가, SourceResolver가 내부 Gitea 레포 clone 시 토큰을 git extraHeader 환경변수로 주입(인자·로그 비노출)하고 clone-base로 주소 재작성(split-horizon, *.localhost 루프백 강제 해석 대응), CommandRunner env 오버로드, Kaniko Job 템플릿에 Secret 참조 자격 env 조건 주입(템플릿 주석 placeholder 치환 버그 수정). 검증: compose E2E(비공개 레포 validate 토큰 유/무), Kaniko 렌더 YAML 파싱 2종, compileJava.
 - 2026-09-03 — 프로그램 삭제 API: DELETE /api/programs/{id} 신설(소유자 본인 또는 ADMIN, SecurityConfig에 CODER+ 규칙 추가). ProgramService.requireDeletable(소유자 검증)+delete(의견·알림·프로그램), DeploymentService.removeFor(모드별 컨테이너/K8s 리소스·Traefik 라우트 정리 + 배포·큐 행 삭제), 리포지토리 4종 deleteByProgramId 추가. 검증: compileJava 통과(test 태스크는 로컬 Gradle 워커 기동 불가 — CI에서 수행).
 
 - 2026-08-24 — Phase 2 시작: Gradle(Kotlin DSL) + Spring Boot 3 + Java 21 프로젝트 스캐폴드, application.yml, Dockerfile, 메타 문서.

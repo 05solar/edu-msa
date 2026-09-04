@@ -151,9 +151,14 @@ Kaniko 빌드 → 배포 → 서비스 200. 토큰 없는 외부 요청으로는
 auth-service는 자체 HS256 JWT 발급기로 **OIDC Provider가 아니다.** Gitea 로그인
 위임에는 다음 중 하나가 필요하며, 1차 범위에서는 **수동 계정 발급**으로 운영한다.
 
-- **A안(권장)**: auth-service에 OIDC Provider 최소 구현(authorize/token/jwks/userinfo)
-  추가 → Gitea OAuth2 소스로 등록. 교육청 SSO 연동(백로그 B)과 방향이 같다.
-- **B안**: Keycloak 등 IdP를 중간에 도입 — 운영 컴포넌트가 하나 늘어나는 대신 표준적.
+- **A안**: auth-service에 OIDC Provider 최소 구현(authorize/token/jwks/userinfo)
+  추가 → Gitea OAuth2 소스로 등록. 소규모 데모 범위에서는 가능.
+- **B안(권장)**: Keycloak 등 IdP를 중간에 도입 — 운영 컴포넌트가 하나 늘어나는 대신 표준적.
+
+> **상세 설계는 [SSO_LOGIN_POLICY.md](SSO_LOGIN_POLICY.md) 참고** — 수십만 이용자·
+> 동시접속 수만·정부기관 보안을 전제로 하면 **B안(Keycloak 중앙 IdP + 기관 통합인증
+> 연합)** 이 권장이다(A안은 인증 표준 자체 구현 리스크로 비권고). 토큰 정책
+> (RS256/JWKS 전환·PAT)·MFA·계정 수명주기·용량 산정·6단계 도입 로드맵 포함.
 
 완료 기준: 포털 계정으로 Gitea 로그인, 권한(USER/CODER/ADMIN)→Gitea 권한 매핑.
 
@@ -171,4 +176,78 @@ auth-service는 자체 HS256 JWT 발급기로 **OIDC Provider가 아니다.** Gi
 
 ## 진행 기록
 
-- 2026-09-01 — 계획 수립. (진행 시 단계별 완료 일자·검증 결과를 여기에 추가)
+- 2026-09-01 — 계획 수립.
+- 2026-09-01 — **1단계 완료·검증** (feature/gitea): `deploy/k8s/platform/gitea/`
+  (values.yaml·README) + `bootstrap.sh stack` 편입(gitea-charts repo, 관리자 Secret
+  자동 생성, `_try` best-effort 설치). kind 검증 — Gitea 1.27.0 pod 1/1 Running,
+  웹 UI 200, 관리자 로그인(API, is_admin=true), 레포 생성 201, `git clone`/`push`
+  왕복 성공(서버 파일 확인). 캐시/큐는 memory/level, SQLite 단일 replica,
+  SSH 비활성·셀프 가입 비활성 구성.
+- 2026-09-01 — **1단계 서브에이전트 리뷰 2건(기술/보안·운영) PASS** 후 지적 반영:
+  `DEFAULT_PRIVATE: private` 추가(신규 레포 기본 비공개 — app.ini 반영 확인),
+  dead key 제거(`service.ssh.enabled`·`redis-cluster`), README 백업 절 정정
+  (PVC `gitea-shared-storage`, rootless라 su 없이 `gitea dump --file` — **실제 1회
+  실행 검증**, 73KB 아카이브 생성), bootstrap Secret 블록 best-effort화 + 무작위
+  fallback을 /dev/urandom 128bit로 보강. 남긴 과제: gitea ns NetworkPolicy/PSA는
+  2단계(Ingress)에서, SECURITY.md 갱신 병행.
+- 2026-09-03 — **2단계 완료·검증** (feature/gitea): bootstrap `stack`에 Gitea Ingress
+  렌더링(kind `http://gitea.localhost` / server `https://gitea.<DOMAIN>` + edu-ca TLS,
+  `proxy-body-size: 512m`)과 ROOT_URL/DOMAIN `--set-string` 주입 추가. 1단계 잔여
+  과제였던 하드닝 반영 — PodSecurity 라벨(enforce=baseline, warn/audit=restricted) +
+  `platform/gitea/networkpolicy.yaml`(기본 차단, ingress-nginx→3000·DNS만 허용,
+  webhook egress는 4단계에서), SECURITY.md 갱신. kind 검증 — helm upgrade 후
+  app.ini `ROOT_URL=http://gitea.localhost/`·`DOMAIN=gitea.localhost` 확인, Ingress
+  경유 웹 200·API 응답, 테스트 레포 생성(201)→`git clone`/`push` 왕복(서버 파일
+  확인)→삭제(204), PSA 라벨·NetworkPolicy 3종 생성 확인. server 모드 TLS 분기는
+  heredoc 로직 검토·bash -n 통과(실서버 적용 시 edu-ca 인증서 발급 확인 필요).
+- 2026-09-03 — **3단계 완료·검증** (feature/gitea): 봇 계정·토큰 자동 준비(bootstrap —
+  `edu-deploy-bot` 생성, `read:repository` 토큰 발급, `edu-platform/edu-gitea-token`
+  Secret), backend clone 자격 증명 주입(SourceResolver — 토큰을 인자/URL 이 아닌
+  git extraHeader 환경변수로 전달해 로그·프로세스 목록 비노출), Kaniko Job 에
+  Secret 참조 env(GIT_USERNAME/GIT_PASSWORD) 조건 주입, `EDU_GITEA_CLONE_BASE`
+  분리(공개 등록 주소 vs 내부 수집 주소 — git/curl 의 `*.localhost` 루프백 강제
+  해석 문제 대응, 인클러스터는 `gitea-http.gitea.svc:3000`), gitea NetworkPolicy 에
+  edu-platform→3000 허용 추가, 등록 화면 문구 "내부 Gitea 주소(권장) 또는 GitHub".
+  시드 주소(gitea.edu.internal)는 서버 도메인 규칙과 일치 확인(무변경).
+  검증 — 호스트 git: 무자격 clone 거부·봇 토큰 clone 성공 / backend E2E(compose):
+  비공개 레포 validate 토큰 있음 valid=true·없음 valid=false(오류에 토큰 비노출) /
+  Kaniko 템플릿 렌더 YAML 파싱(자격 유무 2종) — 주석 placeholder 치환 버그 발견·수정 /
+  compileJava·tsc·bash -n·compose config 통과. 남김: real 모드 Kaniko 실빌드→배포→200
+  은 6단계 통합 검증에서(전체 코어 인클러스터 필요).
+- 2026-09-03 — **4단계 완료·검증** (feature/gitea): `POST /api/webhooks/gitea` 신설 —
+  HMAC-SHA256(X-Gitea-Signature) 상수 시간 검증(불일치 401, 시크릿 미설정 404),
+  main 브랜치·공개(PUBLIC) 프로그램만 매칭(주소 정규화: .git/슬래시/대소문자),
+  배포 레포는 서버 저장값만 사용(본문 주입 차단), SecurityConfig permitAll+주석.
+  bootstrap — webhook 시크릿 Secret(edu-gitea-webhook) + Gitea **default webhook**
+  등록(관리자 API 는 system 이 아닌 default 를 만듦 — 신규 레포 자동 적용, 기존 레포는
+  개별 등록. 중복 확인 경로 ?type=default 로 수정). gitea NetworkPolicy egress
+  (→edu-platform:8080)·webhook ALLOWED_HOST_LIST 추가. kind E2E — 등록→승인→자동
+  배포(v1) 후 push → 전송 → 검증·매칭 → 큐 적재(#53) → 재배포 → **v5 서빙**.
+  음성 4종(서명 오류/누락 401, 비 main·비 push 무시) 통과. 부수 발견: 최신 kind 의
+  kindnet 이 NetworkPolicy 를 실제 강제(문서 정정), 랩 한정 우회(수동 Endpoints·
+  egress 허용)는 커밋하지 않음 — 실서버는 인클러스터 backend 라 불필요.
+- 2026-09-03 — **5단계 완료·검증** (feature/gitea): `deploy/gitea-seed.sh` 신설 —
+  edu-examples 조직 생성 + 예제 7종 레포 재생성·push(재실행 안전, 자격은
+  extraHeader 환경변수·Secret 폴백). 발견: 비 UTF-8 셸(Git Bash)에서 한글 설명이
+  CP949 로 전송돼 Gitea 422 — 설명을 ASCII 로 제한(주석 명시). 시드 주소 전환은
+  1차 수동 절차(SQL)로 README §5 에 문서화(2차 시드 옵션화는 백로그).
+  문서 이관 — VIBE_CODING_GUIDE·AI_BUILD_SPEC 의 GitHub 안내를 "내부 Gitea(권장)
+  / GitHub(병용)"으로 갱신, 비공개 레포 봇 초대·push 자동 재배포 안내 추가.
+  검증(kind) — 스크립트 실행으로 7개 레포 생성·push, 조직 레포 목록 7종·raw
+  service.yaml 200·웹 페이지 200, 재실행 멱등 확인.
+- 2026-09-03 — **6단계 완료·통합 검증** (feature/gitea, main 병합 포함): `bootstrap.sh up`
+  클린 실행으로 코어+운영스택+Gitea+봇/웹훅 Secret+default webhook 자동 배선(시나리오 1).
+  비공개 신규 레포 생성(default webhook 자동 적용 확인)→push→등록→승인→real 모드
+  Kaniko 빌드(봇 자격 증명)→K8s 배포→자동 공개→ingress 200(시나리오 2). 코드 push→
+  인클러스터 webhook(gitea→backend.svc)→자동 재배포→v2 반영(시나리오 3). gitea 파드
+  재시작 후 레포·파일·훅 유지(시나리오 4). `gitea dump` 백업 아카이브(DB+레포) 생성·
+  추출 판독(시나리오 5). 전체 스모크 — 비정상 파드 0, 3역할 로그인·카탈로그·상세·
+  Gitea·배포 서비스 전부 200, 종료 시 삭제 API 로 real 모드 리소스 정리까지 검증.
+  **발견·수정 3건**: ① 코어가 스택보다 먼저 떠서 Gitea Secret env 미주입 → bootstrap 에
+  Secret 신규 생성 시 backend 재기동 추가 ② Kaniko 가 git 컨텍스트를 https 로 강제 →
+  fetch 주소가 http 면 GIT_PULL_METHOD=http env 자동 주입 ③ 서비스 템플릿 ingress
+  `rewrite-target: /` 고정으로 모든 하위 경로가 루트로 소실(기존 버그) → 정규식 캡처
+  (`/svc/<slug>(/|$)(.*)` + `/$2`)로 수정, deploy/k8s 사본 동기화.
+  **한계·백로그 2건**: 동일 슬러그 동시 배포 직렬화 부재(두 워커가 같은 빌드 Job 경합),
+  워커 파드 중단 시 RUNNING 고아 작업 미회수 — VERSIONS 백로그 등재.
+  v0.7.0 태깅은 main 병합 시점에 수행.

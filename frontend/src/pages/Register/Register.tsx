@@ -59,7 +59,7 @@ export function Register() {
     if (!f.name.trim()) return toast('프로그램 이름을 입력해 주세요.', 'warn')
     if (!f.cat) return toast('업무 분야를 선택해 주세요.', 'warn')
     if (!f.summary.trim()) return toast('한 줄 요약을 입력해 주세요.', 'warn')
-    if (!/^https?:\/\/.+/.test(f.repo)) return toast('올바른 GitHub 레포 주소를 입력해 주세요.', 'warn')
+    if (!/^https?:\/\/.+/.test(f.repo)) return toast('올바른 레포 주소(https://…)를 입력해 주세요.', 'warn')
     addProgram(f)
     go('my')
   }
@@ -69,7 +69,7 @@ export function Register() {
     <div className="page container">
       <div className="page-head">
         <div className="page-title">프로그램 등록</div>
-        <div className="page-desc">GitHub 레포 주소를 등록하면 규격 검증 후 운영 관리자 검토를 거쳐 새 서비스로 배포됩니다.</div>
+        <div className="page-desc">내부 Gitea 주소(권장) 또는 GitHub 레포 주소를 등록하면 규격 검증 후 운영 관리자 검토를 거쳐 새 서비스로 배포됩니다.</div>
       </div>
 
       <div className="form-layout">
@@ -140,7 +140,7 @@ export function Register() {
             <div className="grid-2">
               <div className="field" style={{ gridColumn: '1 / span 1' }}>
                 <label>레포 주소<span className="req">*</span></label>
-                <input className="input" value={f.repo} onChange={(e) => set({ repo: e.target.value })} placeholder="https://github.com/yourname/my-tool" />
+                <input className="input" value={f.repo} onChange={(e) => set({ repo: e.target.value })} placeholder="https://gitea.edu.internal/내계정/my-tool (또는 GitHub 주소)" />
               </div>
               <div className="field">
                 <label>브랜치</label>

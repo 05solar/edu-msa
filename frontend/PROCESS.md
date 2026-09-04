@@ -9,6 +9,7 @@
 
 ## 진행 이력 (Change Log)
 
+- 2026-09-03 — Gitea 3단계: 등록 화면 안내를 "내부 Gitea 주소(권장) 또는 GitHub 주소"로 갱신(placeholder·설명·오류 문구). 타입체크 통과.
 - 2026-09-03 — 프로그램 삭제: api.deleteProgram + AppContext.deleteProgram(API/목업 겸용, 목록·알림·detailId 정리, 실패 토스트), 내 프로그램 표와 운영 관리자 전체 프로그램 탭에 확인창 딸린 삭제 버튼 추가. 검증: typecheck/빌드 통과, 목업 모드 E2E(내 프로그램 3→2행, 관리자 15→14행, 토스트·통계 갱신 확인).
 
 - 2026-08-24 — Vite+React+TSX 스캐폴드, tsconfig/index.html/package.json 작성.

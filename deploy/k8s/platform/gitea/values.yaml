@@ -1,0 +1,71 @@
+# Gitea (내부 코드 저장소) — 1단계(설치) + 2단계(도메인·TLS·Ingress) 값.
+# Ingress/TLS/NetworkPolicy 는 bootstrap.sh 가 배선한다(networkpolicy.yaml 동봉,
+# Ingress 는 모드별 호스트·TLS 분기 때문에 bootstrap 이 렌더링).
+#
+# 설계 결정:
+# - DB: 1단계는 내장 SQLite(단일 replica). 운영 전환 시 플랫폼 CNPG PostgreSQL 에
+#   gitea DB 를 만들어 외부 DB 로 붙인다(README 참고) — 백업 일원화.
+# - 캐시/큐: 차트 기본(valkey-cluster)을 끄고 메모리/level 사용 — 소규모 기관 규모 충분.
+# - SSH: 내부망 HTTP(S) clone 만 쓰므로 비활성(22 포트 배선 없음).
+# - 관리자: 값 하드코딩 금지 — bootstrap.sh 가 만드는 gitea-admin Secret 참조.
+
+replicaCount: 1
+
+strategy:
+  type: Recreate            # RWO PVC + 단일 replica
+
+# 차트 동봉 DB/캐시 전부 비활성 (차트 12.x 의존성 4종)
+postgresql:
+  enabled: false
+postgresql-ha:
+  enabled: false
+valkey-cluster:
+  enabled: false
+valkey:
+  enabled: false
+
+persistence:
+  enabled: true
+  size: 10Gi                # 레포 데이터. 실서버는 StorageClass·용량 재조정
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+# SSH 차단은 아래 server.DISABLE_SSH 가 담당한다. 차트가 gitea-ssh Service(headless)를
+# 무조건 렌더링하지만 데몬이 SSH 를 기동하지 않으므로 리스너 없는 껍데기다.
+
+gitea:
+  admin:
+    existingSecret: gitea-admin   # bootstrap.sh 가 생성(username/password)
+  config:
+    database:
+      DB_TYPE: sqlite3
+    session:
+      PROVIDER: memory
+    cache:
+      ADAPTER: memory
+    queue:
+      TYPE: level
+    server:
+      # 기본값은 kind(HTTP). bootstrap.sh 가 모드에 맞게 --set-string 으로 덮어쓴다:
+      #   kind:   http://gitea.localhost/          server: https://gitea.<DOMAIN>/
+      # (웹 링크·clone URL 이 Ingress 주소와 일치해야 push/clone 안내가 올바르다)
+      ROOT_URL: http://gitea.localhost/
+      DOMAIN: gitea.localhost
+      DISABLE_SSH: true
+    service:
+      DISABLE_REGISTRATION: true  # 1차 운영 방침: 계정은 관리자가 발급
+    webhook:
+      # Gitea 는 기본적으로 사설망 대상 webhook 을 차단한다. 자동 재배포(4단계)용
+      # backend 주소만 허용 목록에 넣는다. (로컬 개발 시험은 bootstrap/helm --set 으로 추가)
+      ALLOWED_HOST_LIST: backend.edu-platform.svc
+    repository:
+      DEFAULT_BRANCH: main
+      # 신규 레포 기본 비공개 — 내부 코드 저장소에서 실수로 만든 public 레포가
+      # (2단계 Ingress 개방 후) 익명 열람되는 것을 막는다. 명시적 public 은 여전히 가능.
+      DEFAULT_PRIVATE: private

@@ -40,6 +40,7 @@
 | `20-networkpolicy.yaml` | 기본 차단(deny-by-default) + DNS/Ingress만 허용, 사설망·메타데이터 차단 | 네트워크 격리 |
 | `30-runtimeclass-gvisor.yaml` | 샌드박스 런타임(gVisor) RuntimeClass | 커널 공격면 격리(비신뢰) |
 | `40-kaniko-build-job.template.yaml` | 인클러스터 Kaniko 빌드 Job 템플릿 | **docker.sock 없이** 안전 빌드 |
+| `platform/gitea/networkpolicy.yaml` | gitea 네임스페이스 기본 차단 + ingress-nginx→3000·DNS만 허용 (PodSecurity 라벨은 bootstrap이 적용: enforce=baseline, warn/audit=restricted) | 내부 코드 저장소 격리 |
 
 추가로 **서비스 매니페스트 템플릿**(`deploy/k8s/service-template.yaml`,
 `backend/.../deploy-templates/service-template.yaml`)에 컨테이너 보안 컨텍스트를 강화:

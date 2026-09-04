@@ -55,7 +55,11 @@ public class ManifestRenderer {
         String br = (branch != null && !branch.isBlank()) ? branch : "main";
         if (!BRANCH_RE.matcher(br).matches())
             throw new DeployException("허용되지 않는 브랜치 이름: " + branch);
-        String ctx = "git://" + repoUrl.replaceFirst("^https?://", "") + "#refs/heads/" + br;
+        // 내부 Gitea 는 clone-base(내부 접근 주소)로 재작성해 받는다 — 재작성 결과도 형식 재검증.
+        String fetchUrl = props.rewriteGiteaUrl(repoUrl);
+        if (!REPO_RE.matcher(fetchUrl).matches())
+            throw new DeployException("허용되지 않는 clone-base 주소 형식");
+        String ctx = "git://" + fetchUrl.replaceFirst("^https?://", "") + "#refs/heads/" + br;
         return load("deploy-templates/kaniko-job.yaml")
                 .replace("{{SLUG}}", spec.slug())
                 .replace("{{NAMESPACE}}", namespace)
@@ -63,7 +67,31 @@ public class ManifestRenderer {
                 .replace("{{CONTEXT}}", ctx)
                 // HTTP(비TLS) 레지스트리 지원 — edu.deploy.kaniko-insecure=true 일 때만
                 .replace("{{EXTRA_ARGS}}",
-                        props.kanikoInsecure() ? "- \"--insecure\"\n            - \"--insecure-pull\"" : "");
+                        props.kanikoInsecure() ? "- \"--insecure\"\n            - \"--insecure-pull\"" : "")
+                .replace("{{GIT_CRED_ENV}}", gitEnvBlock(repoUrl, fetchUrl));
+    }
+
+    /**
+     * Kaniko git 컨텍스트용 env 블록. 들여쓰기는 kaniko-job.yaml 의 컨테이너 키(10칸)에 맞춘다.
+     * - fetch 주소가 http 면 GIT_PULL_METHOD=http (kaniko 는 git 컨텍스트를 기본 https 로 받는다)
+     * - 내부 Gitea 레포면 봇 자격 증명을 Secret 참조로 주입(매니페스트에 토큰 평문 없음)
+     */
+    private String gitEnvBlock(String repoUrl, String fetchUrl) {
+        boolean plainHttp = fetchUrl.startsWith("http://");
+        boolean cred = props.isGiteaRepo(repoUrl);
+        if (!plainHttp && !cred) return "";
+        StringBuilder b = new StringBuilder("          env:\n");
+        if (plainHttp) {
+            b.append("            - name: GIT_PULL_METHOD\n")
+             .append("              value: \"http\"\n");
+        }
+        if (cred) {
+            b.append("            - name: GIT_USERNAME\n")
+             .append("              valueFrom: { secretKeyRef: { name: edu-gitea-token, key: username, optional: true } }\n")
+             .append("            - name: GIT_PASSWORD\n")
+             .append("              valueFrom: { secretKeyRef: { name: edu-gitea-token, key: token, optional: true } }\n");
+        }
+        return b.toString().stripTrailing();
     }
 
     private String load() {

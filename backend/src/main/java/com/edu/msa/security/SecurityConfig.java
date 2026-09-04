@@ -49,6 +49,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/health", "/api/healthz").permitAll()
                         // 분류 체계는 로그인 전 화면에서도 필요하므로 공개한다.
                         .requestMatchers(HttpMethod.GET, "/api/catalog/**").permitAll()
+                        // Gitea push webhook — JWT 대신 HMAC-SHA256 서명(X-Gitea-Signature)이
+                        // 인증을 대체한다(컨트롤러에서 검증, 시크릿 미설정 시 404).
+                        .requestMatchers(HttpMethod.POST, "/api/webhooks/gitea").permitAll()
 
                         // 운영 관리자 전용 — 검토/권한/배포
                         .requestMatchers(HttpMethod.GET, "/api/programs/pending", "/api/programs/all").hasRole("ADMIN")

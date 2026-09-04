@@ -151,9 +151,14 @@ Kaniko 빌드 → 배포 → 서비스 200. 토큰 없는 외부 요청으로는
 auth-service는 자체 HS256 JWT 발급기로 **OIDC Provider가 아니다.** Gitea 로그인
 위임에는 다음 중 하나가 필요하며, 1차 범위에서는 **수동 계정 발급**으로 운영한다.
 
-- **A안(권장)**: auth-service에 OIDC Provider 최소 구현(authorize/token/jwks/userinfo)
-  추가 → Gitea OAuth2 소스로 등록. 교육청 SSO 연동(백로그 B)과 방향이 같다.
-- **B안**: Keycloak 등 IdP를 중간에 도입 — 운영 컴포넌트가 하나 늘어나는 대신 표준적.
+- **A안**: auth-service에 OIDC Provider 최소 구현(authorize/token/jwks/userinfo)
+  추가 → Gitea OAuth2 소스로 등록. 소규모 데모 범위에서는 가능.
+- **B안(권장)**: Keycloak 등 IdP를 중간에 도입 — 운영 컴포넌트가 하나 늘어나는 대신 표준적.
+
+> **상세 설계는 [SSO_LOGIN_POLICY.md](SSO_LOGIN_POLICY.md) 참고** — 수십만 이용자·
+> 동시접속 수만·정부기관 보안을 전제로 하면 **B안(Keycloak 중앙 IdP + 기관 통합인증
+> 연합)** 이 권장이다(A안은 인증 표준 자체 구현 리스크로 비권고). 토큰 정책
+> (RS256/JWKS 전환·PAT)·MFA·계정 수명주기·용량 산정·6단계 도입 로드맵 포함.
 
 완료 기준: 포털 계정으로 Gitea 로그인, 권한(USER/CODER/ADMIN)→Gitea 권한 매핑.
 

@@ -27,7 +27,7 @@ edu-msa/
 │   ├── guides/                # VIBE_CODING_GUIDE (바이브 코더용 안내)
 │   ├── operations/            # DEPLOY(배포) · SECURITY(보안 하드닝)
 │   └── planning/              # ROADMAP · VERSIONS · PROCESS(이력) · GITEA_PLAN · BASE_SERVICES_PLAN
-├── html/                      # 시각 문서 — system-overview · feature-guide · guide-staff/admin
+├── html/                      # 시각 문서(로컬 전용 — 원격 미추적)
 ├── frontend/                  # React + Vite + TSX
 │   ├── README·PROCESS·AGENT·DESIGN·TEST.md
 │   ├── public/guides/         # 다운로드용 AI 빌드 지시서(AI_BUILD_SPEC + 스택 템플릿)

@@ -201,7 +201,7 @@ kubectl get pods -A                 # 전체 상태
   docker compose -f deploy/docker-compose.yml up -d --build
   cd frontend && npm install && npm run dev   # http://localhost:5173
   ```
-- 인프라 전체 설명(도면): [system-overview.html](../../html/system-overview.html) · [deploy/infra-overview.html](../../deploy/infra-overview.html)
+- 인프라 전체 설명(도면): 로컬 전용 시각 문서 `html/system-overview.html` · `deploy/infra-overview.html` (원격 미추적 — 저장소 보유자 로컬에서 열람)
 - 배포 파이프라인·모드(simulate/docker/real): [deploy/INFRA.md](../../deploy/INFRA.md) · [backend/README.md](../../backend/README.md)
 - 서비스 규격(`service.yaml`·`resources.gpu`): [docs/MSA_SERVICE_SPEC.md](../architecture/MSA_SERVICE_SPEC.md)
 - 보안·격리: [SECURITY.md](SECURITY.md)

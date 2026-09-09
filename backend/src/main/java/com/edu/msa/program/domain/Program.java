@@ -12,6 +12,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
@@ -20,7 +21,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "programs")
+@Table(name = "programs", indexes = {
+        // 카탈로그 조회의 기본 필터(status)와 정렬 컬럼 조합 — 목록 쿼리가 인덱스를 타게 한다.
+        @Index(name = "idx_programs_status_updated", columnList = "status, updated_at"),
+        @Index(name = "idx_programs_status_views", columnList = "status, views"),
+        @Index(name = "idx_programs_status_downloads", columnList = "status, downloads"),
+        @Index(name = "idx_programs_status_cat", columnList = "status, cat"),
+        @Index(name = "idx_programs_owner", columnList = "owner"),
+})
 public class Program {
 
     @Id
@@ -62,17 +70,20 @@ public class Program {
     private String stopReason;
 
     @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(name = "program_tags", joinColumns = @JoinColumn(name = "program_id"))
+    @CollectionTable(name = "program_tags", joinColumns = @JoinColumn(name = "program_id"),
+            indexes = @Index(name = "idx_program_tags_pid_tag", columnList = "program_id, tag"))
     @Column(name = "tag")
     private List<String> tags = new ArrayList<>();
 
     @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(name = "program_tech", joinColumns = @JoinColumn(name = "program_id"))
+    @CollectionTable(name = "program_tech", joinColumns = @JoinColumn(name = "program_id"),
+            indexes = @Index(name = "idx_program_tech_pid_tech", columnList = "program_id, tech"))
     @Column(name = "tech")
     private List<String> tech = new ArrayList<>();
 
     @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(name = "program_purposes", joinColumns = @JoinColumn(name = "program_id"))
+    @CollectionTable(name = "program_purposes", joinColumns = @JoinColumn(name = "program_id"),
+            indexes = @Index(name = "idx_program_purposes_pid_purpose", columnList = "program_id, purpose"))
     @Column(name = "purpose")
     private List<String> purposes = new ArrayList<>();
 

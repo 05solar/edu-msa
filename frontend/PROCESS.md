@@ -9,6 +9,7 @@
 
 ## 진행 이력 (Change Log)
 
+- 2026-09-09 — 카탈로그 서버 페이지네이션 연동: 목록 API 가 페이지 응답(items/totalElements/totalPages)으로 바뀜에 따라 api.list 가 필터·검색·정렬·page/size 파라미터를 서버로 전달(ListParams·ProgramPage 타입), api.programCounts(분야별 개수) 추가, api.listAll 페이지 인자화. List 페이지는 서버 주도 조회(검색어 300ms 디바운스, 20건/페이지, 이전/다음 페이저)로 전환하고 오프라인 목업 모드는 기존 클라이언트 필터링 유지. AppContext 는 최근 100건 작업셋만 보관(Home/My/Admin 용). 검증: tsc·vite build 통과.
 - 2026-09-03 — Gitea 3단계: 등록 화면 안내를 "내부 Gitea 주소(권장) 또는 GitHub 주소"로 갱신(placeholder·설명·오류 문구). 타입체크 통과.
 - 2026-09-03 — 프로그램 삭제: api.deleteProgram + AppContext.deleteProgram(API/목업 겸용, 목록·알림·detailId 정리, 실패 토스트), 내 프로그램 표와 운영 관리자 전체 프로그램 탭에 확인창 딸린 삭제 버튼 추가. 검증: typecheck/빌드 통과, 목업 모드 E2E(내 프로그램 3→2행, 관리자 15→14행, 토스트·통계 갱신 확인).
 

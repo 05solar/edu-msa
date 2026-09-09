@@ -12,7 +12,10 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "deployments")
+@Table(name = "deployments", indexes = {
+        // 프로그램 상세 폴링(findTopByProgramIdOrderByIdDesc)·삭제 정리에 사용
+        @jakarta.persistence.Index(name = "idx_deployments_program", columnList = "program_id"),
+})
 public class Deployment {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

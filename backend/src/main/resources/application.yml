@@ -12,6 +12,9 @@ spring:
     properties:
       hibernate:
         format_sql: false
+        # LAZY 컬렉션(tags/tech/purposes/run 등)을 IN 배치로 묶어 로드 — 목록 N+1 제거.
+        # 페이지 N건 조회 시 컬렉션 종류당 쿼리 1개(총 4개)로 고정된다.
+        default_batch_fetch_size: 100
 
 server:
   port: ${PORT:8080}        # 플랫폼 표준: PORT 환경변수로 listen

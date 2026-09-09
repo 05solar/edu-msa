@@ -354,12 +354,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // ---- API 모드 연동 (VITE_USE_API=true) ----
   const refreshPrograms = useCallback(async () => {
-    // 공개 카탈로그(기본 서비스 포함)는 로그인한 모든 사용자가 볼 수 있어야 하므로 /api/programs 로 로드.
-    try { setPrograms(await api.list()) }
+    // 목록 API 가 페이지 단위로 바뀌어(확장성) 컨텍스트에는 최근 100건 작업셋만 유지한다.
+    // 카탈로그 탐색(List 페이지)은 서버 검색·페이지네이션으로 전체를 조회한다.
+    try { setPrograms((await api.list({ page: 0, size: 100 })).items) }
     catch { toast('프로그램을 불러오지 못했습니다.', 'warn'); return }
     // 운영 관리자만 대기·비공개까지 포함한 전체로 교체(검토용). role 이 deps 라 권한 전환 시 재로드된다.
     if (role === 'admin') {
-      try { setPrograms(await api.listAll()) } catch { /* noop */ }
+      try { setPrograms((await api.listAll(0, 100)).items) } catch { /* noop */ }
     }
   }, [role, toast])
   const refreshLogs = useCallback(async () => {

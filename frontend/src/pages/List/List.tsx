@@ -1,12 +1,13 @@
 import './List.css'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CATEGORIES, PURPOSES, TECHS, SCOPE_SHORT } from '../../data/catalog'
 import { purposeOf, catOf, techOf } from '../../lib/helpers'
 import { useApp } from '../../state/AppContext'
+import { api, USE_API } from '../../api/client'
 import { Icon } from '../../icons/Icon'
 import { ProgramRow } from '../../components/program/ProgramRow'
 import { RunModal } from '../../components/RunModal/RunModal'
-import type { PurposeId, Scope } from '../../types'
+import type { Program, PurposeId, Scope } from '../../types'
 
 const SORTS: { id: 'latest' | 'popular' | 'downloads'; name: string }[] = [
   { id: 'latest', name: '최신순' },
@@ -14,10 +15,46 @@ const SORTS: { id: 'latest' | 'popular' | 'downloads'; name: string }[] = [
   { id: 'downloads', name: '다운로드순' },
 ]
 
+const PAGE_SIZE = 20
+
 export function List() {
   const { publicPrograms, filters, setFilters, resetFilters, progOf, openModal } = useApp()
 
+  // 서버 페이지 상태 (API 모드) — 검색·필터·정렬·페이지네이션은 서버(DB)가 수행한다.
+  const [page, setPage] = useState(0)
+  const [serverItems, setServerItems] = useState<Program[]>([])
+  const [serverTotal, setServerTotal] = useState(0)
+  const [serverPages, setServerPages] = useState(1)
+  const [counts, setCounts] = useState<Record<string, number>>({})
+
+  // 필터가 바뀌면 첫 페이지부터 다시 본다.
+  useEffect(() => { setPage(0) }, [filters])
+
+  useEffect(() => {
+    if (!USE_API) return
+    // 검색어 입력은 타이핑마다 서버를 두드리지 않도록 300ms 디바운스한다.
+    const t = setTimeout(() => {
+      api.list({
+        cat: filters.cat, purposes: filters.purposes, tech: filters.tech,
+        scope: filters.scope, q: filters.q, sort: filters.sort,
+        page, size: PAGE_SIZE,
+      }).then((r) => {
+        setServerItems(r.items)
+        setServerTotal(r.totalElements)
+        setServerPages(Math.max(1, r.totalPages))
+      }).catch(() => { /* 조회 실패 시 기존 화면 유지 */ })
+    }, filters.q.trim() ? 300 : 0)
+    return () => clearTimeout(t)
+  }, [filters, page])
+
+  useEffect(() => {
+    if (!USE_API) return
+    api.programCounts().then(setCounts).catch(() => { /* noop */ })
+  }, [])
+
+  // 오프라인 목업 모드(VITE_USE_API=false) — 기존 클라이언트 필터링을 유지한다.
   const filtered = useMemo(() => {
+    if (USE_API) return []
     let arr = publicPrograms.filter((p) => {
       if (filters.cat !== 'all' && p.cat !== filters.cat) return false
       if (filters.purposes.length && !filters.purposes.every((x) => p.purposes.includes(x))) return false
@@ -38,14 +75,27 @@ export function List() {
     return arr
   }, [publicPrograms, filters])
 
-  const catCount = (id: string) => publicPrograms.filter((p) => p.cat === id).length
+  const items = USE_API ? serverItems : filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+  const totalCount = USE_API ? serverTotal : filtered.length
+  const totalPages = USE_API ? serverPages : Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+
+  const catCount = (id: string) => USE_API
+    ? (counts[id] ?? 0)
+    : publicPrograms.filter((p) => p.cat === id).length
+  const allCount = USE_API
+    ? Object.values(counts).reduce((a, b) => a + b, 0)
+    : publicPrograms.length
+
   const togglePurpose = (id: PurposeId) => setFilters({
     purposes: filters.purposes.includes(id) ? filters.purposes.filter((x) => x !== id) : [...filters.purposes, id],
   })
   const toggleTech = (t: string) => setFilters({
     tech: filters.tech.includes(t) ? filters.tech.filter((x) => x !== t) : [...filters.tech, t],
   })
-  const onRun = (id: number) => { const p = progOf(id); if (p) openModal(<RunModal p={p} />) }
+  const onRun = (id: number) => {
+    const p = items.find((x) => x.id === id) ?? progOf(id)
+    if (p) openModal(<RunModal p={p} />)
+  }
 
   const hasActive = filters.cat !== 'all' || filters.purposes.length > 0 || filters.tech.length > 0
     || filters.scope !== 'all' || filters.q.trim().length > 0
@@ -71,7 +121,7 @@ export function List() {
             <h4>업무 분야</h4>
             <label className="radio-row">
               <input type="radio" checked={filters.cat === 'all'} onChange={() => setFilters({ cat: 'all' })} />
-              전체<span className="cnt">{publicPrograms.length}</span>
+              전체<span className="cnt">{allCount}</span>
             </label>
             {CATEGORIES.map((c) => (
               <label key={c.id} className="radio-row">
@@ -132,7 +182,7 @@ export function List() {
           </div>
 
           <div className="result-bar">
-            <div>총 <b>{filtered.length}</b>개</div>
+            <div>총 <b>{totalCount}</b>개</div>
             {hasActive && (
               <div className="active-filters">
                 {filters.cat !== 'all' && (
@@ -152,7 +202,7 @@ export function List() {
             )}
           </div>
 
-          {filtered.length === 0 ? (
+          {items.length === 0 ? (
             <div className="empty">
               <div className="em-ico"><Icon name="search" size={26} /></div>
               <div className="em-t">검색 결과가 없습니다.</div>
@@ -160,7 +210,17 @@ export function List() {
             </div>
           ) : (
             <div className="prog-rows">
-              {filtered.map((p) => <ProgramRow key={p.id} p={p} onRun={onRun} />)}
+              {items.map((p) => <ProgramRow key={p.id} p={p} onRun={onRun} />)}
+            </div>
+          )}
+
+          {totalPages > 1 && (
+            <div className="pager">
+              <button className="btn btn-sm" disabled={page === 0}
+                onClick={() => setPage(page - 1)}>이전</button>
+              <span className="pager-info">{page + 1} / {totalPages} 페이지</span>
+              <button className="btn btn-sm" disabled={page >= totalPages - 1}
+                onClick={() => setPage(page + 1)}>다음</button>
             </div>
           )}
         </div>

@@ -72,12 +72,13 @@ CODER/ADMIN 상향은 신청→운영 관리자 승인으로만 부여된다(자
 | --- | --- | --- | --- |
 | GET | `/api/health` | 공개 | 헬스 체크 |
 | GET | `/api/catalog` | 공개 | 분류 체계 전체 |
-| GET | `/api/programs` | 로그인 | 공개 프로그램 목록 (필터/정렬/검색) |
+| GET | `/api/programs` | 로그인 | 공개 프로그램 목록 — 필터/정렬/검색은 DB 수행, `page`/`size` 페이지 응답(`items`·`totalElements`·`totalPages`) |
+| GET | `/api/programs/counts` | 로그인 | 분야별 공개 프로그램 개수(GROUP BY 집계) |
 | GET | `/api/programs/{id}` | 로그인 | 상세 |
 | POST | `/api/programs` | CODER+ | 등록 요청(pending) |
 | POST | `/api/programs/{id}/comments` | 로그인 | 의견 등록 |
-| GET | `/api/programs/all` | ADMIN | 전체(비공개 포함) 목록 |
-| GET | `/api/programs/pending` | ADMIN | 검토 대기 목록 |
+| GET | `/api/programs/all` | ADMIN | 전체(비공개 포함) 목록 — 페이지 응답 |
+| GET | `/api/programs/pending` | ADMIN | 검토 대기 목록 — 페이지 응답 |
 | POST | `/api/programs/{id}/review` | ADMIN | 승인/반려/중지/재개 |
 | GET | `/api/review/logs` | ADMIN | 처리 이력 |
 | GET | `/api/notifications?to=이름` | 로그인 | 내 알림 |

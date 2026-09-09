@@ -8,7 +8,10 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "comments")
+@Table(name = "comments", indexes = {
+        // 프로그램 상세의 의견 목록 조회·삭제 정리에 사용
+        @jakarta.persistence.Index(name = "idx_comments_program", columnList = "program_id"),
+})
 public class Comment {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

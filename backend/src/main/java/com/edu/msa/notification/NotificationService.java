@@ -30,7 +30,7 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public long unreadCount(String name) {
-        return repo.findByToUserOrderByIdDesc(name).stream().filter(n -> !n.isRead()).count();
+        return repo.countByToUserAndReadFalse(name);
     }
 
     @Transactional
@@ -47,7 +47,7 @@ public class NotificationService {
 
     @Transactional
     public void markAllRead(String name) {
-        repo.findByToUserOrderByIdDesc(name).forEach(n -> n.setRead(true));
+        repo.markAllReadFor(name);
     }
 
     private NotificationResponse toResponse(Notification n) {

@@ -1,5 +1,6 @@
 package com.edu.msa.program;
 
+import com.edu.msa.common.PageResponse;
 import com.edu.msa.common.Role;
 import com.edu.msa.deploy.DeploymentService;
 import com.edu.msa.program.dto.ProgramDtos.CommentRequest;
@@ -10,6 +11,7 @@ import com.edu.msa.program.dto.ProgramDtos.ProgramSummaryResponse;
 import com.edu.msa.security.AuthPrincipal;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -35,24 +37,36 @@ public class ProgramController {
     }
 
     @GetMapping
-    public List<ProgramSummaryResponse> list(
+    public PageResponse<ProgramSummaryResponse> list(
             @RequestParam(required = false) String cat,
             @RequestParam(required = false) List<String> purpose,
             @RequestParam(required = false) List<String> tech,
             @RequestParam(required = false) String scope,
             @RequestParam(required = false) String q,
-            @RequestParam(required = false, defaultValue = "latest") String sort) {
-        return service.list(cat, purpose, tech, scope, q, sort);
+            @RequestParam(required = false, defaultValue = "latest") String sort,
+            @RequestParam(required = false, defaultValue = "0") int page,
+            @RequestParam(required = false, defaultValue = "20") int size) {
+        return service.list(cat, purpose, tech, scope, q, sort, page, size);
+    }
+
+    /** 카탈로그 사이드바 분야별 공개 프로그램 개수(DB GROUP BY). */
+    @GetMapping("/counts")
+    public Map<String, Long> counts() {
+        return service.publicCountsByCat();
     }
 
     @GetMapping("/pending")
-    public List<ProgramSummaryResponse> pending() {
-        return service.pending();
+    public PageResponse<ProgramSummaryResponse> pending(
+            @RequestParam(required = false, defaultValue = "0") int page,
+            @RequestParam(required = false, defaultValue = "20") int size) {
+        return service.pending(page, size);
     }
 
     @GetMapping("/all")
-    public List<ProgramSummaryResponse> all() {
-        return service.all();
+    public PageResponse<ProgramSummaryResponse> all(
+            @RequestParam(required = false, defaultValue = "0") int page,
+            @RequestParam(required = false, defaultValue = "100") int size) {
+        return service.all(page, size);
     }
 
     @GetMapping("/{id}")

@@ -8,6 +8,9 @@ spring:
     hibernate:
       ddl-auto: create-drop
     database-platform: org.hibernate.dialect.H2Dialect
+    properties:
+      hibernate:
+        generate_statistics: true   # N+1 검증용 쿼리 수 계측
 
 edu:
   seed: false

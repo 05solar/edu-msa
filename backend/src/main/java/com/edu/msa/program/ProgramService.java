@@ -2,6 +2,7 @@ package com.edu.msa.program;
 
 import com.edu.msa.common.NotFoundException;
 import com.edu.msa.common.NotiKind;
+import com.edu.msa.common.PageResponse;
 import com.edu.msa.common.ProgramStatus;
 import com.edu.msa.common.Role;
 import com.edu.msa.common.Scope;
@@ -22,8 +23,16 @@ import com.edu.msa.program.repository.CommentRepository;
 import com.edu.msa.program.repository.ProgramRepository;
 import com.edu.msa.user.repository.AppUserRepository;
 import java.time.LocalDate;
-import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Stream;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,18 +54,35 @@ public class ProgramService {
         this.users = users;
     }
 
+    /**
+     * 공개 카탈로그 목록 — 필터·검색·정렬을 전부 DB 쿼리로 수행하고 페이지 단위로 반환한다.
+     * 컬렉션 조건은 EXISTS 서브쿼리(ProgramSpecs)라 페이지 행 수가 왜곡되지 않는다.
+     */
     @Transactional(readOnly = true)
-    public List<ProgramSummaryResponse> list(String cat, List<String> purposes, List<String> tech,
-                                             String scope, String q, String sort) {
-        return programs.findByStatus(ProgramStatus.PUBLIC).stream()
-                .filter(p -> cat == null || cat.isBlank() || cat.equals("all") || p.getCat().equals(cat))
-                .filter(p -> purposes == null || purposes.isEmpty() || p.getPurposes().containsAll(purposes))
-                .filter(p -> tech == null || tech.isEmpty() || p.getTech().containsAll(tech))
-                .filter(p -> scope == null || scope.isBlank() || scope.equals("any") || p.getScope().code().equals(scope))
-                .filter(p -> matchesQuery(p, q))
-                .sorted(sorter(sort))
-                .map(this::toSummary)
-                .toList();
+    public PageResponse<ProgramSummaryResponse> list(String cat, List<String> purposes, List<String> tech,
+                                                     String scope, String q, String sort, int page, int size) {
+        Specification<Program> spec = Stream.of(
+                        ProgramSpecs.hasStatus(ProgramStatus.PUBLIC),
+                        ProgramSpecs.hasCat(cat),
+                        ProgramSpecs.hasScope(scope),
+                        ProgramSpecs.containsAll("purposes", purposes),
+                        ProgramSpecs.containsAll("tech", tech),
+                        ProgramSpecs.matchesQuery(q))
+                .filter(Objects::nonNull)
+                .reduce(Specification::and)
+                .orElseThrow();
+        Page<Program> result = programs.findAll(spec, pageOf(page, size, sortOf(sort)));
+        return PageResponse.of(result.map(this::toSummary));
+    }
+
+    /** 카탈로그 사이드바용 분야별 공개 프로그램 개수(GROUP BY 집계). */
+    @Transactional(readOnly = true)
+    public Map<String, Long> publicCountsByCat() {
+        Map<String, Long> counts = new LinkedHashMap<>();
+        for (Object[] row : programs.countByCatForStatus(ProgramStatus.PUBLIC)) {
+            counts.put((String) row[0], (Long) row[1]);
+        }
+        return counts;
     }
 
     /**
@@ -110,17 +136,16 @@ public class ProgramService {
     }
 
     @Transactional(readOnly = true)
-    public List<ProgramSummaryResponse> pending() {
-        return programs.findByStatus(ProgramStatus.PENDING).stream()
-                .sorted(Comparator.comparing(Program::getCreatedAt).reversed())
-                .map(this::toSummary).toList();
+    public PageResponse<ProgramSummaryResponse> pending(int page, int size) {
+        Sort sort = Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"));
+        return PageResponse.of(programs.findByStatus(ProgramStatus.PENDING, pageOf(page, size, sort))
+                .map(this::toSummary));
     }
 
     @Transactional(readOnly = true)
-    public List<ProgramSummaryResponse> all() {
-        return programs.findAll().stream()
-                .sorted(Comparator.comparing(Program::getId))
-                .map(this::toSummary).toList();
+    public PageResponse<ProgramSummaryResponse> all(int page, int size) {
+        return PageResponse.of(programs.findAll(pageOf(page, size, Sort.by(Sort.Order.asc("id"))))
+                .map(this::toSummary));
     }
 
     @Transactional(readOnly = true)
@@ -180,21 +205,16 @@ public class ProgramService {
                 .findFirst().orElse(DEFAULT_ADMIN);
     }
 
-    private boolean matchesQuery(Program p, String q) {
-        if (q == null || q.isBlank()) return true;
-        String needle = q.trim().toLowerCase();
-        StringBuilder hay = new StringBuilder()
-                .append(p.getName()).append(' ').append(p.getSummary()).append(' ')
-                .append(p.getDescription() == null ? "" : p.getDescription()).append(' ')
-                .append(String.join(" ", p.getTags())).append(' ')
-                .append(String.join(" ", p.getTech()));
-        return hay.toString().toLowerCase().contains(needle);
+    /** 정렬 화이트리스트 — 요청값을 엔티티 정렬로 직접 쓰지 않는다(동점은 id 로 안정 정렬). */
+    private Sort sortOf(String sort) {
+        if ("popular".equals(sort)) return Sort.by(Sort.Order.desc("views"), Sort.Order.desc("id"));
+        if ("downloads".equals(sort)) return Sort.by(Sort.Order.desc("downloads"), Sort.Order.desc("id"));
+        return Sort.by(Sort.Order.desc("updatedAt"), Sort.Order.desc("id"));
     }
 
-    private Comparator<Program> sorter(String sort) {
-        if ("popular".equals(sort)) return Comparator.comparingInt(Program::getViews).reversed();
-        if ("downloads".equals(sort)) return Comparator.comparingInt(Program::getDownloads).reversed();
-        return Comparator.comparing(Program::getUpdatedAt).reversed();
+    /** 페이지 파라미터 방어값(page ≥ 0, 1 ≤ size ≤ 100). */
+    private Pageable pageOf(int page, int size, Sort sort) {
+        return PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100), sort);
     }
 
     private String repoName(String repo) {

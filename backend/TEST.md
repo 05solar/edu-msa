@@ -3,7 +3,15 @@
 ## 자동 테스트
 
 - `EduMsaApplicationTests` — 애플리케이션 컨텍스트 로드(H2, test 프로파일).
+- `DeploymentServiceTransactionTest` — deploy() 트랜잭션 경계 검증: 장시간 외부 작업(clone 등)
+  구간에 활성 트랜잭션이 없고, 상태(VALIDATING→…→RUNNING/FAILED)가 짧은 트랜잭션으로
+  커밋되며, 성공 시 프로그램 공개가 배포 완료와 함께 커밋되는지 확인.
+- `ProgramQueryTest` — 카탈로그 목록의 DB 단 필터/검색/정렬 의미 유지, 페이지네이션,
+  N+1 제거(Hibernate statistics 로 페이지당 쿼리 수 고정 계측), 알림 미읽음 DB COUNT 검증.
 - Docker 빌드 시 `-x test`로 이미지 빌드를 빠르게 하고, 테스트는 별도로 수행 가능.
+- 로컬(Windows) 주의: 사용자 경로에 한글이 있으면 Gradle 테스트 워커가 클래스패스를
+  읽지 못한다. ASCII 정션 경로(`C:\edu-msa-build` → 본 저장소)에서
+  `GRADLE_USER_HOME`을 ASCII 경로로 두고 `gradle build`를 실행하면 통과한다.
 
 ## 수동 검증 (compose 기동 후)
 

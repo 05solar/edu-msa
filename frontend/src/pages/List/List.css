@@ -47,3 +47,8 @@
 }
 .chip-x button{background:none;border:0;color:inherit;padding:0;line-height:1;opacity:.7;display:flex}
 .chip-x button:hover{opacity:1}
+
+/* 페이지네이션 (서버 페이지 단위 조회) */
+.pager{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:16px}
+.pager-info{font-size:13px;color:var(--ink-500)}
+.pager .btn[disabled]{opacity:.45;cursor:default}

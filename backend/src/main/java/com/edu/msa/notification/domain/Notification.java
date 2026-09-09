@@ -8,10 +8,14 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "notifications")
+@Table(name = "notifications", indexes = {
+        // 사용자별 목록 조회·미읽음 카운트가 인덱스를 타게 한다.
+        @Index(name = "idx_notifications_to_read", columnList = "to_user, is_read"),
+})
 public class Notification {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

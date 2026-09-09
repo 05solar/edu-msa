@@ -78,11 +78,44 @@ function fromDetail(d: DetailDto): Program {
   }
 }
 
+/* ---- 페이지 응답 (백엔드 PageResponse) ---- */
+interface PageDto<T> {
+  items: T[]; page: number; size: number; totalElements: number; totalPages: number
+}
+export interface ProgramPage {
+  items: Program[]; page: number; size: number; totalElements: number; totalPages: number
+}
+export interface ListParams {
+  cat?: string; purposes?: string[]; tech?: string[]; scope?: string
+  q?: string; sort?: string; page?: number; size?: number
+}
+
+function listQuery(p: ListParams): string {
+  const qs = new URLSearchParams()
+  if (p.cat && p.cat !== 'all') qs.set('cat', p.cat)
+  p.purposes?.forEach((x) => qs.append('purpose', x))
+  p.tech?.forEach((x) => qs.append('tech', x))
+  if (p.scope && p.scope !== 'any') qs.set('scope', p.scope)
+  if (p.q?.trim()) qs.set('q', p.q.trim())
+  if (p.sort) qs.set('sort', p.sort)
+  qs.set('page', String(p.page ?? 0))
+  qs.set('size', String(p.size ?? 20))
+  return qs.toString()
+}
+
+function fromPage(d: PageDto<SummaryDto>): ProgramPage {
+  return { ...d, items: d.items.map(fromSummary) }
+}
+
 export const api = {
-  // 공개 카탈로그(역할 필터·PUBLIC) — 로그인한 모든 사용자 접근 가능
-  list: () => req<SummaryDto[]>('/programs').then((xs) => xs.map(fromSummary)),
-  // 전체(대기·비공개 포함) — 운영 관리자(ADMIN) 전용
-  listAll: () => req<SummaryDto[]>('/programs/all').then((xs) => xs.map(fromSummary)),
+  // 공개 카탈로그(PUBLIC) — 필터·검색·정렬·페이지네이션은 서버(DB)에서 처리된다.
+  list: (params: ListParams = {}) =>
+    req<PageDto<SummaryDto>>(`/programs?${listQuery(params)}`).then(fromPage),
+  // 카탈로그 사이드바 분야별 공개 프로그램 개수(서버 GROUP BY 집계)
+  programCounts: () => req<Record<string, number>>('/programs/counts'),
+  // 전체(대기·비공개 포함) — 운영 관리자(ADMIN) 전용, 페이지 응답
+  listAll: (page = 0, size = 100) =>
+    req<PageDto<SummaryDto>>(`/programs/all?page=${page}&size=${size}`).then(fromPage),
   detail: (id: number) => req<DetailDto>(`/programs/${id}`).then(fromDetail),
   create: (body: {
     name: string; summary: string; desc?: string; cat: string; owner: string; dept: string

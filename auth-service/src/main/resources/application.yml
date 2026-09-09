@@ -34,9 +34,27 @@ edu:
     # 시연용 세션은 짧게 — 데모 진입 후에도 로그인 화면을 다시 확인할 수 있도록
     demo-refresh-ttl-seconds: ${EDU_JWT_DEMO_REFRESH_TTL:86400}   # 1일
   auth:
+    ratelimit:
+      # 로그인/갱신 남용 방어. 값은 운영 데이터 기준으로 조정한다.
+      enabled: ${EDU_RATELIMIT_ENABLED:true}
+      # 같은 계정: 10분 창에서 5회 초과 실패 → 5분 임시 차단 (모든 IP 공통)
+      account-max-failures: ${EDU_RATELIMIT_ACCOUNT_MAX:5}
+      account-window-seconds: ${EDU_RATELIMIT_ACCOUNT_WINDOW:600}
+      account-block-seconds: ${EDU_RATELIMIT_ACCOUNT_BLOCK:300}
+      # 같은 IP(계정 무관 합산): 10분 창 30회 초과 실패 → 10분 차단 (NAT 고려해 관대)
+      ip-max-failures: ${EDU_RATELIMIT_IP_MAX:30}
+      ip-window-seconds: ${EDU_RATELIMIT_IP_WINDOW:600}
+      ip-block-seconds: ${EDU_RATELIMIT_IP_BLOCK:600}
+      # 실패 응답 지연(지수 백오프): 300ms × 2^(n-1), 상한 2초
+      fail-delay-ms: ${EDU_RATELIMIT_FAIL_DELAY_MS:300}
+      max-fail-delay-ms: ${EDU_RATELIMIT_MAX_FAIL_DELAY_MS:2000}
+      # refresh 남용(위조·만료 토큰 반복 제출): IP 기준 60초 창 30회 → 5분 차단
+      refresh-max-failures: ${EDU_RATELIMIT_REFRESH_MAX:30}
+      refresh-window-seconds: ${EDU_RATELIMIT_REFRESH_WINDOW:60}
+      refresh-block-seconds: ${EDU_RATELIMIT_REFRESH_BLOCK:300}
     demo:
-      # 시연용 데모 로그인. 운영 환경에서는 false 로 끈다.
-      enabled: ${EDU_DEMO_LOGIN:true}
+      # 시연용 데모 로그인 — fail-safe 기본 false. 개발/시연 환경에서만 명시적으로 켠다.
+      enabled: ${EDU_DEMO_LOGIN:false}
       accounts:
         user: ${EDU_DEMO_USER:yunhaneul}
         coder: ${EDU_DEMO_CODER:kimdohyun}

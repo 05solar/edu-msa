@@ -55,6 +55,8 @@ services:
       EDU_COOKIE_SAMESITE: Lax
       EDU_SEED: "true"
       EDU_SEED_PASSWORD: ${EDU_SEED_PASSWORD:-Edu@2026!}
+      # 데모 로그인은 앱 기본값이 false(fail-safe) — 로컬 개발/시연이므로 명시적으로 켠다.
+      EDU_DEMO_LOGIN: "true"
     ports:
       - "8089:8080"
     depends_on:

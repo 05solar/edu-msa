@@ -23,6 +23,7 @@ deploy/
 
 ## 진행 이력 (Change Log)
 
+- 2026-09-09 — 인증 방어 하드닝: (1) K8s 매니페스트를 운영 기준 fail-safe 로 — auth-service.yaml/backend.yaml 의 `EDU_SEED` "false" 고정, auth-service 에 `EDU_DEMO_LOGIN` "false" 명시(데모 계정 시드·무비밀번호 로그인이 운영에 기본 열리지 않음). 로컬 kind 리허설은 bootstrap.sh 가 kind 모드에서만 두 값을 "true" 로 치환(시연 유지, server 모드는 그대로 꺼짐). (2) ingress.yaml 에서 /api/auth 를 전용 Ingress(edu-platform-auth)로 분리하고 엣지 rate limit(limit-rps 5 · limit-connections 10) 적용 — 앱 계층 LoginGuard(계정/IP 기준)와 이중 방어. (3) compose 는 개발 환경이므로 `EDU_DEMO_LOGIN: "true"` 명시. 검증: bash -n 문법, sed 치환 드라이런(EDU_SEED/EDU_DEMO_LOGIN true 전환 확인).
 - 2026-08-26 — 인증 계층 추가: auth-service(자체 DB auth-db·BCrypt·HS256 JWT, 로컬 :8089) 분리, backend는 동일 `EDU_JWT_SECRET`으로 토큰 자체 검증(role 기반 RBAC). k8s/auth/(auth-db·auth-service·`edu-auth-jwt` Secret), docker-compose에 auth-db·auth-service·traefik 추가, apply 순서에 auth-db→auth-service(backend 앞) 반영.
 - 2026-08-24 — docker-compose(postgres+backend) 작성, K8s 매니페스트(namespace·플랫폼·서비스 템플릿·RBAC) 추가.
 - 2026-08-25 — docker 실배포 모드용 docker.sock/examples 마운트, 백엔드 이미지에 git/docker/kubectl.

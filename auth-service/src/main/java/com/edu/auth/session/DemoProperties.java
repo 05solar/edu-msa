@@ -14,8 +14,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "edu.auth.demo")
 public class DemoProperties {
 
-    /** 데모 로그인 허용 여부. 운영 환경에서는 false 로 주입한다. */
-    private boolean enabled = true;
+    /**
+     * 데모 로그인 허용 여부 — fail-safe 기본값 false.
+     * 개발/시연 환경에서만 EDU_DEMO_LOGIN=true 로 명시적으로 켠다.
+     * (운영에서 설정을 누락해도 비밀번호 없는 로그인이 열리지 않는다.)
+     */
+    private boolean enabled = false;
 
     /** 역할 코드(user/coder/admin) → 데모 계정 아이디. */
     private Map<String, String> accounts = new LinkedHashMap<>();

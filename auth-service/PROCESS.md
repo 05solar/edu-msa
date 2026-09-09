@@ -23,6 +23,7 @@
 
 ## 진행 이력 (Change Log)
 
+- 2026-09-09 — 인증 방어 계층(brute force/크리덴셜 스터핑·데모 fail-safe): ratelimit 패키지 신설 — AttemptStore 추상화(추후 Redis 교체용) + InMemoryAttemptStore(고정 윈도우·상한 초과 시 만료분 청소) + RateLimitProperties(정책값 전부 환경변수화) + LoginGuard(계정 기준 5회/10분→5분 차단 · IP 합산 30회/10분→10분 차단 · 실패 지수 백오프 지연 300ms~2s · refresh IP 기준 30회/60초→5분 차단). 가드는 트랜잭션 밖(SessionController)에서 적용해 지연이 DB 커넥션을 잡지 않음. 429 + Retry-After 응답(TooManyRequestsException). 데모 로그인 기본값 true→false(fail-safe) — compose 는 명시적 true, K8s 매니페스트는 EDU_SEED/EDU_DEMO_LOGIN "false" 고정 + bootstrap.sh kind 모드만 "true" 치환, ingress 는 /api/auth 전용 Ingress 분리(limit-rps 5). 검증: AuthGuardTest 5건 + DemoLoginEnabledTest 1건 + gradle build 통과.
 - 2026-08-25 — 서비스 신설: Spring Boot 3.3 / Java 21 / Gradle Kotlin DSL 스캐폴드, Dockerfile, application.yml.
 - 2026-08-25 — 도메인: Account(계정·역할·임시 비밀번호 플래그) / RefreshToken(해시 저장·회전) 엔티티와 리포지토리.
 - 2026-08-25 — API: signup / login / refresh / logout / me / check-duplicate, 운영 관리자용 계정 목록·권한 부여. Bean Validation 규칙을 프론트 검증과 일치시킴.

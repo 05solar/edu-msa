@@ -46,4 +46,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> onNotFound(NotFoundException e) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiError.of("NOT_FOUND", e.getMessage()));
     }
+
+    /** 로그인/갱신 남용 차단(429) — Retry-After 로 재시도 가능 시점을 알린다. */
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<ApiError> onTooManyRequests(TooManyRequestsException e) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", String.valueOf(e.getRetryAfterSeconds()))
+                .body(ApiError.of("TOO_MANY_REQUESTS", e.getMessage()));
+    }
 }

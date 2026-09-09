@@ -58,8 +58,12 @@ spec:
               value: "true"
             - name: EDU_COOKIE_SAMESITE
               value: "Lax"
+            # 운영 기준 fail-safe: 시드·데모 로그인 모두 끔.
+            # 로컬 kind 리허설은 bootstrap.sh 가 kind 모드에서만 "true" 로 치환한다.
             - name: EDU_SEED
-              value: "true"
+              value: "false"
+            - name: EDU_DEMO_LOGIN
+              value: "false"
             - name: EDU_SEED_PASSWORD
               valueFrom:
                 secretKeyRef: { name: edu-auth-jwt, key: EDU_SEED_PASSWORD }

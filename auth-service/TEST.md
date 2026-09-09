@@ -10,6 +10,15 @@
 cd deploy && cp .env.example .env && docker compose up --build -d
 ```
 
+## 자동 테스트
+
+- `AuthServiceApplicationTests` — 컨텍스트 로드(H2, test 프로파일).
+- `AuthGuardTest` — 로그인 남용 방어(MockMvc): 정상 로그인·성공 시 카운터 초기화 /
+  반복 실패 시 계정 임시 차단(429 + Retry-After, 다른 IP 에서도 유지) /
+  IP 합산 실패 차단(다른 IP 의 같은 계정은 정상) / refresh 반복 실패 IP 차단 /
+  데모 로그인 기본 비활성(404).
+- `DemoLoginEnabledTest` — `edu.auth.demo.enabled=true` 로 명시한 환경에서만 데모 로그인 동작.
+
 ## 체크리스트
 
 ### 회원가입

@@ -179,6 +179,11 @@ apply_core(){
   # EDU_COOKIE_SECURE 다음 줄의 value: "true" 만 정밀 치환(다른 "true" 값은 건드리지 않음).
   if [ "$MODE" = kind ]; then
     sed -i.bak '/EDU_COOKIE_SECURE/{n;s/value: "true"/value: "false"/;}' "$tmp/auth-service.yaml" && rm -f "$tmp/auth-service.yaml.bak"
+    # 매니페스트는 운영 기준 fail-safe(시드·데모 로그인 꺼짐)이므로,
+    # 로컬 kind 리허설(시연 환경)에서만 명시적으로 켠다.
+    sed -i.bak '/name: EDU_SEED$/{n;s/value: "false"/value: "true"/;}' "$tmp/auth-service.yaml" && rm -f "$tmp/auth-service.yaml.bak"
+    sed -i.bak '/name: EDU_DEMO_LOGIN$/{n;s/value: "false"/value: "true"/;}' "$tmp/auth-service.yaml" && rm -f "$tmp/auth-service.yaml.bak"
+    sed -i.bak '/name: EDU_SEED$/{n;s/value: "false"/value: "true"/;}' "$tmp/backend.yaml" && rm -f "$tmp/backend.yaml.bak"
   fi
 
   kubectl apply -f "$tmp/namespaces.yaml"

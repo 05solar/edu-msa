@@ -74,7 +74,8 @@ Access Token 은 응답 본문으로, **Refresh Token 은 `HttpOnly` 쿠키(`edu
 | `CODER` | `kimdohyun` (김도현) | `EDU_DEMO_CODER` |
 | `ADMIN` | `jungwooseong` (정우성) | `EDU_DEMO_ADMIN` |
 
-시연이 필요 없는 환경에서는 `EDU_DEMO_LOGIN=false` 로 엔드포인트를 막는다.
+데모 로그인은 **기본 비활성(fail-safe)** 이며, 개발/시연 환경에서만 `EDU_DEMO_LOGIN=true` 로
+명시적으로 켠다. 설정을 누락한 운영 배포에서는 엔드포인트가 404 로 막힌다.
 데모 세션은 일반 로그인(14일)보다 짧은 1일로 발급된다. 갱신할 때도 처음 발급된
 유효 기간을 유지하므로 시연용 세션이 무한정 연장되지 않는다.
 
@@ -111,8 +112,13 @@ JWT 의 `role` 클레임은 대문자(`USER`/`CODER`/`ADMIN`), API 응답 JSON �
 | `EDU_COOKIE_SAMESITE` | `Lax` | Refresh 쿠키 SameSite |
 | `EDU_SEED` | `true` | 데모 계정 시드 여부 |
 | `EDU_SEED_PASSWORD` | `Edu@2026!` | 데모 계정 공통 임시 비밀번호 |
-| `EDU_DEMO_LOGIN` | `true` | 데모 로그인 허용 여부 |
+| `EDU_DEMO_LOGIN` | **`false`** | 데모 로그인 허용 여부 — fail-safe 기본 꺼짐. 개발/시연 환경에서만 `true` 로 명시(compose 는 `true`, K8s 는 kind 리허설에서만 bootstrap 이 켬) |
 | `EDU_DEMO_USER` / `EDU_DEMO_CODER` / `EDU_DEMO_ADMIN` | 시드 계정 | 역할별 데모 계정 아이디 |
+| `EDU_RATELIMIT_ENABLED` | `true` | 로그인/갱신 남용 방어 스위치 |
+| `EDU_RATELIMIT_ACCOUNT_MAX` / `_WINDOW` / `_BLOCK` | `5` / `600` / `300` | 계정 기준: 10분 창 5회 초과 실패 → 5분 임시 차단 |
+| `EDU_RATELIMIT_IP_MAX` / `_WINDOW` / `_BLOCK` | `30` / `600` / `600` | IP 기준(계정 무관 합산): 10분 창 30회 → 10분 차단 |
+| `EDU_RATELIMIT_FAIL_DELAY_MS` / `EDU_RATELIMIT_MAX_FAIL_DELAY_MS` | `300` / `2000` | 실패 응답 지수 백오프 지연(상한) |
+| `EDU_RATELIMIT_REFRESH_MAX` / `_WINDOW` / `_BLOCK` | `30` / `60` / `300` | refresh 남용(IP 기준) 차단 |
 
 시크릿은 소스에 두지 않는다. 로컬은 `deploy/.env`, 배포는 Kubernetes Secret 으로 주입한다.
 

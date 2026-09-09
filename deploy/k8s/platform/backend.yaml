@@ -35,8 +35,9 @@ spec:
               value: "8080"
             - name: CORS_ORIGINS
               value: https://edu.internal
+            # 운영 기준 fail-safe: 시드 끔(로컬 kind 는 bootstrap.sh 가 "true" 로 치환).
             - name: EDU_SEED
-              value: "true"
+              value: "false"
             # auth-service 가 발급한 JWT 를 자체 검증하기 위한 공용 서명 키.
             # auth-service Deployment(auth/auth-service.yaml)와 동일한 Secret 을 참조한다.
             - name: EDU_JWT_SECRET

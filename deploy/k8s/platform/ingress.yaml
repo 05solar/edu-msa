@@ -17,14 +17,6 @@ spec:
     - host: edu.internal
       http:
         paths:
-          # 인증 API 는 auth-service 로 보낸다. (/api 보다 구체적인 경로)
-          - path: /api/auth
-            pathType: Prefix
-            backend:
-              service:
-                name: auth-service
-                port:
-                  number: 80
           - path: /api
             pathType: Prefix
             backend:
@@ -37,5 +29,32 @@ spec:
             backend:
               service:
                 name: frontend
+                port:
+                  number: 80
+---
+# 인증 API 전용 Ingress — /api 보다 구체적인 경로라 우선 매칭되며,
+# 로그인/갱신 엔드포인트에만 엣지(클라이언트 IP 기준) rate limit 을 건다.
+# (애플리케이션 계층의 계정/IP 기준 제한(LoginGuard)과 이중 방어)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: edu-platform-auth
+  namespace: edu-platform
+  annotations:
+    # 클라이언트 IP 당 초당 5요청(버스트는 컨트롤러 기본 배수 적용) · 동시 연결 10
+    nginx.ingress.kubernetes.io/limit-rps: "5"
+    nginx.ingress.kubernetes.io/limit-connections: "10"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: edu.internal
+      http:
+        paths:
+          - path: /api/auth
+            pathType: Prefix
+            backend:
+              service:
+                name: auth-service
                 port:
                   number: 80

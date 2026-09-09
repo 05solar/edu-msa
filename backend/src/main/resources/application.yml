@@ -69,6 +69,11 @@ management:
 
 edu:
   seed: ${EDU_SEED:true}    # 최초 실행 시 목업 데이터 시드 여부
+  datasource:
+    # read replica 라우팅(선택) — 설정 시 replica 마킹된 readOnly 조회(카탈로그 목록/집계)가
+    # 이 URL(K8s: edu-db-pooler-ro)로 간다. 미설정이면 라우팅 자체가 꺼진다(단일 datasource).
+    read-url: ${DB_RO_URL:}
+    read-pool-max-size: ${DB_RO_POOL_MAX_SIZE:10}
   cache:
     # 카탈로그 캐시 TTL — 변경 지점의 즉시 무효화(CatalogCacheEvictor)와 이중 안전장치
     list-ttl-seconds: ${EDU_CACHE_LIST_TTL:30}
@@ -87,6 +92,7 @@ edu:
     ingress-host: ${EDU_DEPLOY_INGRESS_HOST:edu.internal}
     registry: ${EDU_DEPLOY_REGISTRY:registry.edu.internal}
     build-namespace: ${EDU_DEPLOY_BUILD_NAMESPACE:edu-platform}   # Kaniko 빌드 실행 ns
+    kaniko-insecure: ${EDU_DEPLOY_KANIKO_INSECURE:false}          # HTTP 레지스트리(kind 등)면 true
     replicas: ${EDU_DEPLOY_REPLICAS:1}
     cpu-limit: ${EDU_DEPLOY_CPU_LIMIT:500m}
     memory-limit: ${EDU_DEPLOY_MEMORY_LIMIT:512Mi}

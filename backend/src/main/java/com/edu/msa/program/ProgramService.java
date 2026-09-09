@@ -2,6 +2,7 @@ package com.edu.msa.program;
 
 import com.edu.msa.cache.CacheConfig;
 import com.edu.msa.cache.CatalogCacheEvictor;
+import com.edu.msa.dbrouting.ReadReplica;
 import com.edu.msa.common.NotFoundException;
 import com.edu.msa.common.NotiKind;
 import com.edu.msa.common.PageResponse;
@@ -71,6 +72,13 @@ public class ProgramService {
     @Transactional(readOnly = true)
     public PageResponse<ProgramSummaryResponse> list(String cat, List<String> purposes, List<String> tech,
                                                      String scope, String q, String sort, int page, int size) {
+        // 캐시 미스만 여기 도달 — 즉시 일관성이 불필요한 경로(이미 TTL 30s stale 수용)라
+        // read replica 로 라우팅한다. 캐시(1차) → replica(2차) → primary 는 쓰기 전용으로 보존.
+        return ReadReplica.route(() -> listFromDb(cat, purposes, tech, scope, q, sort, page, size));
+    }
+
+    private PageResponse<ProgramSummaryResponse> listFromDb(String cat, List<String> purposes, List<String> tech,
+                                                            String scope, String q, String sort, int page, int size) {
         Specification<Program> spec = Stream.of(
                         ProgramSpecs.hasStatus(ProgramStatus.PUBLIC),
                         ProgramSpecs.hasCat(cat),
@@ -85,15 +93,17 @@ public class ProgramService {
         return PageResponse.of(result.map(this::toSummary));
     }
 
-    /** 카탈로그 사이드바용 분야별 공개 프로그램 개수(GROUP BY 집계) — 짧은 TTL 캐시. */
+    /** 카탈로그 사이드바용 분야별 공개 프로그램 개수(GROUP BY 집계) — 짧은 TTL 캐시 + replica. */
     @Cacheable(cacheNames = CacheConfig.CATALOG_COUNTS, key = "'all'")
     @Transactional(readOnly = true)
     public Map<String, Long> publicCountsByCat() {
-        Map<String, Long> counts = new LinkedHashMap<>();
-        for (Object[] row : programs.countByCatForStatus(ProgramStatus.PUBLIC)) {
-            counts.put((String) row[0], (Long) row[1]);
-        }
-        return counts;
+        return ReadReplica.route(() -> {
+            Map<String, Long> counts = new LinkedHashMap<>();
+            for (Object[] row : programs.countByCatForStatus(ProgramStatus.PUBLIC)) {
+                counts.put((String) row[0], (Long) row[1]);
+            }
+            return counts;
+        });
     }
 
     /**

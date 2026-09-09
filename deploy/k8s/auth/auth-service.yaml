@@ -26,6 +26,12 @@ metadata:
     app: auth-service
 spec:
   replicas: 2
+  # 무중단 롤링: 항상 현재 수 유지 후 1개씩 교체 (테넌트 service-template 과 동일 정책)
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app: auth-service
@@ -34,18 +40,47 @@ spec:
       labels:
         app: auth-service
     spec:
+      # graceful shutdown 예산: preStop 5s(엔드포인트 제거 전파) + 앱 종료 대기 20s + 여유
+      terminationGracePeriodSeconds: 45
+      # 가용성: replica 를 노드/존에 분산(soft — 단일 노드 로컬에서도 스케줄 가능)
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: { app: auth-service }
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: { app: auth-service }
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels: { app: auth-service }
+                topologyKey: kubernetes.io/hostname
       containers:
         - name: auth-service
           image: registry.edu.internal/edu-msa-auth-service:latest
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 5"]
           env:
+            # HA DB(CloudNativePG, auth-db-ha.yaml) 사용: PgBouncer 풀러(edu-auth-db-pooler-rw) 경유.
+            # 앱 계정 시크릿(edu-auth-db-app: username/password)은 오퍼레이터가 생성한다.
+            # (개발용 단일 auth-db.yaml 사용 시 bootstrap.sh 가 host=auth-db, secret=edu-auth-db 로 치환)
             - name: AUTH_DB_URL
-              value: jdbc:postgresql://auth-db.edu-platform.svc.cluster.local:5432/eduauth
+              value: jdbc:postgresql://edu-auth-db-pooler-rw.edu-platform.svc.cluster.local:5432/eduauth
             - name: AUTH_DB_USER
               valueFrom:
-                secretKeyRef: { name: edu-auth-db, key: POSTGRES_USER }
+                secretKeyRef: { name: edu-auth-db-app, key: username }
             - name: AUTH_DB_PASSWORD
               valueFrom:
-                secretKeyRef: { name: edu-auth-db, key: POSTGRES_PASSWORD }
+                secretKeyRef: { name: edu-auth-db-app, key: password }
             - name: PORT
               value: "8080"
             - name: CORS_ORIGINS

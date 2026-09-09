@@ -55,10 +55,11 @@ deploy/
 ## 2. 플랫폼 코어
 
 - **backend**(`platform/backend.yaml`): 2복제, `serviceAccountName: edu-deployer`(최소권한 RBAC),
-  `EDU_DEPLOY_MODE=real`. DB는 `edu-db-rw`(CloudNativePG primary 라우팅) + `edu-db-app` 시크릿.
+  `EDU_DEPLOY_MODE=real`. DB는 `edu-db-pooler-rw`(CNPG PgBouncer 풀러 → primary) + `edu-db-app` 시크릿.
   메트릭 `/actuator/prometheus` 노출.
 - **frontend**(`platform/frontend.yaml`): React 정적 서빙.
-- **DB**: `postgres-ha.yaml`(CloudNativePG Cluster 3-인스턴스, 자동 장애조치) / 개발은 `postgres.yaml`.
+- **DB**: `postgres-ha.yaml`·`auth/auth-db-ha.yaml`(CloudNativePG 3-인스턴스 HA + PgBouncer 풀러
+  rw/ro + 오브젝트 스토리지 백업·PITR) / 개발은 `postgres.yaml`·`auth/auth-db.yaml`(단일).
 - **ingress**(`platform/ingress.yaml`): 플랫폼 UI/API 진입.
 - **RBAC**(`platform/rbac.yaml`): `edu-deployer` SA가 `edu-services`에 Deploy/Svc/Ingress만 CRUD(파드는 read).
 

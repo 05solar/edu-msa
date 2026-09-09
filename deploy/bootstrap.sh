@@ -16,6 +16,8 @@
 #   WITH_STACK=1|0           운영스택(모니터링·WAF·KEDA·로그·트레이스·cert-manager) 설치 (기본 up 에서 1)
 #   WITH_GPU=1|0             NVIDIA GPU Operator 설치(테넌트 GPU 사용 시) (기본 0)
 #   WITH_EXAMPLES=1|0        예제 서브 프로그램 7종(examples/)을 edu-services 에 배포 (기본 0)
+#   STORAGE_CLASS=<name>     PVC 스토리지 클래스(server 권장 — 네트워크 스토리지 지정.
+#                            미지정 시 클러스터 기본. local-path 같은 노드 종속 클래스는 운영 금지)
 # =============================================================================
 set -euo pipefail
 
@@ -28,6 +30,7 @@ IMAGE_TAG="${IMAGE_TAG:-latest}"
 WITH_STACK="${WITH_STACK:-auto}"     # auto = up 서브커맨드에서 1
 WITH_GPU="${WITH_GPU:-0}"
 WITH_EXAMPLES="${WITH_EXAMPLES:-0}"
+STORAGE_CLASS="${STORAGE_CLASS:-}"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 K8S="$ROOT/deploy/k8s"
@@ -133,6 +136,16 @@ build_images(){
 # ---- 코어 매니페스트 렌더링(sed) + 적용 -------------------------------------
 apply_core(){
   log "코어 플랫폼 배포 (namespaces · DB · auth · backend · frontend · ingress)"
+  # server(운영) 모드 토폴로지 점검 — 매니페스트는 멀티 노드 분산(soft)을 전제로 한다.
+  if [ "$MODE" = server ]; then
+    local nodes; nodes="$(kubectl get nodes --no-headers 2>/dev/null | wc -l | tr -d ' ')"
+    if [ "${nodes:-0}" -lt 3 ]; then
+      warn "노드가 ${nodes}개입니다 — 운영은 워커 3개 이상(+HA 컨트롤플레인 또는 매니지드)을 권장합니다. (PRODUCTION.md §1)"
+    fi
+    if [ -z "$STORAGE_CLASS" ]; then
+      warn "STORAGE_CLASS 미지정 — 클러스터 기본 StorageClass 를 사용합니다. local-path 등 노드 종속 클래스면 노드 장애 시 DB 파드가 재스케줄되지 못합니다."
+    fi
+  fi
   local tmp; tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' RETURN
   local files=(
     "$K8S/namespaces.yaml"
@@ -150,10 +163,14 @@ apply_core(){
     # 공통: 레지스트리(이미지 접두어 + EDU_DEPLOY_REGISTRY) · 도메인 치환 — 순서 중요
     sed -e "s#registry\.edu\.internal#${REGISTRY}#g" \
         -e "s#edu\.internal#${DOMAIN}#g" "$f" > "$out"
-    # backend 는 HA(CloudNativePG) 대신 코어 단일 postgres 를 쓰도록 DB 설정 치환
+    # PVC 스토리지 클래스 주입(선택): STORAGE_CLASS 설정 시 마커를 실제 값으로 치환
+    if [ -n "$STORAGE_CLASS" ]; then
+      sed -i.bak "s/^  #EDU_STORAGE_CLASS/  storageClassName: ${STORAGE_CLASS}/" "$out" && rm -f "$out.bak"
+    fi
+    # backend 는 HA(CloudNativePG Pooler) 대신 코어 단일 postgres 를 쓰도록 DB 설정 치환
     if [ "$base" = backend.yaml ]; then
       sed -i.bak \
-        -e "s#edu-db-rw\.edu-platform#postgres.edu-platform#g" \
+        -e "s#edu-db-pooler-rw\.edu-platform#postgres.edu-platform#g" \
         -e "s#name: edu-db-app, key: username#name: edu-db, key: POSTGRES_USER#g" \
         -e "s#name: edu-db-app, key: password#name: edu-db, key: POSTGRES_PASSWORD#g" \
         "$out" && rm -f "$out.bak"
@@ -165,6 +182,14 @@ apply_core(){
           -e "/name: EDU_DEPLOY_KANIKO_INSECURE/{n;s#value: \"false\"#value: \"true\"#;}" \
           "$out" && rm -f "$out.bak"
       fi
+    fi
+    # auth-service 도 HA(CNPG Pooler) 대신 코어 단일 auth-db 를 쓰도록 치환
+    if [ "$base" = auth-service.yaml ]; then
+      sed -i.bak \
+        -e "s#edu-auth-db-pooler-rw\.edu-platform#auth-db.edu-platform#g" \
+        -e "s#name: edu-auth-db-app, key: username#name: edu-auth-db, key: POSTGRES_USER#g" \
+        -e "s#name: edu-auth-db-app, key: password#name: edu-auth-db, key: POSTGRES_PASSWORD#g" \
+        "$out" && rm -f "$out.bak"
     fi
     # kind(HTTP): CORS 오리진 스킴을 http 로 (같은 오리진이라 대개 무해하지만 명시적으로 맞춤)
     if [ "$MODE" = kind ]; then
@@ -240,8 +265,14 @@ install_stack(){
   _try "KEDA (scale-to-zero)" helm upgrade --install keda kedacore/keda \
       -n keda --create-namespace --wait --timeout 5m
 
+  # STORAGE_CLASS 지정 시 스테이트풀 컴포넌트(Loki·Gitea)도 같은 클래스를 쓴다.
+  local sc_loki=() sc_gitea=()
+  if [ -n "$STORAGE_CLASS" ]; then
+    sc_loki=(--set "loki.persistence.storageClassName=${STORAGE_CLASS}")
+    sc_gitea=(--set "persistence.storageClass=${STORAGE_CLASS}")
+  fi
   _try "Loki (로그)" helm upgrade --install loki grafana/loki-stack \
-      -n logging --create-namespace --wait --timeout 6m
+      -n logging --create-namespace ${sc_loki[@]+"${sc_loki[@]}"} --wait --timeout 6m
 
   _try "Tempo (트레이스)" helm upgrade --install tempo grafana/tempo \
       -n tracing --create-namespace --wait --timeout 5m
@@ -264,6 +295,7 @@ install_stack(){
       -n gitea -f "$K8S/platform/gitea/values.yaml" \
       --set-string "gitea.config.server.ROOT_URL=${SCHEME}://${ghost}/" \
       --set-string "gitea.config.server.DOMAIN=${ghost}" \
+      ${sc_gitea[@]+"${sc_gitea[@]}"} \
       --wait --timeout 6m
 
   # 하드닝(1단계 리뷰 잔여 과제): PodSecurity 라벨 + 기본 차단 NetworkPolicy.

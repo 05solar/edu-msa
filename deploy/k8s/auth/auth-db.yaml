@@ -1,4 +1,6 @@
-# 인증 전용 PostgreSQL. 플랫폼 DB(platform/postgres.yaml)와 완전히 분리된 인스턴스다.
+# 인증 전용 PostgreSQL — 개발/리허설용 단일 인스턴스.
+# 운영은 auth-db-ha.yaml(CloudNativePG: HA·풀러·백업·PITR)로 승격한다 — PRODUCTION.md §4.
+# 플랫폼 DB(platform/postgres.yaml)와 완전히 분리된 인스턴스다.
 #
 # 접속정보는 소스에 두지 않는다. 아래 Secret 은 형태를 보여주는 자리표시자이므로
 # 실제 환경에서는 apply 전에 값을 교체하거나 별도로 생성한다.
@@ -23,6 +25,10 @@ metadata:
   name: edu-auth-pgdata
   namespace: edu-platform
 spec:
+  # 운영: 노드 종속 스토리지(local-path 등) 금지 — 네트워크 스토리지 클래스를 지정해야
+  # 노드 장애/드레인 시 파드가 다른 노드로 재스케줄될 수 있다.
+  # bootstrap.sh 가 STORAGE_CLASS 설정 시 아래 마커를 실제 값으로 치환한다(미설정 시 클러스터 기본).
+  #EDU_STORAGE_CLASS
   accessModes: ["ReadWriteOnce"]
   resources:
     requests:

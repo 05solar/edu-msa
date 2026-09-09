@@ -1,9 +1,23 @@
-# HA PostgreSQL (CloudNativePG). 단일 Deployment(postgres.yaml)를 대체하는 프로덕션용.
-# 오퍼레이터 설치 필요: kubectl apply --server-side -f <cnpg release manifest>
-# primary 1 + replica 2, 자동 장애조치(failover)/재조인. 접속 서비스:
-#   - edu-db-rw (읽기/쓰기 = primary)  ← 백엔드 DB_URL 은 이걸 사용
-#   - edu-db-ro (읽기 전용 = replica)  - edu-db-r (아무 인스턴스)
-# 앱 계정 비밀번호는 오퍼레이터가 시크릿 edu-db-app 으로 생성한다.
+# HA PostgreSQL (CloudNativePG) — 플랫폼 DB "운영 프로필".
+# 단일 Deployment(postgres.yaml — 개발/리허설용)를 대체한다.
+#
+# 사전 준비(운영):
+#   1) CNPG 오퍼레이터: kubectl apply --server-side -f <cnpg release manifest>
+#   2) 백업용 오브젝트 스토리지(S3 호환: MinIO/클라우드 S3)와 자격 증명 Secret —
+#      평문을 매니페스트에 두지 않는다. apply 전에 생성:
+#        kubectl -n edu-platform create secret generic edu-db-backup-creds \
+#          --from-literal=ACCESS_KEY_ID=<key> --from-literal=ACCESS_SECRET_KEY=<secret>
+#   3) 아래 endpointURL/destinationPath 를 실제 오브젝트 스토리지 주소로 교체.
+#
+# 토폴로지: primary 1 + replica 2(자동 failover/재조인, 노드 분산 anti-affinity).
+# 접속 서비스(오퍼레이터 생성):
+#   - edu-db-rw (primary 직결)  - edu-db-ro (replica 읽기 전용)  - edu-db-r (아무 인스턴스)
+# 애플리케이션은 직접 접속 대신 Pooler(PgBouncer, 아래) 를 통한다:
+#   - edu-db-pooler-rw (쓰기/일반)  - edu-db-pooler-ro (읽기 전용 워크로드용 — 준비됨)
+# 앱 계정 시크릿(edu-db-app: username/password)은 오퍼레이터가 생성한다.
+#
+# 크기/자원 기본값은 운영 시작점이며 환경별로 재정의한다(부하 테스트로 확정).
+# 로컬 kind 리허설은 storage.size 를 2Gi 수준으로 낮추고 backup 블록을 주석 처리해도 된다.
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
@@ -16,8 +30,83 @@ spec:
     initdb:
       database: edumsa
       owner: edumsa
+  # 인스턴스를 서로 다른 노드에 배치(soft) — 단일 노드 장애가 다수 인스턴스를 잃지 않게.
+  affinity:
+    podAntiAffinityType: preferred
+    topologyKey: kubernetes.io/hostname
   storage:
-    size: 1Gi
+    size: 50Gi                       # 운영 시작점 — 데이터 증가 추이 보고 조정
+    # storageClass: <네트워크 스토리지 클래스>   # 노드 종속(local-path) 금지 — PRODUCTION.md §1-1
   resources:
-    requests: { cpu: "100m", memory: "256Mi" }
-    limits: { cpu: "500m", memory: "512Mi" }
+    requests: { cpu: "1", memory: 2Gi }
+    limits: { cpu: "2", memory: 4Gi }
+  monitoring:
+    enablePodMonitor: true           # kube-prometheus-stack 스크레이프
+  # 백업 + WAL 아카이브(오브젝트 스토리지) — 연속 아카이브로 PITR(시점 복구)이 가능해진다.
+  # 복구 절차: PRODUCTION.md §4-3 (bootstrap.recovery + recoveryTarget.targetTime)
+  backup:
+    retentionPolicy: "30d"
+    barmanObjectStore:
+      destinationPath: s3://edu-db-backups/platform
+      endpointURL: https://s3.edu.internal       # 실제 오브젝트 스토리지 주소로 교체
+      s3Credentials:
+        accessKeyId:
+          name: edu-db-backup-creds
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: edu-db-backup-creds
+          key: ACCESS_SECRET_KEY
+      wal:
+        compression: gzip
+      data:
+        compression: gzip
+---
+# 매일 03:00 전체 백업(WAL 아카이브와 함께 PITR 기준점이 된다)
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: edu-db-daily
+  namespace: edu-platform
+spec:
+  schedule: "0 0 3 * * *"            # CNPG 6필드 cron(초 포함)
+  backupOwnerReference: self
+  cluster:
+    name: edu-db
+---
+# PgBouncer 풀러(쓰기/일반) — 앱 replica 수 × Hikari 풀이 늘어도 DB 실커넥션을 상한으로 묶는다.
+# transaction 모드 + max_prepared_statements 로 JPA(확장 프로토콜 prepared statement)와 호환.
+apiVersion: postgresql.cnpg.io/v1
+kind: Pooler
+metadata:
+  name: edu-db-pooler-rw
+  namespace: edu-platform
+spec:
+  cluster:
+    name: edu-db
+  instances: 2
+  type: rw
+  pgbouncer:
+    poolMode: transaction
+    parameters:
+      max_client_conn: "1000"
+      default_pool_size: "25"
+      max_prepared_statements: "200"
+---
+# 읽기 전용 풀러 — replica(edu-db-ro 경로)로 분산. 읽기 워크로드 분리 시
+# 앱에서 jdbc:postgresql://edu-db-pooler-ro...:5432/edumsa 를 바라보면 된다.
+apiVersion: postgresql.cnpg.io/v1
+kind: Pooler
+metadata:
+  name: edu-db-pooler-ro
+  namespace: edu-platform
+spec:
+  cluster:
+    name: edu-db
+  instances: 2
+  type: ro
+  pgbouncer:
+    poolMode: transaction
+    parameters:
+      max_client_conn: "1000"
+      default_pool_size: "25"
+      max_prepared_statements: "200"

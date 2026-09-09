@@ -7,6 +7,12 @@ metadata:
     app: backend
 spec:
   replicas: 2
+  # 무중단 롤링: 항상 현재 수 유지 후 1개씩 교체 (테넌트 service-template 과 동일 정책)
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app: backend
@@ -16,15 +22,44 @@ spec:
         app: backend
     spec:
       serviceAccountName: edu-deployer   # 서비스 배포용 권한 (rbac.yaml)
+      # 가용성: replica 를 노드/존에 분산 — 단일 노드 장애가 전체 중단이 되지 않게 한다.
+      # soft(ScheduleAnyway/preferred)라 단일 노드(kind 로컬)에서도 스케줄된다.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: { app: backend }
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: { app: backend }
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels: { app: backend }
+                topologyKey: kubernetes.io/hostname
+      # graceful shutdown 예산: preStop 5s(엔드포인트 제거 전파) + 앱 종료 대기 20s + 여유
+      terminationGracePeriodSeconds: 45
       containers:
         - name: backend
           image: registry.edu.internal/edu-msa-backend:latest
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 5"]
           env:
-            # HA DB(CloudNativePG, postgres-ha.yaml) 사용: edu-db-rw = 현재 primary로 라우팅.
+            # HA DB(CloudNativePG, postgres-ha.yaml) 사용: PgBouncer 풀러(edu-db-pooler-rw)를
+            # 경유해 primary 로 라우팅 — 앱 replica 가 늘어도 DB 실커넥션을 풀러가 상한으로 묶는다.
+            # 읽기 전용 워크로드 분리 시: edu-db-pooler-ro (replica 라우팅) 사용.
             # 앱 계정 시크릿(edu-db-app)은 오퍼레이터가 생성한다.
-            # (개발용 단일 postgres.yaml 사용 시: host=postgres, secret=edu-db)
+            # (개발용 단일 postgres.yaml 사용 시 bootstrap.sh 가 host=postgres, secret=edu-db 로 치환)
             - name: DB_URL
-              value: jdbc:postgresql://edu-db-rw.edu-platform.svc.cluster.local:5432/edumsa
+              value: jdbc:postgresql://edu-db-pooler-rw.edu-platform.svc.cluster.local:5432/edumsa
             - name: DB_USER
               valueFrom:
                 secretKeyRef: { name: edu-db-app, key: username }

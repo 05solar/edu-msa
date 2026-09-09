@@ -7,6 +7,12 @@ metadata:
     app: frontend
 spec:
   replicas: 2
+  # 무중단 롤링: 항상 현재 수 유지 후 1개씩 교체 (테넌트 service-template 과 동일 정책)
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app: frontend
@@ -15,6 +21,26 @@ spec:
       labels:
         app: frontend
     spec:
+      # 가용성: replica 를 노드/존에 분산(soft — 단일 노드 로컬에서도 스케줄 가능)
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: { app: frontend }
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: { app: frontend }
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels: { app: frontend }
+                topologyKey: kubernetes.io/hostname
       containers:
         - name: frontend
           # 정적 빌드(dist)를 nginx로 서빙하는 이미지 (frontend/Dockerfile 로 빌드)

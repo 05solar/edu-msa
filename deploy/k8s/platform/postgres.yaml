@@ -15,6 +15,10 @@ metadata:
   name: edu-pgdata
   namespace: edu-platform
 spec:
+  # 운영: 노드 종속 스토리지(local-path 등) 금지 — 네트워크 스토리지 클래스를 지정해야
+  # 노드 장애/드레인 시 파드가 다른 노드로 재스케줄될 수 있다.
+  # bootstrap.sh 가 STORAGE_CLASS 설정 시 아래 마커를 실제 값으로 치환한다(미설정 시 클러스터 기본).
+  #EDU_STORAGE_CLASS
   accessModes: ["ReadWriteOnce"]
   resources:
     requests:

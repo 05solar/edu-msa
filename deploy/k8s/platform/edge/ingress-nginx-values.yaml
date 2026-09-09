@@ -2,7 +2,11 @@
 # helm install ingress-nginx ingress-nginx/ingress-nginx -n ingress-nginx --create-namespace -f 이파일
 controller:
   service:
-    type: LoadBalancer      # 실서버: LB. kind 검증 시엔 ClusterIP로 대체.
+    # 실서버 전제: 앞단 L4 로드밸런서(클라우드 LB / MetalLB / 하드웨어 L4)가 이 Service 로 유입.
+    # LB 가 클라이언트 IP 를 보존하려면 externalTrafficPolicy=Local + LB 헬스체크(healthCheckNodePort) 조합,
+    # 또는 proxy-protocol 을 켠다. kind 검증 시엔 ClusterIP 로 대체.
+    type: LoadBalancer
+    externalTrafficPolicy: Local
   config:
     # WAF: ModSecurity + OWASP Core Rule Set 전역 활성화
     enable-modsecurity: "true"
@@ -15,5 +19,23 @@ controller:
     # 공통 하드닝
     hide-headers: "Server,X-Powered-By"
     ssl-protocols: "TLSv1.2 TLSv1.3"
-  # 엣지는 다중 복제로 HA
+  # 엣지는 다중 복제로 HA — 서로 다른 노드에 분산(soft)해 단일 노드 장애를 견딘다.
   replicaCount: 2
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/name: ingress-nginx
+          app.kubernetes.io/component: controller
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: ingress-nginx
+                app.kubernetes.io/component: controller

@@ -1,0 +1,94 @@
+# HA PostgreSQL (CloudNativePG) — 인증 DB "운영 프로필".
+# 단일 Deployment(auth-db.yaml — 개발/리허설용)를 대체한다. 계정 정보의 단일 소스이므로
+# 플랫폼 DB 와 동일하게 HA(primary 1 + replica 2)·백업·PITR 을 갖춘다.
+#
+# 사전 준비는 platform/postgres-ha.yaml 상단 주석과 동일하다
+# (CNPG 오퍼레이터 · edu-db-backup-creds Secret · 오브젝트 스토리지 주소 교체).
+#
+# 접속 서비스(오퍼레이터 생성): edu-auth-db-rw / -ro / -r
+# 애플리케이션은 Pooler 를 통한다: edu-auth-db-pooler-rw (읽기 전용은 -ro 준비됨)
+# 앱 계정 시크릿(edu-auth-db-app: username/password)은 오퍼레이터가 생성한다.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: edu-auth-db
+  namespace: edu-platform
+spec:
+  instances: 3
+  primaryUpdateStrategy: unsupervised
+  bootstrap:
+    initdb:
+      database: eduauth
+      owner: eduauth
+  affinity:
+    podAntiAffinityType: preferred
+    topologyKey: kubernetes.io/hostname
+  storage:
+    size: 20Gi                       # 계정·refresh_tokens 규모 기준 시작점 — 추이 보고 조정
+    # storageClass: <네트워크 스토리지 클래스>   # 노드 종속(local-path) 금지 — PRODUCTION.md §1-1
+  resources:
+    requests: { cpu: 500m, memory: 1Gi }
+    limits: { cpu: "2", memory: 2Gi }
+  monitoring:
+    enablePodMonitor: true
+  backup:
+    retentionPolicy: "30d"
+    barmanObjectStore:
+      destinationPath: s3://edu-db-backups/auth
+      endpointURL: https://s3.edu.internal       # 실제 오브젝트 스토리지 주소로 교체
+      s3Credentials:
+        accessKeyId:
+          name: edu-db-backup-creds
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: edu-db-backup-creds
+          key: ACCESS_SECRET_KEY
+      wal:
+        compression: gzip
+      data:
+        compression: gzip
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: edu-auth-db-daily
+  namespace: edu-platform
+spec:
+  schedule: "0 30 3 * * *"           # 플랫폼 DB(03:00)와 시차를 둔다
+  backupOwnerReference: self
+  cluster:
+    name: edu-auth-db
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Pooler
+metadata:
+  name: edu-auth-db-pooler-rw
+  namespace: edu-platform
+spec:
+  cluster:
+    name: edu-auth-db
+  instances: 2
+  type: rw
+  pgbouncer:
+    poolMode: transaction
+    parameters:
+      max_client_conn: "1000"
+      default_pool_size: "20"
+      max_prepared_statements: "200"
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Pooler
+metadata:
+  name: edu-auth-db-pooler-ro
+  namespace: edu-platform
+spec:
+  cluster:
+    name: edu-auth-db
+  instances: 2
+  type: ro
+  pgbouncer:
+    poolMode: transaction
+    parameters:
+      max_client_conn: "1000"
+      default_pool_size: "20"
+      max_prepared_statements: "200"

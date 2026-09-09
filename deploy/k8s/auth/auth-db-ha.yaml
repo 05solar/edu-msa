@@ -20,6 +20,10 @@ spec:
     initdb:
       database: eduauth
       owner: eduauth
+  postgresql:
+    parameters:
+      # [부하 실측 2026-09-09] 풀러 서버측 총량 산술: rw 2×40 + ro 2×20 = 120 > 기본 100 → 200 로 상향
+      max_connections: "200"
   affinity:
     podAntiAffinityType: preferred
     topologyKey: kubernetes.io/hostname
@@ -73,7 +77,8 @@ spec:
     poolMode: transaction
     parameters:
       max_client_conn: "1000"
-      default_pool_size: "20"
+      # [부하 실측 2026-09-09] 앱 풀 40 과 정렬 — 풀러가 20 이면 로그인 폭주 시 여기서 다시 병목이 된다
+      default_pool_size: "40"
       max_prepared_statements: "200"
 ---
 apiVersion: postgresql.cnpg.io/v1

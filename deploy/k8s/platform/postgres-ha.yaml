@@ -30,6 +30,10 @@ spec:
     initdb:
       database: edumsa
       owner: edumsa
+  postgresql:
+    parameters:
+      # [부하 실측 2026-09-09] 풀러 서버측 총량: rw 2×25 + ro 2×25 = 100 = 기본 경계 → 200 로 여유
+      max_connections: "200"
   # 인스턴스를 서로 다른 노드에 배치(soft) — 단일 노드 장애가 다수 인스턴스를 잃지 않게.
   affinity:
     podAntiAffinityType: preferred

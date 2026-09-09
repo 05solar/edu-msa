@@ -25,6 +25,9 @@ Thumbs.db
 deploy/k8s/secrets/*.yaml
 !deploy/k8s/secrets/*.sealed.yaml
 
+# 부하 테스트 원시 산출물(csv/json/log)은 커밋하지 않는다 — 판독 문서(RESULTS-*.md)만 커밋
+loadtest/results/
+
 # 시각 문서(HTML)는 로컬에만 두고 원격에 올리지 않는다
 html/*.html
 deploy/infra-overview.html

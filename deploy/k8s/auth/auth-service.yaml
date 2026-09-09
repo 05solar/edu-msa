@@ -1,22 +1,10 @@
 # 인증 마이크로서비스.
 #
 # JWT 서명 키는 auth-service(발급)와 backend(검증)가 같은 값을 공유해야 한다.
-# 소스에 두지 않고 Secret 으로 주입하며, 실제 환경에서는 apply 전에 새로 생성한다.
-#   kubectl -n edu-platform create secret generic edu-auth-jwt \
-#     --from-literal=EDU_JWT_SECRET="$(openssl rand -base64 48)" \
-#     --from-literal=EDU_SEED_PASSWORD="$(openssl rand -base64 12)"
-#
+# Secret(edu-auth-jwt: EDU_JWT_SECRET ≥32B, EDU_SEED_PASSWORD)은 이 파일에 두지 않는다.
+#  - 로컬/리허설: bootstrap.sh 가 무작위 값으로 자동 생성한다.
+#  - 운영: Sealed Secrets 로 반영한다 — deploy/k8s/secrets/README.md 참고.
 # 같은 Secret 을 platform/backend.yaml 의 EDU_JWT_SECRET 도 참조한다.
-apiVersion: v1
-kind: Secret
-metadata:
-  name: edu-auth-jwt
-  namespace: edu-platform
-type: Opaque
-stringData:
-  EDU_JWT_SECRET: change-me-in-real-env-at-least-32-bytes-long
-  EDU_SEED_PASSWORD: change-me-in-real-env
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -64,7 +52,9 @@ spec:
                 topologyKey: kubernetes.io/hostname
       containers:
         - name: auth-service
-          image: registry.edu.internal/edu-msa-auth-service:latest
+          # 불변 태그만 사용(:latest 금지) — bootstrap.sh 가 IMAGE_TAG(기본 git-<sha>)로 치환.
+          image: registry.edu.internal/edu-msa-auth-service:0.8.0
+          imagePullPolicy: IfNotPresent
           lifecycle:
             preStop:
               exec:
@@ -83,6 +73,11 @@ spec:
                 secretKeyRef: { name: edu-auth-db-app, key: password }
             - name: PORT
               value: "8080"
+            # [부하 실측 2026-09-09] 로그인은 @Transactional 안 bcrypt(~50ms)가 커넥션을 점유해
+            # 풀 20 은 로그인 400/s 폭주에서 고갈(active 20/20·pending 179·p95 12s) →
+            # 40 으로 p95 62ms·pending 0. 총량: 2 replica × 40 = 80 클라이언트(풀러 경유).
+            - name: DB_POOL_MAX_SIZE
+              value: "40"
             # rate-limit 분산 카운터(Redis) — 다중 replica 가 같은 정책을 공유.
             # Redis 장애 시 인메모리 폴백으로 계속 제한한다(fail-open 아님).
             - name: EDU_RATELIMIT_STORE

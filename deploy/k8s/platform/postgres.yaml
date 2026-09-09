@@ -1,14 +1,7 @@
-apiVersion: v1
-kind: Secret
-metadata:
-  name: edu-db
-  namespace: edu-platform
-type: Opaque
-stringData:
-  POSTGRES_DB: edumsa
-  POSTGRES_USER: edumsa
-  POSTGRES_PASSWORD: change-me-in-real-env
----
+# 접속정보 Secret(edu-db: POSTGRES_DB/USER/PASSWORD)은 이 파일에 두지 않는다.
+#  - 로컬/리허설: bootstrap.sh 가 무작위 비밀번호로 자동 생성한다.
+#  - 운영: Sealed Secrets 로 반영한다 — deploy/k8s/secrets/README.md 참고.
+#    (server 모드 bootstrap 은 Secret 이 없으면 안내와 함께 중단한다 — placeholder 반입 차단)
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

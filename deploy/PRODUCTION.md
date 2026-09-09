@@ -139,10 +139,10 @@ kubectl apply -f deploy/k8s/platform/postgres-ha.yaml     # edu-db      (edumsa)
 kubectl apply -f deploy/k8s/auth/auth-db-ha.yaml          # edu-auth-db (eduauth)
 
 # ④ 애플리케이션 전환 — 원본 매니페스트가 이미 풀러(edu-db-pooler-rw / edu-auth-db-pooler-rw)와
-#    오퍼레이터 생성 시크릿(edu-db-app / edu-auth-db-app)을 바라보므로 그대로 재적용하면 된다.
-#    (bootstrap 코어가 단일 DB 용으로 바꿔 둔 상태라면 원본으로 되돌리는 효과)
-kubectl apply -f deploy/k8s/platform/backend.yaml
-kubectl apply -f deploy/k8s/auth/auth-service.yaml
+#    오퍼레이터 생성 시크릿(edu-db-app / edu-auth-db-app)을 바라본다.
+#    직접 kubectl apply 하면 매니페스트의 기본 semver 태그가 적용되므로,
+#    현재 배포 중인 이미지 태그를 유지하려면 bootstrap 으로 재렌더링해 적용한다(§5-1).
+MODE=server DOMAIN=<도메인> REGISTRY=<레지스트리> IMAGE_TAG=<현재 태그> ./deploy/bootstrap.sh core
 ```
 
 접속 경로: 앱 → `*-pooler-rw`(PgBouncer transaction 모드, DB 실커넥션 상한) → primary.
@@ -200,17 +200,37 @@ kubectl -n edu-platform exec deploy/postgres -- pg_dump -U edumsa -d edumsa \
 
 ---
 
-## 5. 시크릿 (실서버 필수)
+## 5. 시크릿 (실서버 필수 — Sealed Secrets)
 
-코어는 매니페스트에 **자리표시자 Secret** 을 담아 바로 뜨지만, 실서버에서는 즉시 교체한다.
-```bash
-kubectl -n edu-platform create secret generic edu-auth-jwt \
-  --from-literal=EDU_JWT_SECRET="$(openssl rand -base64 48)" \
-  --from-literal=EDU_SEED_PASSWORD="$(openssl rand -base64 12)" \
-  --dry-run=client -o yaml | kubectl apply -f -
-kubectl -n edu-platform rollout restart deploy/auth-service deploy/backend
-```
+매니페스트에는 **자리표시자 Secret 이 없다.** 운영 반영 경로는 하나뿐이다:
+
+1. [deploy/k8s/secrets/README.md](k8s/secrets/README.md) 절차대로 **Sealed Secrets** 로
+   `edu-db` · `edu-auth-db` · `edu-auth-jwt` · `edu-redis-auth`(HA DB 백업 시 `edu-db-backup-creds`)를
+   먼저 반영한다. 평문 Secret 파일은 `.gitignore` 로 커밋이 차단되고, 봉인본(`*.sealed.yaml`)만 커밋한다.
+2. `bootstrap.sh` server 모드는 필수 Secret 이 없으면 **안내와 함께 중단**한다(fail-closed) —
+   자리표시자 값이 운영에 올라갈 경로가 존재하지 않는다.
+3. 로컬/리허설(kind)은 bootstrap 이 무작위 값으로 자동 생성하고,
+   compose 개발 환경은 `deploy/.env`(예시 `.env.example`)로 주입한다.
+
 `EDU_JWT_SECRET` 은 auth-service(발급)와 backend(검증)가 **같은 값**을 봐야 한다(둘 다 `edu-auth-jwt`).
+
+## 5-1. 이미지 버전 정책 (불변 태그 · 롤백)
+
+- **`:latest` 를 쓰지 않는다.** 태그 정책:
+  - CI(`.github/workflows/release.yml`): main push/릴리스 태그마다 **`git-<short sha>`** 로
+    빌드·push, `v*` 태그 릴리스에는 **semver 태그**를 추가 부여 → GHCR.
+  - 매니페스트는 고정 semver 를 기본값으로 담고, `bootstrap.sh` 가 `IMAGE_TAG`
+    (기본 `git-<현재 커밋 sha>`)로 치환해 적용한다. `imagePullPolicy: IfNotPresent`
+    (불변 태그 전제라 재-pull 불필요, 롤백 시 노드 캐시 활용).
+- **롤백**: 두 경로 —
+  ```bash
+  # ① 이전 태그로 재배포(감사 추적 명확)
+  IMAGE_TAG=git-<이전sha> MODE=server DOMAIN=... REGISTRY=... ./deploy/bootstrap.sh core
+  # ② 직전 리비전 즉시 복귀
+  kubectl -n edu-platform rollout undo deploy/backend   # auth-service·frontend 동일
+  ```
+- CI(GHCR) 이미지를 내부망 레지스트리로 미러링해 쓰거나, 폐쇄망이면 내부 레지스트리에
+  같은 태그 정책으로 직접 push 한다(`bootstrap.sh images` 는 IMAGE_TAG 로 push).
 
 ---
 

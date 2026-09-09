@@ -44,7 +44,9 @@ spec:
       containers:
         - name: frontend
           # 정적 빌드(dist)를 nginx로 서빙하는 이미지 (frontend/Dockerfile 로 빌드)
-          image: registry.edu.internal/edu-msa-frontend:latest
+          # 불변 태그만 사용(:latest 금지) — bootstrap.sh 가 IMAGE_TAG(기본 git-<sha>)로 치환.
+          image: registry.edu.internal/edu-msa-frontend:0.8.0
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
           readinessProbe:

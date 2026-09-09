@@ -1,4 +1,4 @@
-# 인클러스터 이미지 빌드(Kaniko) — 호스트 docker.sock 없이 안전하게 빌드/푸시.
+﻿# 인클러스터 이미지 빌드(Kaniko) — 호스트 docker.sock 없이 안전하게 빌드/푸시.
 # 프로덕션 real 모드에서 docker build 대신 이 Job을 생성해 사용한다.
 # 플레이스홀더: {{SLUG}} {{IMAGE}} {{REPO_URL}} {{BRANCH}}
 apiVersion: batch/v1
@@ -14,7 +14,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: kaniko
-          image: gcr.io/kaniko-project/executor:latest
+          image: gcr.io/kaniko-project/executor:v1.23.2   # 불변 태그 핀 고정(:latest 금지)
           args:
             - "--context={{REPO_URL}}#refs/heads/{{BRANCH}}"   # git 컨텍스트 직접 clone
             - "--destination={{IMAGE}}"

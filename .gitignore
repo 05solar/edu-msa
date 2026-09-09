@@ -21,6 +21,10 @@ Thumbs.db
 .env.*
 !.env.example
 
+# 평문 Secret 파일은 커밋 금지 — 봉인본(*.sealed.yaml)만 허용 (deploy/k8s/secrets/README.md)
+deploy/k8s/secrets/*.yaml
+!deploy/k8s/secrets/*.sealed.yaml
+
 # 시각 문서(HTML)는 로컬에만 두고 원격에 올리지 않는다
 html/*.html
 deploy/infra-overview.html

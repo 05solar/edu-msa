@@ -19,10 +19,12 @@ public class SourceResolver {
 
     private final CommandRunner runner;
     private final DeployProperties props;
+    private final TempCleaner cleaner;
 
-    public SourceResolver(CommandRunner runner, DeployProperties props) {
+    public SourceResolver(CommandRunner runner, DeployProperties props, TempCleaner cleaner) {
         this.runner = runner;
         this.props = props;
+        this.cleaner = cleaner;
     }
 
     public SourceMaterial resolve(String repoUrl, String branch) {
@@ -66,10 +68,11 @@ public class SourceResolver {
     }
 
     private SourceMaterial fromGit(String repoUrl, String branch) {
+        Path tmp = null;
         try {
             // 내부 Gitea 는 공개 주소로 등록되지만 실제 수집은 내부 접근 주소(clone-base)로 한다.
             String cloneUrl = props.rewriteGiteaUrl(repoUrl);
-            Path tmp = Files.createTempDirectory("edu-src-");
+            tmp = Files.createTempDirectory("edu-src-");
             CommandRunner.Result r = runner.run(
                     List.of("git", "clone", "--depth", "1", "-b", branch, cloneUrl, tmp.toString()),
                     null, 120, gitEnv(repoUrl, cloneUrl));
@@ -82,11 +85,21 @@ public class SourceResolver {
             }
             String yaml = Files.readString(yamlFile.toPath(), StandardCharsets.UTF_8);
             boolean hasDockerfile = tmp.resolve("Dockerfile").toFile().exists();
-            return new SourceMaterial(yaml, hasDockerfile, repoUrl + "#" + branch, tmp.toString());
+            // 성공 시 임시 디렉터리 삭제 책임은 호출부(deploy/validate 의 finally)로 넘어간다.
+            return new SourceMaterial(yaml, hasDockerfile, repoUrl + "#" + branch, tmp.toString(), true);
         } catch (DeployException e) {
+            cleanupOnFailure(tmp);
             throw e;
         } catch (Exception e) {
+            cleanupOnFailure(tmp);
             throw new DeployException("레포 수집 중 오류: " + e.getMessage());
+        }
+    }
+
+    /** 수집 실패 시에는 반환할 재료가 없으므로 여기서 즉시 임시 디렉터리를 정리한다. */
+    private void cleanupOnFailure(Path tmp) {
+        if (tmp != null) {
+            cleaner.deleteRecursively(tmp.toString(), "clone(실패 경로)");
         }
     }
 

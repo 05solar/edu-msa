@@ -18,7 +18,9 @@ import java.time.OffsetDateTime;
         name = "refresh_tokens",
         indexes = {
                 @Index(name = "ux_refresh_token_hash", columnList = "token_hash", unique = true),
-                @Index(name = "ix_refresh_account", columnList = "account_id")
+                @Index(name = "ix_refresh_account", columnList = "account_id"),
+                // 만료 행 정리(RefreshTokenCleaner)의 cutoff 조회용
+                @Index(name = "ix_refresh_expires", columnList = "expires_at")
         }
 )
 public class RefreshToken {

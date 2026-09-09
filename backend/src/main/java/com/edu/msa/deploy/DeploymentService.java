@@ -44,12 +44,14 @@ public class DeploymentService {
     private final NotificationService notifications;
     private final AppUserRepository appUsers;
     private final TransactionTemplate tx;
+    private final TempCleaner cleaner;
 
     public DeploymentService(SourceResolver resolver, SpecParser parser, ServiceSpecValidator validator,
                              ManifestRenderer renderer, DeploymentRepository deployments,
                              DeployJobRepository deployJobs, DeployProperties props,
                              CommandRunner runner, ProgramRepository programs, NotificationService notifications,
-                             AppUserRepository appUsers, PlatformTransactionManager txManager) {
+                             AppUserRepository appUsers, PlatformTransactionManager txManager,
+                             TempCleaner cleaner) {
         this.resolver = resolver;
         this.parser = parser;
         this.validator = validator;
@@ -62,6 +64,7 @@ public class DeploymentService {
         this.notifications = notifications;
         this.appUsers = appUsers;
         this.tx = new TransactionTemplate(txManager);
+        this.cleaner = cleaner;
     }
 
     /**
@@ -115,19 +118,23 @@ public class DeploymentService {
         String yaml;
         String resolvedFrom;
         boolean hasDockerfile;
+        SourceMaterial mat = null;
         try {
             if (req.serviceYaml() != null && !req.serviceYaml().isBlank()) {
                 yaml = req.serviceYaml();
                 resolvedFrom = "inline";
                 hasDockerfile = true;
             } else {
-                SourceMaterial mat = resolver.resolve(req.repoUrl(), req.branch());
+                mat = resolver.resolve(req.repoUrl(), req.branch());
                 yaml = mat.serviceYaml();
                 resolvedFrom = mat.resolvedFrom();
                 hasDockerfile = mat.hasDockerfile();
             }
         } catch (DeployException e) {
             return new ValidationResult(false, List.of(e.getMessage()), null, "unresolved");
+        } finally {
+            // 검증은 yaml 을 메모리로 읽은 뒤에는 clone 디렉터리가 필요 없다.
+            cleanupWorkDir(mat);
         }
         ServiceSpec spec;
         try {
@@ -150,10 +157,11 @@ public class DeploymentService {
                 deployments.save(new Deployment(req.programId(), req.repoUrl(), req.branch())));
         StringBuilder log = new StringBuilder();
         line(log, "배포 시작 · mode=" + props.mode());   // 대상 네임스페이스는 검증 후 신뢰도에 따라 결정
+        SourceMaterial mat = null;
         try {
             d.setStatus(DeploymentStatus.VALIDATING);
             saveState(d);
-            SourceMaterial mat = resolver.resolve(req.repoUrl(), req.branch());
+            mat = resolver.resolve(req.repoUrl(), req.branch());
             line(log, "소스 수집: " + mat.resolvedFrom());
             ServiceSpec spec = parser.parse(mat.serviceYaml());
             List<String> errors = validator.validate(spec, mat.hasDockerfile(), req.programId());
@@ -182,16 +190,21 @@ public class DeploymentService {
                     String buildNs = props.buildNamespace();
                     String jobYaml = renderer.renderKanikoJob(spec, image, req.repoUrl(), req.branch(), buildNs);
                     Path jf = Files.createTempFile("edu-kaniko-", ".yaml");
-                    Files.writeString(jf, jobYaml, StandardCharsets.UTF_8);
-                    run(log, List.of("kubectl", "delete", "job", "build-" + spec.slug(),
-                            "-n", buildNs, "--ignore-not-found"), null, 60);
-                    if (!run(log, List.of("kubectl", "apply", "-f", jf.toString()), null, 60).ok())
-                        throw new DeployException("Kaniko 빌드 Job 생성 실패");
-                    line(log, "Kaniko 빌드 시작 · " + image + " (ns=" + buildNs + ", docker.sock 미사용)");
-                    CommandRunner.Result wait = run(log, List.of("kubectl", "wait", "--for=condition=complete",
-                            "job/build-" + spec.slug(), "-n", buildNs, "--timeout=600s"), null, 640);
-                    if (!wait.ok()) throw new DeployException("Kaniko 빌드 실패(시간초과 또는 오류)");
-                    line(log, "Kaniko 빌드·푸시 완료 · " + image);
+                    try {
+                        Files.writeString(jf, jobYaml, StandardCharsets.UTF_8);
+                        run(log, List.of("kubectl", "delete", "job", "build-" + spec.slug(),
+                                "-n", buildNs, "--ignore-not-found"), null, 60);
+                        if (!run(log, List.of("kubectl", "apply", "-f", jf.toString()), null, 60).ok())
+                            throw new DeployException("Kaniko 빌드 Job 생성 실패");
+                        line(log, "Kaniko 빌드 시작 · " + image + " (ns=" + buildNs + ", docker.sock 미사용)");
+                        CommandRunner.Result wait = run(log, List.of("kubectl", "wait", "--for=condition=complete",
+                                "job/build-" + spec.slug(), "-n", buildNs, "--timeout=600s"), null, 640);
+                        if (!wait.ok()) throw new DeployException("Kaniko 빌드 실패(시간초과 또는 오류)");
+                        line(log, "Kaniko 빌드·푸시 완료 · " + image);
+                    } finally {
+                        // apply 가 끝나면 Job 은 클러스터에 있으므로 파일은 성공·실패 무관하게 지운다.
+                        cleaner.deleteFile(jf, "kaniko-job");
+                    }
                 } else {
                     line(log, "[simulate] Kaniko 빌드 Job 생성 → " + image + " (docker.sock 미사용)");
                     line(log, "[simulate] kubectl wait job/build-" + spec.slug() + " --for=condition=complete");
@@ -207,9 +220,13 @@ public class DeploymentService {
                 saveState(d);
                 if (props.isReal()) {
                     Path f = Files.createTempFile("edu-manifest-", ".yaml");
-                    Files.writeString(f, manifest, StandardCharsets.UTF_8);
-                    CommandRunner.Result r = run(log, List.of("kubectl", "apply", "-n", ns, "-f", f.toString()), null, 120);
-                    if (!r.ok()) throw new DeployException("kubectl apply 실패");
+                    try {
+                        Files.writeString(f, manifest, StandardCharsets.UTF_8);
+                        CommandRunner.Result r = run(log, List.of("kubectl", "apply", "-n", ns, "-f", f.toString()), null, 120);
+                        if (!r.ok()) throw new DeployException("kubectl apply 실패");
+                    } finally {
+                        cleaner.deleteFile(f, "manifest");
+                    }
                 } else {
                     line(log, "[simulate] kubectl apply -n " + ns + " -f - (Deployment/Service/Ingress)");
                     line(log, "[simulate] 롤아웃 대기 및 헬스 체크(" + spec.healthOrDefault() + ") 통과 가정");
@@ -234,9 +251,23 @@ public class DeploymentService {
         } catch (Exception e) {
             d.setStatus(DeploymentStatus.FAILED);
             line(log, "배포 오류: " + e.getMessage());
+        } finally {
+            // 성공(빌드·기동 완료)·실패 모두 clone 임시 디렉터리는 여기서만 정리한다.
+            // docker 모드의 docker build 가 workDir 을 쓰므로 파이프라인이 끝난 뒤에 지운다.
+            cleanupWorkDir(mat);
         }
         d.setLogText(log.toString());
         return toResponse(saveState(d));
+    }
+
+    /**
+     * git clone 임시 디렉터리 정리 — local:// 예제 경로는 ephemeral 이 아니므로 건드리지 않는다.
+     * 정리 실패는 배포 결과에 영향을 주지 않는다(TempCleaner 가 로그·메트릭으로만 남긴다).
+     */
+    private void cleanupWorkDir(SourceMaterial mat) {
+        if (mat != null && mat.ephemeralWorkDir()) {
+            cleaner.deleteRecursively(mat.workDir(), "clone");
+        }
     }
 
     /** 배포 상태 체크포인트를 짧은 트랜잭션으로 즉시 커밋한다(외부 작업 동안 커넥션 미점유). */

@@ -24,7 +24,9 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /** GitHub 레포 → 규격 검증 → 이미지 빌드 → K8s 매니페스트 렌더/적용 → 공개 파이프라인. */
 @Service
@@ -41,12 +43,13 @@ public class DeploymentService {
     private final ProgramRepository programs;
     private final NotificationService notifications;
     private final AppUserRepository appUsers;
+    private final TransactionTemplate tx;
 
     public DeploymentService(SourceResolver resolver, SpecParser parser, ServiceSpecValidator validator,
                              ManifestRenderer renderer, DeploymentRepository deployments,
                              DeployJobRepository deployJobs, DeployProperties props,
                              CommandRunner runner, ProgramRepository programs, NotificationService notifications,
-                             AppUserRepository appUsers) {
+                             AppUserRepository appUsers, PlatformTransactionManager txManager) {
         this.resolver = resolver;
         this.parser = parser;
         this.validator = validator;
@@ -58,6 +61,7 @@ public class DeploymentService {
         this.programs = programs;
         this.notifications = notifications;
         this.appUsers = appUsers;
+        this.tx = new TransactionTemplate(txManager);
     }
 
     /**
@@ -135,13 +139,20 @@ public class DeploymentService {
         return new ValidationResult(errors.isEmpty(), errors, toSpecView(spec), resolvedFrom);
     }
 
-    @Transactional
+    /**
+     * 배포 파이프라인 실행. git clone·이미지 빌드·kubectl 적용 같은 장시간 외부 작업이
+     * DB 커넥션을 트랜잭션으로 점유하지 않도록 메서드 전체 트랜잭션을 두지 않는다.
+     * 상태 기록이 필요한 지점만 짧은 트랜잭션(saveState)으로 커밋하고,
+     * 성공 마무리(RUNNING 저장 + 프로그램 공개 + 알림)는 기존과 동일하게 한 트랜잭션으로 묶는다.
+     */
     public DeploymentResponse deploy(DeployRequest req) {
-        Deployment d = deployments.save(new Deployment(req.programId(), req.repoUrl(), req.branch()));
+        Deployment d = tx.execute(s ->
+                deployments.save(new Deployment(req.programId(), req.repoUrl(), req.branch())));
         StringBuilder log = new StringBuilder();
         line(log, "배포 시작 · mode=" + props.mode());   // 대상 네임스페이스는 검증 후 신뢰도에 따라 결정
         try {
             d.setStatus(DeploymentStatus.VALIDATING);
+            saveState(d);
             SourceMaterial mat = resolver.resolve(req.repoUrl(), req.branch());
             line(log, "소스 수집: " + mat.resolvedFrom());
             ServiceSpec spec = parser.parse(mat.serviceYaml());
@@ -166,6 +177,7 @@ public class DeploymentService {
             } else {
                 // 2. 이미지 빌드 — Kaniko 인클러스터 빌드(호스트 docker.sock 미사용, rootless)
                 d.setStatus(DeploymentStatus.BUILDING);
+                saveState(d);
                 if (props.isReal()) {
                     String buildNs = props.buildNamespace();
                     String jobYaml = renderer.renderKanikoJob(spec, image, req.repoUrl(), req.branch(), buildNs);
@@ -192,6 +204,7 @@ public class DeploymentService {
 
                 // 4. K8s 적용
                 d.setStatus(DeploymentStatus.DEPLOYING);
+                saveState(d);
                 if (props.isReal()) {
                     Path f = Files.createTempFile("edu-manifest-", ".yaml");
                     Files.writeString(f, manifest, StandardCharsets.UTF_8);
@@ -207,7 +220,14 @@ public class DeploymentService {
             d.setUrl(url);
             d.setStatus(DeploymentStatus.RUNNING);
             line(log, "배포 완료 · " + url);
-            publishLinkedProgram(req.programId(), req.actor(), url, d.getId());
+            d.setLogText(log.toString());
+            // 성공 마무리: RUNNING 저장 + 프로그램 공개 + 알림을 기존처럼 한 트랜잭션으로 커밋
+            Deployment saved = tx.execute(s -> {
+                Deployment out = deployments.save(d);
+                publishLinkedProgram(req.programId(), req.actor(), url, out.getId());
+                return out;
+            });
+            return toResponse(saved);
         } catch (DeployException e) {
             d.setStatus(DeploymentStatus.FAILED);
             line(log, "배포 실패: " + e.getMessage());
@@ -216,7 +236,12 @@ public class DeploymentService {
             line(log, "배포 오류: " + e.getMessage());
         }
         d.setLogText(log.toString());
-        return toResponse(deployments.save(d));
+        return toResponse(saveState(d));
+    }
+
+    /** 배포 상태 체크포인트를 짧은 트랜잭션으로 즉시 커밋한다(외부 작업 동안 커넥션 미점유). */
+    private Deployment saveState(Deployment d) {
+        return tx.execute(s -> deployments.save(d));
     }
 
     @Transactional(readOnly = true)
@@ -245,11 +270,13 @@ public class DeploymentService {
         String host = spec.slug() + "." + props.subdomainBase();   // 예: doc-proofreader.localhost
 
         d.setStatus(DeploymentStatus.BUILDING);
+        saveState(d);
         if (!run(log, List.of("docker", "build", "-t", image, "."), new File(mat.workDir()), 600).ok()) {
             throw new DeployException("docker build 실패");
         }
 
         d.setStatus(DeploymentStatus.DEPLOYING);
+        saveState(d);
         runner.run(List.of("docker", "rm", "-f", container), null, 30);   // 기존 컨테이너 정리(있으면)
         line(log, "$ docker rm -f " + container + "  (기존 컨테이너 정리)");
         // 서브도메인 라우팅: 프록시 네트워크(eduproxy)에 합류시켜 Traefik이 컨테이너명 DNS로 접근. 호스트 포트 미발행.

@@ -151,6 +151,7 @@ apply_core(){
     "$K8S/namespaces.yaml"
     "$K8S/platform/rbac.yaml"
     "$K8S/platform/postgres.yaml"
+    "$K8S/platform/redis.yaml"
     "$K8S/auth/auth-db.yaml"
     "$K8S/auth/auth-service.yaml"
     "$K8S/platform/backend.yaml"
@@ -213,7 +214,14 @@ apply_core(){
 
   kubectl apply -f "$tmp/namespaces.yaml"
   kubectl apply -f "$tmp/rbac.yaml"
+  # Redis 비밀번호 Secret — 평문을 매니페스트에 두지 않고 무작위 생성한다(존재 시 유지).
+  if ! kubectl -n edu-platform get secret edu-redis-auth >/dev/null 2>&1; then
+    local rpass; rpass="$(openssl rand -base64 24 2>/dev/null || head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+    kubectl -n edu-platform create secret generic edu-redis-auth \
+      --from-literal=password="$rpass" >/dev/null 2>&1 || warn "edu-redis-auth Secret 생성 실패"
+  fi
   kubectl apply -f "$tmp/postgres.yaml"
+  kubectl apply -f "$tmp/redis.yaml"
   kubectl apply -f "$tmp/auth-db.yaml"
   kubectl apply -f "$tmp/auth-service.yaml"   # backend 보다 먼저 — edu-auth-jwt Secret 생성
   kubectl apply -f "$tmp/backend.yaml"

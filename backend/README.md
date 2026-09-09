@@ -37,6 +37,8 @@ gradle bootRun          # PostgreSQL이 localhost:5432 에 떠 있어야 함
 - Tomcat: `TOMCAT_THREADS_MAX`(200) · `TOMCAT_THREADS_MIN_SPARE`(10) · `TOMCAT_MAX_CONNECTIONS`(8192) · `TOMCAT_ACCEPT_COUNT`(100)
 - 종료: `server.shutdown=graceful` 고정 · `EDU_SHUTDOWN_TIMEOUT`(20s)
 - JVM: 컨테이너 `JAVA_OPTS`(기본 `-XX:MaxRAMPercentage=75.0 -XX:InitialRAMPercentage=50.0 -XX:+ExitOnOutOfMemoryError`)
+- 카탈로그 캐시(Redis, 장애 시 DB 폴백): `EDU_CACHE_TYPE`(redis|none) · `REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD` ·
+  `EDU_CACHE_LIST_TTL`(30s) · `EDU_CACHE_COUNTS_TTL`(60s)
 
 스키마: **Flyway 마이그레이션**(`src/main/resources/db/migration`)으로만 변경한다.
 앱은 `EDU_DDL_AUTO`(기본 `validate`)로 검증만 수행. `EDU_FLYWAY_ENABLED`(기본 true).

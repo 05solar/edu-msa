@@ -29,6 +29,15 @@ spring:
         # LAZY 컬렉션(tags/tech/purposes/run 등)을 IN 배치로 묶어 로드 — 목록 N+1 제거.
         # 페이지 N건 조회 시 컬렉션 종류당 쿼리 1개(총 4개)로 고정된다.
         default_batch_fetch_size: 100
+  # 공개 카탈로그 읽기 캐시 — Redis. 장애 시 DB 폴백(LenientCacheErrorHandler)이라 필수 의존이 아니다.
+  cache:
+    type: ${EDU_CACHE_TYPE:redis}       # 테스트: none / 캐시 없이 돌리려면 none
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2s                       # 캐시 경로가 오래 매달리지 않게 짧게
   lifecycle:
     # graceful shutdown 시 진행 중 요청을 기다리는 최대 시간
     timeout-per-shutdown-phase: ${EDU_SHUTDOWN_TIMEOUT:20s}
@@ -60,6 +69,10 @@ management:
 
 edu:
   seed: ${EDU_SEED:true}    # 최초 실행 시 목업 데이터 시드 여부
+  cache:
+    # 카탈로그 캐시 TTL — 변경 지점의 즉시 무효화(CatalogCacheEvictor)와 이중 안전장치
+    list-ttl-seconds: ${EDU_CACHE_LIST_TTL:30}
+    counts-ttl-seconds: ${EDU_CACHE_COUNTS_TTL:60}
   cors:
     allowed-origins: ${CORS_ORIGINS:http://localhost:5173}
   jwt:

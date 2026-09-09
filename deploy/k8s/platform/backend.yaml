@@ -68,6 +68,12 @@ spec:
                 secretKeyRef: { name: edu-db-app, key: password }
             - name: PORT
               value: "8080"
+            # 카탈로그 읽기 캐시(Redis) — 장애 시 DB 폴백이라 필수 의존 아님
+            - name: REDIS_HOST
+              value: edu-redis.edu-platform.svc.cluster.local
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: edu-redis-auth, key: password }
             - name: CORS_ORIGINS
               value: https://edu.internal
             # 운영 기준 fail-safe: 시드 끔(로컬 kind 는 bootstrap.sh 가 "true" 로 치환).

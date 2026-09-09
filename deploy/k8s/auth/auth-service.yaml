@@ -83,6 +83,15 @@ spec:
                 secretKeyRef: { name: edu-auth-db-app, key: password }
             - name: PORT
               value: "8080"
+            # rate-limit 분산 카운터(Redis) — 다중 replica 가 같은 정책을 공유.
+            # Redis 장애 시 인메모리 폴백으로 계속 제한한다(fail-open 아님).
+            - name: EDU_RATELIMIT_STORE
+              value: "redis"
+            - name: REDIS_HOST
+              value: edu-redis.edu-platform.svc.cluster.local
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: edu-redis-auth, key: password }
             - name: CORS_ORIGINS
               value: https://edu.internal
             - name: EDU_JWT_SECRET

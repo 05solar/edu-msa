@@ -130,6 +130,8 @@ JWT 의 `role` 클레임은 대문자(`USER`/`CODER`/`ADMIN`), API 응답 JSON �
 | `EDU_SHUTDOWN_TIMEOUT` | `20s` | graceful shutdown 대기(server.shutdown=graceful 고정) |
 | `EDU_FLYWAY_ENABLED` / `EDU_DDL_AUTO` | `true` / `validate` | 스키마는 Flyway(db/migration)로만 변경, 앱은 검증만 |
 | `JAVA_OPTS`(컨테이너) | `-XX:MaxRAMPercentage=75.0 …` | 컨테이너 limit 대비 힙 비율 |
+| `EDU_RATELIMIT_STORE` | `memory` | rate-limit 카운터 저장소 — 다중 replica 운영은 `redis`(K8s 주입). Redis 장애 시 인메모리 폴백(fail-open 아님) |
+| `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` | `localhost` / `6379` / 없음 | 분산 카운터용 Redis 접속(비밀번호는 Secret 주입) |
 
 시크릿은 소스에 두지 않는다. 로컬은 `deploy/.env`, 배포는 Kubernetes Secret 으로 주입한다.
 

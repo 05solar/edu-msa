@@ -1,5 +1,6 @@
 package com.edu.msa.review;
 
+import com.edu.msa.cache.CatalogCacheEvictor;
 import com.edu.msa.common.NotFoundException;
 import com.edu.msa.common.NotiKind;
 import com.edu.msa.common.ProgramStatus;
@@ -32,14 +33,17 @@ public class ReviewService {
     private final NotificationService notifications;
     private final DeployJobService deployJobs;
     private final DeployProperties deployProps;
+    private final CatalogCacheEvictor cacheEvictor;
 
     public ReviewService(ProgramRepository programs, ReviewLogRepository logs, NotificationService notifications,
-                         DeployJobService deployJobs, DeployProperties deployProps) {
+                         DeployJobService deployJobs, DeployProperties deployProps,
+                         CatalogCacheEvictor cacheEvictor) {
         this.programs = programs;
         this.logs = logs;
         this.notifications = notifications;
         this.deployJobs = deployJobs;
         this.deployProps = deployProps;
+        this.cacheEvictor = cacheEvictor;
     }
 
     @Transactional
@@ -88,6 +92,8 @@ public class ReviewService {
         if (autoDeploy) {
             deployJobs.enqueue(id, p.getRepoUrl(), p.getBranch(), who);
         }
+
+        cacheEvictor.evictAll();   // 상태 전이(공개/반려/중지/재개)를 목록에 즉시 반영
     }
 
     @Transactional(readOnly = true)

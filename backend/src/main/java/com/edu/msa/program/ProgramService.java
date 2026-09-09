@@ -1,5 +1,7 @@
 package com.edu.msa.program;
 
+import com.edu.msa.cache.CacheConfig;
+import com.edu.msa.cache.CatalogCacheEvictor;
 import com.edu.msa.common.NotFoundException;
 import com.edu.msa.common.NotiKind;
 import com.edu.msa.common.PageResponse;
@@ -32,6 +34,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,19 +48,26 @@ public class ProgramService {
     private final CommentRepository comments;
     private final NotificationService notifications;
     private final AppUserRepository users;
+    private final CatalogCacheEvictor cacheEvictor;
 
     public ProgramService(ProgramRepository programs, CommentRepository comments,
-                          NotificationService notifications, AppUserRepository users) {
+                          NotificationService notifications, AppUserRepository users,
+                          CatalogCacheEvictor cacheEvictor) {
         this.programs = programs;
         this.comments = comments;
         this.notifications = notifications;
         this.users = users;
+        this.cacheEvictor = cacheEvictor;
     }
 
     /**
      * 공개 카탈로그 목록 — 필터·검색·정렬을 전부 DB 쿼리로 수행하고 페이지 단위로 반환한다.
      * 컬렉션 조건은 EXISTS 서브쿼리(ProgramSpecs)라 페이지 행 수가 왜곡되지 않는다.
+     * 결과는 필터 조합을 키로 짧게 캐시된다(TTL edu.cache.list-ttl-seconds, 변경 시 즉시 무효화).
      */
+    @Cacheable(cacheNames = CacheConfig.CATALOG_LIST,
+            key = "#cat + '|' + #scope + '|' + #q + '|' + #sort + '|' + #page + '|' + #size"
+                    + " + '|' + #purposes + '|' + #tech")
     @Transactional(readOnly = true)
     public PageResponse<ProgramSummaryResponse> list(String cat, List<String> purposes, List<String> tech,
                                                      String scope, String q, String sort, int page, int size) {
@@ -75,7 +85,8 @@ public class ProgramService {
         return PageResponse.of(result.map(this::toSummary));
     }
 
-    /** 카탈로그 사이드바용 분야별 공개 프로그램 개수(GROUP BY 집계). */
+    /** 카탈로그 사이드바용 분야별 공개 프로그램 개수(GROUP BY 집계) — 짧은 TTL 캐시. */
+    @Cacheable(cacheNames = CacheConfig.CATALOG_COUNTS, key = "'all'")
     @Transactional(readOnly = true)
     public Map<String, Long> publicCountsByCat() {
         Map<String, Long> counts = new LinkedHashMap<>();
@@ -109,6 +120,7 @@ public class ProgramService {
         p.getHistory().add(new HistoryEntry(p.getVersion(), today.toString(),
                 note != null && !note.isBlank() ? note.trim() : "레포 업데이트 재배포"));
         p.setUpdatedAt(today);
+        cacheEvictor.evictAll();   // 버전·수정일 변경이 목록 정렬에 반영되도록
         return p;
     }
 
@@ -133,6 +145,7 @@ public class ProgramService {
         comments.deleteByProgramId(id);
         notifications.deleteForProgram(id);
         programs.deleteById(id);
+        cacheEvictor.evictAll();
     }
 
     @Transactional(readOnly = true)
@@ -187,6 +200,7 @@ public class ProgramService {
                 saved.getOwner() + " · " + saved.getDept() + " · " + today,
                 saved.getId());
 
+        cacheEvictor.evictAll();
         return toDetail(saved);
     }
 

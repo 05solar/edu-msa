@@ -22,6 +22,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    // 공개 카탈로그 읽기 캐시(Redis) — 장애 시 DB 폴백(LenientCacheErrorHandler)
+    implementation("org.springframework.boot:spring-boot-starter-cache")
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")   // /actuator/prometheus 노출
     implementation("org.springframework.boot:spring-boot-starter-security")
 

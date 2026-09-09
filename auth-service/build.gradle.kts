@@ -23,6 +23,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    runtimeOnly("io.micrometer:micrometer-registry-prometheus")   // /actuator/prometheus 노출
+    // 분산 rate limit 카운터(Redis) — 장애 시 인메모리 폴백(FailoverAttemptStore)
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
 
     implementation("io.jsonwebtoken:jjwt-api:0.12.6")
     runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.6")

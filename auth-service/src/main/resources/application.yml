@@ -26,6 +26,13 @@ spring:
     properties:
       hibernate:
         format_sql: false
+  # rate-limit 분산 카운터(Redis) — store=redis 일 때 사용. 장애 시 인메모리 폴백(fail-open 아님).
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2s
   lifecycle:
     timeout-per-shutdown-phase: ${EDU_SHUTDOWN_TIMEOUT:20s}
 
@@ -44,7 +51,11 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus   # Redis 헬스·rate-limit 폴백 카운터 등 메트릭 노출
+  prometheus:
+    metrics:
+      export:
+        enabled: true
 
 edu:
   cors:
@@ -61,6 +72,8 @@ edu:
     ratelimit:
       # 로그인/갱신 남용 방어. 값은 운영 데이터 기준으로 조정한다.
       enabled: ${EDU_RATELIMIT_ENABLED:true}
+      # 카운터 저장소: memory(로컬) | redis(분산 — 다중 replica 공통 정책, 운영 K8s 는 redis 주입)
+      store: ${EDU_RATELIMIT_STORE:memory}
       # 같은 계정: 10분 창에서 5회 초과 실패 → 5분 임시 차단 (모든 IP 공통)
       account-max-failures: ${EDU_RATELIMIT_ACCOUNT_MAX:5}
       account-window-seconds: ${EDU_RATELIMIT_ACCOUNT_WINDOW:600}

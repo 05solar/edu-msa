@@ -1,0 +1,78 @@
+# Redis — 카탈로그 읽기 캐시(backend) + 인증 rate-limit 분산 카운터(auth-service).
+#
+# 역할상 소실 허용 데이터(캐시·짧은 TTL 카운터)만 담으므로 영속화 없이 운영한다.
+# 단일 장애점이 아니다: 두 소비자 모두 Redis 장애 시 자체 폴백을 가진다
+#   - backend  → LenientCacheErrorHandler 가 오류를 삼키고 DB 직행
+#   - auth     → FailoverAttemptStore 가 인메모리 카운터로 강등(fail-open 아님)
+# HA 확장 경로(트래픽·요구 증가 시): 접속이 REDIS_HOST/PORT/PASSWORD 환경변수로만 배선되어
+# Sentinel 구성이나 클라우드 관리형 Redis 로 교체 시 이 파일과 env 값만 바꾸면 된다.
+#
+# 비밀번호는 평문으로 두지 않는다 — apply 전에 Secret 생성(bootstrap.sh 가 자동 생성):
+#   kubectl -n edu-platform create secret generic edu-redis-auth \
+#     --from-literal=password="$(openssl rand -base64 24)"
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: edu-redis
+  namespace: edu-platform
+  labels:
+    app: edu-redis
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate            # 캐시 전용 단일 인스턴스 — 동시 기동 불필요
+  selector:
+    matchLabels:
+      app: edu-redis
+  template:
+    metadata:
+      labels:
+        app: edu-redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          args:
+            - --requirepass
+            - $(REDIS_PASSWORD)
+            - --maxmemory
+            - 256mb
+            - --maxmemory-policy
+            - allkeys-lru       # 캐시 용도 — 가득 차면 LRU 축출
+            - --appendonly
+            - "no"              # 소실 허용 데이터 — 영속화 없음
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: edu-redis-auth, key: password }
+          ports:
+            - containerPort: 6379
+          readinessProbe:
+            tcpSocket: { port: 6379 }
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket: { port: 6379 }
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999      # redis:7-alpine 의 redis 사용자
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: edu-redis
+  namespace: edu-platform
+spec:
+  selector:
+    app: edu-redis
+  ports:
+    - port: 6379
+      targetPort: 6379

@@ -22,6 +22,9 @@ cd deploy && cp .env.example .env && docker compose up --build -d
   폐기(미만료)·활성 행은 남는지 검증(batch-size=2 로 배치 반복 포함).
 - `SchemaMigrationTest` — 빈 H2(PostgreSQL 모드)에 Flyway V1 실적용 →
   Hibernate `validate` 로 엔티티-스키마 일치 확인 → 시드 INSERT 까지 검증.
+- `RedisAttemptStoreTest` — Redis 원자 연산 매핑(INCR+최초 EXPIRE/SET EX/TTL/DEL) 검증.
+- `FailoverAttemptStoreTest` — Redis 전면 장애 시 인메모리 폴백으로 카운트·차단이
+  유지되고(fail-open 금지) 폴백 횟수가 메트릭으로 집계되는지 검증.
 
 ## 체크리스트
 

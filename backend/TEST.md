@@ -12,6 +12,8 @@
   정리되고, local:// 예제 경로(비-ephemeral)는 삭제되지 않는지 검증.
 - `SchemaMigrationTest` — 빈 H2(PostgreSQL 모드)에 Flyway V1 실적용 →
   Hibernate `validate` 로 엔티티-스키마 일치 확인 → 시드 INSERT 까지 검증.
+- `CatalogCacheTest` — 카탈로그 캐시(simple 캐시로 로직 검증): 같은 키 재조회는
+  DB 쿼리 0, 변경 지점(evictor)이 캐시를 즉시 무효화해 최신을 반환.
 - Docker 빌드 시 `-x test`로 이미지 빌드를 빠르게 하고, 테스트는 별도로 수행 가능.
 - 로컬(Windows) 주의: 사용자 경로에 한글이 있으면 Gradle 테스트 워커가 클래스패스를
   읽지 못한다. ASCII 정션 경로(`C:\edu-msa-build` → 본 저장소)에서

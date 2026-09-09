@@ -39,6 +39,19 @@ services:
       timeout: 3s
       retries: 20
 
+  # Redis — 카탈로그 캐시(backend) + rate-limit 분산 카운터(auth-service). 개발용 단일 인스턴스.
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-eduredis}",
+              "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD:-eduredis} ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   # 인증 마이크로서비스 — 회원가입·로그인·JWT 발급. 각 서비스는 동일 시크릿으로 토큰을 자체 검증.
   auth-service:
     build:
@@ -57,10 +70,16 @@ services:
       EDU_SEED_PASSWORD: ${EDU_SEED_PASSWORD:-Edu@2026!}
       # 데모 로그인은 앱 기본값이 false(fail-safe) — 로컬 개발/시연이므로 명시적으로 켠다.
       EDU_DEMO_LOGIN: "true"
+      # rate-limit 분산 카운터 — 개발에서도 redis 경로를 실사용해 검증한다.
+      EDU_RATELIMIT_STORE: redis
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-eduredis}
     ports:
       - "8089:8080"
     depends_on:
       auth-db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   # 서브도메인 리버스 프록시: <slug>.localhost -> 해당 서비스 컨테이너로 Host 라우팅.
@@ -115,6 +134,9 @@ services:
       EDU_GITEA_CLONE_BASE: ${EDU_GITEA_CLONE_BASE:-}
       # push webhook 서명 검증 시크릿 — 미설정 시 webhook 엔드포인트 비활성(404)
       EDU_GITEA_WEBHOOK_SECRET: ${EDU_GITEA_WEBHOOK_SECRET:-}
+      # 카탈로그 읽기 캐시(Redis) — 장애 시 DB 폴백
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-eduredis}
     ports:
       - "8088:8080"
     volumes:

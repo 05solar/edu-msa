@@ -1,5 +1,6 @@
 package com.edu.msa.deploy;
 
+import com.edu.msa.cache.CatalogCacheEvictor;
 import com.edu.msa.common.DeploymentStatus;
 import com.edu.msa.common.NotiKind;
 import com.edu.msa.common.ProgramStatus;
@@ -45,13 +46,14 @@ public class DeploymentService {
     private final AppUserRepository appUsers;
     private final TransactionTemplate tx;
     private final TempCleaner cleaner;
+    private final CatalogCacheEvictor cacheEvictor;
 
     public DeploymentService(SourceResolver resolver, SpecParser parser, ServiceSpecValidator validator,
                              ManifestRenderer renderer, DeploymentRepository deployments,
                              DeployJobRepository deployJobs, DeployProperties props,
                              CommandRunner runner, ProgramRepository programs, NotificationService notifications,
                              AppUserRepository appUsers, PlatformTransactionManager txManager,
-                             TempCleaner cleaner) {
+                             TempCleaner cleaner, CatalogCacheEvictor cacheEvictor) {
         this.resolver = resolver;
         this.parser = parser;
         this.validator = validator;
@@ -65,6 +67,7 @@ public class DeploymentService {
         this.appUsers = appUsers;
         this.tx = new TransactionTemplate(txManager);
         this.cleaner = cleaner;
+        this.cacheEvictor = cacheEvictor;
     }
 
     /**
@@ -244,6 +247,7 @@ public class DeploymentService {
                 publishLinkedProgram(req.programId(), req.actor(), url, out.getId());
                 return out;
             });
+            cacheEvictor.evictAll();   // 배포로 공개된 프로그램을 카탈로그에 즉시 반영
             return toResponse(saved);
         } catch (DeployException e) {
             d.setStatus(DeploymentStatus.FAILED);

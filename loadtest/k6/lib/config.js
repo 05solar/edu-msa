@@ -23,6 +23,10 @@ export const PROFILE = PROFILES[__ENV.PROFILE || 'rps100'];
 // p50/p95/p99 를 요약에 포함
 export const SUMMARY_TREND_STATS = ['avg', 'p(50)', 'p(95)', 'p(99)', 'max'];
 
+// 호스트 강제 해석(선택) — *.localhost 를 OS 리졸버가 못 푸는 환경(Windows k6 등)에서
+//   -e HOSTS_JSON='{"edu.localhost":"127.0.0.1"}' 로 지정한다.
+export const HOSTS = JSON.parse(__ENV.HOSTS_JSON || '{}');
+
 /** 목표 RPS 를 시나리오 비중(%)만큼 나눠 constant-arrival-rate 시나리오를 만든다. */
 export function rpsScenario(exec, sharePercent, extra = {}) {
   const rate = Math.max(1, Math.round((PROFILE.rate * sharePercent) / 100));

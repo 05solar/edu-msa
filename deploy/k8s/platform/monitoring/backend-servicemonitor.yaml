@@ -6,13 +6,17 @@ metadata:
   name: backend
   namespace: edu-platform
   labels:
-    release: kps        # kube-prometheus-stack Prometheus 가 이 라벨로 ServiceMonitor 를 선택
+    # kube-prometheus-stack Prometheus 는 "release=<helm 릴리스명>" 라벨로 ServiceMonitor 를
+    # 선택한다. bootstrap 이 릴리스명 monitoring 으로 설치하므로 반드시 일치해야 한다.
+    # (과거 kps 릴리스명 기준 라벨이 남아 스크레이프가 누락되던 결함을 staging 검증에서 수정)
+    release: monitoring
 spec:
   selector:
-    # API(backend)와 배포 워커(backend-worker) Service 모두 스크레이프 —
-    # 워커의 큐 메트릭(edu_deploy_queue_depth 등)이 KEDA 스케일 기준이 된다.
+    # API(backend)·배포 워커(backend-worker)·인증(auth-service) Service 를 스크레이프 —
+    # 워커의 큐 메트릭(edu_deploy_queue_depth)은 KEDA 스케일 기준, auth 는 rate-limit
+    # 폴백 카운터·로그인 지연 관측용. (staging 검증에서 auth 누락 결함 수정)
     matchExpressions:
-      - { key: app, operator: In, values: [backend, backend-worker] }
+      - { key: app, operator: In, values: [backend, backend-worker, auth-service] }
   endpoints:
     - port: http        # Service 포트 이름
       path: /actuator/prometheus

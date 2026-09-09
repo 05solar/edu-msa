@@ -201,6 +201,7 @@ apply_core(){
     "$K8S/platform/backend-worker.yaml"
     "$K8S/platform/frontend.yaml"
     "$K8S/platform/ingress.yaml"
+    "$K8S/platform/autoscale.yaml"
   )
   local f base out
   for f in "${files[@]}"; do
@@ -272,6 +273,8 @@ apply_core(){
   kubectl apply -f "$tmp/backend-worker.yaml" || warn "backend-worker 일부(ScaledObject) 적용 실패 — KEDA(운영스택) 설치 후 재적용하세요."
   kubectl apply -f "$tmp/frontend.yaml"
   kubectl apply -f "$tmp/ingress.yaml"
+  # HPA/PDB — staging 검증에서 코어 목록 누락 결함을 발견해 추가(metrics-server 필요)
+  kubectl apply -f "$tmp/autoscale.yaml" || warn "autoscale(HPA/PDB) 적용 실패 — metrics-server 확인"
 
   log "롤아웃 대기 (최대 3분씩)"
   kubectl -n edu-platform rollout status deploy/auth-service --timeout=180s || warn "auth-service 대기 초과"

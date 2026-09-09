@@ -125,9 +125,12 @@ kind: Service
 metadata:
   name: auth-service
   namespace: edu-platform
+  labels:
+    app: auth-service   # ServiceMonitor selector 매칭용 (라벨 누락 결함을 staging 검증에서 수정)
 spec:
   selector:
     app: auth-service
   ports:
-    - port: 80
+    - name: http          # ServiceMonitor(port: http) 스크레이프용 포트명
+      port: 80
       targetPort: 8080

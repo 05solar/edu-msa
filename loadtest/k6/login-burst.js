@@ -7,12 +7,13 @@
 import http from 'k6/http';
 import { check } from 'k6';
 import { Counter } from 'k6/metrics';
-import { AUTH_URL, PASSWORD, ACCOUNTS, SUMMARY_TREND_STATS, accountName } from './lib/config.js';
+import { AUTH_URL, PASSWORD, ACCOUNTS, SUMMARY_TREND_STATS, accountName, HOSTS } from './lib/config.js';
 
 const BURST_RPS = Number(__ENV.BURST_RPS || 100);
 const rateLimited = new Counter('login_rate_limited');   // 429 — 정책 발동 관측용(오류 아님)
 
 export const options = {
+  hosts: HOSTS,
   summaryTrendStats: SUMMARY_TREND_STATS,
   scenarios: {
     login_burst: {

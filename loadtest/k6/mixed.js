@@ -7,11 +7,12 @@
 // 비중(목표 RPS 대비): list 35% · search 20% · detail 20% · counts 10% · noti 10% · refresh 4% · login 1%
 import http from 'k6/http';
 import { check } from 'k6';
-import { BASE_URL, AUTH_URL, PASSWORD, ACCOUNTS, DURATION, PROFILE, SUMMARY_TREND_STATS,
+import { BASE_URL, AUTH_URL, PASSWORD, ACCOUNTS, DURATION, PROFILE, SUMMARY_TREND_STATS, HOSTS,
          rpsScenario, accountName } from './lib/config.js';
 import { ensureLogin, authHeaders } from './lib/auth.js';
 
 export const options = {
+  hosts: HOSTS,
   summaryTrendStats: SUMMARY_TREND_STATS,
   // 브라우저처럼 VU 쿠키(edu_refresh)를 iteration 간 유지 — 기본값(리셋)이면 refresh 회전
   // 체인이 끊겨 401 누적 → refresh IP 차단(429)이 발동한다(방어 정책의 정상 동작).

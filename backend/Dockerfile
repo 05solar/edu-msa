@@ -16,7 +16,11 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/build/libs/*.jar app.jar
 ENV PORT=8080
+# 컨테이너 메모리 limit 기준 힙 비율 — JAVA_OPTS 로 환경별 재정의 가능.
+# (limit 1Gi 기준 힙 최대 ~768Mi — K8s limits 와 충돌하지 않는 보수적 비율)
+ENV JAVA_OPTS="-XX:MaxRAMPercentage=75.0 -XX:InitialRAMPercentage=50.0 -XX:+ExitOnOutOfMemoryError"
 EXPOSE 8080
 # 로컬 Docker 배포 모드에서 호스트 docker.sock 접근을 위해 root로 실행(개발용).
 # 실제 K8s(real 모드)에서는 ServiceAccount 권한(deploy/k8s/rbac.yaml)을 사용한다.
-ENTRYPOINT ["sh", "-c", "java -jar app.jar"]
+# exec 로 java 를 PID 1 로 승격 — SIGTERM 이 JVM 에 직접 전달되어 graceful shutdown 이 동작한다.
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar app.jar"]

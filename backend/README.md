@@ -32,6 +32,16 @@ gradle bootRun          # PostgreSQL이 localhost:5432 에 떠 있어야 함
 `CORS_ORIGINS`(기본 http://localhost:5173), `EDU_SEED`(기본 true),
 **`EDU_JWT_SECRET`**(auth-service와 동일해야 함, 소스에 두지 않음).
 
+런타임 튜닝(기본값은 보수적 — 최종값은 부하 테스트로 확정):
+- 커넥션 풀: `DB_POOL_MAX_SIZE`(20) · `DB_POOL_MIN_IDLE`(5) · `DB_POOL_CONN_TIMEOUT_MS`(5000) · `DB_POOL_MAX_LIFETIME_MS`(1800000)
+- Tomcat: `TOMCAT_THREADS_MAX`(200) · `TOMCAT_THREADS_MIN_SPARE`(10) · `TOMCAT_MAX_CONNECTIONS`(8192) · `TOMCAT_ACCEPT_COUNT`(100)
+- 종료: `server.shutdown=graceful` 고정 · `EDU_SHUTDOWN_TIMEOUT`(20s)
+- JVM: 컨테이너 `JAVA_OPTS`(기본 `-XX:MaxRAMPercentage=75.0 -XX:InitialRAMPercentage=50.0 -XX:+ExitOnOutOfMemoryError`)
+
+스키마: **Flyway 마이그레이션**(`src/main/resources/db/migration`)으로만 변경한다.
+앱은 `EDU_DDL_AUTO`(기본 `validate`)로 검증만 수행. `EDU_FLYWAY_ENABLED`(기본 true).
+ddl-auto:update 로 만들어진 기존 DB 는 `baseline-on-migrate`(baseline 1)가 V1 을 건너뛴다.
+
 ## 패키지 구조 (기능별 분리)
 
 ```

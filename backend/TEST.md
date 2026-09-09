@@ -8,6 +8,10 @@
   커밋되며, 성공 시 프로그램 공개가 배포 완료와 함께 커밋되는지 확인.
 - `ProgramQueryTest` — 카탈로그 목록의 DB 단 필터/검색/정렬 의미 유지, 페이지네이션,
   N+1 제거(Hibernate statistics 로 페이지당 쿼리 수 고정 계측), 알림 미읽음 DB COUNT 검증.
+- `DeploymentCleanupTest` — 배포 성공/실패/validate 모두 임시 clone 디렉터리가 finally 로
+  정리되고, local:// 예제 경로(비-ephemeral)는 삭제되지 않는지 검증.
+- `SchemaMigrationTest` — 빈 H2(PostgreSQL 모드)에 Flyway V1 실적용 →
+  Hibernate `validate` 로 엔티티-스키마 일치 확인 → 시드 INSERT 까지 검증.
 - Docker 빌드 시 `-x test`로 이미지 빌드를 빠르게 하고, 테스트는 별도로 수행 가능.
 - 로컬(Windows) 주의: 사용자 경로에 한글이 있으면 Gradle 테스트 워커가 클래스패스를
   읽지 못한다. ASCII 정션 경로(`C:\edu-msa-build` → 본 저장소)에서

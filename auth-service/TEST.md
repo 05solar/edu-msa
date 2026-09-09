@@ -18,6 +18,10 @@ cd deploy && cp .env.example .env && docker compose up --build -d
   IP 합산 실패 차단(다른 IP 의 같은 계정은 정상) / refresh 반복 실패 IP 차단 /
   데모 로그인 기본 비활성(404).
 - `DemoLoginEnabledTest` — `edu.auth.demo.enabled=true` 로 명시한 환경에서만 데모 로그인 동작.
+- `RefreshTokenCleanupTest` — 만료+보존기간 경과 행만 배치 삭제되고, 보존기간 내 만료·
+  폐기(미만료)·활성 행은 남는지 검증(batch-size=2 로 배치 반복 포함).
+- `SchemaMigrationTest` — 빈 H2(PostgreSQL 모드)에 Flyway V1 실적용 →
+  Hibernate `validate` 로 엔티티-스키마 일치 확인 → 시드 INSERT 까지 검증.
 
 ## 체크리스트
 

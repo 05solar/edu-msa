@@ -5,16 +5,40 @@ spring:
     url: ${AUTH_DB_URL:jdbc:postgresql://localhost:5433/eduauth}
     username: ${AUTH_DB_USER:eduauth}
     password: ${AUTH_DB_PASSWORD:eduauth}
+    hikari:
+      # 커넥션 풀 — 명시적 기본값(보수적). 최종값은 부하 테스트로 확정한다.
+      # 로그인은 bcrypt(CPU)로 커넥션 점유가 길어질 수 있어 replica 확장과 함께 산정할 것.
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
+      connection-timeout: ${DB_POOL_CONN_TIMEOUT_MS:5000}
+      max-lifetime: ${DB_POOL_MAX_LIFETIME_MS:1800000}
+  # 스키마는 Flyway 마이그레이션(db/migration)으로만 변경한다.
+  # 기존 ddl-auto:update 로 만들어진 DB 는 baseline-on-migrate 가 V1 을 건너뛴다(스키마 동일).
+  flyway:
+    enabled: ${EDU_FLYWAY_ENABLED:true}
+    baseline-on-migrate: true
+    baseline-version: "1"
   jpa:
     hibernate:
-      ddl-auto: update      # 플랫폼 backend 와 동일한 단계별 전략. 추후 Flyway 로 전환.
+      # 운영 기본 validate — 스키마 변경은 Flyway 로만. (개발 편의로 재정의 가능)
+      ddl-auto: ${EDU_DDL_AUTO:validate}
     open-in-view: false
     properties:
       hibernate:
         format_sql: false
+  lifecycle:
+    timeout-per-shutdown-phase: ${EDU_SHUTDOWN_TIMEOUT:20s}
 
 server:
   port: ${PORT:8080}        # 플랫폼 표준: PORT 환경변수로 listen
+  # SIGTERM 수신 시 신규 요청은 거부하고 진행 중 요청을 마친 뒤 종료
+  shutdown: graceful
+  tomcat:
+    threads:
+      max: ${TOMCAT_THREADS_MAX:200}
+      min-spare: ${TOMCAT_THREADS_MIN_SPARE:10}
+    max-connections: ${TOMCAT_MAX_CONNECTIONS:8192}
+    accept-count: ${TOMCAT_ACCEPT_COUNT:100}
 
 management:
   endpoints:
@@ -52,6 +76,14 @@ edu:
       refresh-max-failures: ${EDU_RATELIMIT_REFRESH_MAX:30}
       refresh-window-seconds: ${EDU_RATELIMIT_REFRESH_WINDOW:60}
       refresh-block-seconds: ${EDU_RATELIMIT_REFRESH_BLOCK:300}
+    cleanup:
+      # 만료 refresh token 정리 — 만료 후 retention 이 지난 행만 배치 삭제.
+      # (폐기됐지만 만료 전인 행은 탈취 감지용으로 만료까지 보존)
+      enabled: ${EDU_CLEANUP_ENABLED:true}
+      interval-ms: ${EDU_CLEANUP_INTERVAL_MS:3600000}       # 1시간
+      initial-delay-ms: ${EDU_CLEANUP_INITIAL_DELAY_MS:60000}
+      retention-hours: ${EDU_CLEANUP_RETENTION_HOURS:24}
+      batch-size: ${EDU_CLEANUP_BATCH_SIZE:10000}
     demo:
       # 시연용 데모 로그인 — fail-safe 기본 false. 개발/시연 환경에서만 명시적으로 켠다.
       enabled: ${EDU_DEMO_LOGIN:false}

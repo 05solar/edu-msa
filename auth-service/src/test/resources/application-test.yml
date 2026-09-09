@@ -4,6 +4,10 @@ spring:
     driver-class-name: org.h2.Driver
     username: sa
     password: ""
+  # 일반 테스트는 H2 create-drop 으로 빠르게 돈다.
+  # 마이그레이션 검증은 SchemaMigrationTest 가 Flyway+validate 조합으로 별도 수행한다.
+  flyway:
+    enabled: false
   jpa:
     hibernate:
       ddl-auto: create-drop

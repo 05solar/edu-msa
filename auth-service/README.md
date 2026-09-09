@@ -119,6 +119,17 @@ JWT 의 `role` 클레임은 대문자(`USER`/`CODER`/`ADMIN`), API 응답 JSON �
 | `EDU_RATELIMIT_IP_MAX` / `_WINDOW` / `_BLOCK` | `30` / `600` / `600` | IP 기준(계정 무관 합산): 10분 창 30회 → 10분 차단 |
 | `EDU_RATELIMIT_FAIL_DELAY_MS` / `EDU_RATELIMIT_MAX_FAIL_DELAY_MS` | `300` / `2000` | 실패 응답 지수 백오프 지연(상한) |
 | `EDU_RATELIMIT_REFRESH_MAX` / `_WINDOW` / `_BLOCK` | `30` / `60` / `300` | refresh 남용(IP 기준) 차단 |
+| `EDU_CLEANUP_ENABLED` | `true` | 만료 refresh token 정리 스케줄러 |
+| `EDU_CLEANUP_INTERVAL_MS` / `EDU_CLEANUP_INITIAL_DELAY_MS` | `3600000` / `60000` | 정리 주기(1시간)·기동 후 첫 실행 지연 |
+| `EDU_CLEANUP_RETENTION_HOURS` | `24` | 만료 후 보존 기간 — 지난 행만 삭제(폐기·미만료 행은 탈취 감지용 보존) |
+| `EDU_CLEANUP_BATCH_SIZE` | `10000` | 1회 삭제 배치 크기(긴 잠금 방지) |
+| `DB_POOL_MAX_SIZE` / `DB_POOL_MIN_IDLE` | `20` / `5` | HikariCP 풀(보수적 기본값 — 부하 테스트로 확정) |
+| `DB_POOL_CONN_TIMEOUT_MS` / `DB_POOL_MAX_LIFETIME_MS` | `5000` / `1800000` | 커넥션 대기·수명 |
+| `TOMCAT_THREADS_MAX` / `TOMCAT_THREADS_MIN_SPARE` | `200` / `10` | Tomcat 워커 스레드 |
+| `TOMCAT_MAX_CONNECTIONS` / `TOMCAT_ACCEPT_COUNT` | `8192` / `100` | 커넥션·백로그 상한 |
+| `EDU_SHUTDOWN_TIMEOUT` | `20s` | graceful shutdown 대기(server.shutdown=graceful 고정) |
+| `EDU_FLYWAY_ENABLED` / `EDU_DDL_AUTO` | `true` / `validate` | 스키마는 Flyway(db/migration)로만 변경, 앱은 검증만 |
+| `JAVA_OPTS`(컨테이너) | `-XX:MaxRAMPercentage=75.0 …` | 컨테이너 limit 대비 힙 비율 |
 
 시크릿은 소스에 두지 않는다. 로컬은 `deploy/.env`, 배포는 Kubernetes Secret 으로 주입한다.
 

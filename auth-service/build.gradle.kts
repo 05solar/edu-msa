@@ -30,6 +30,10 @@ dependencies {
 
     runtimeOnly("org.postgresql:postgresql")
 
+    // 스키마 이력 관리 — ddl-auto:update 대체 (운영은 validate + Flyway 마이그레이션)
+    implementation("org.flywaydb:flyway-core")
+    runtimeOnly("org.flywaydb:flyway-database-postgresql")
+
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")
     testRuntimeOnly("com.h2database:h2")

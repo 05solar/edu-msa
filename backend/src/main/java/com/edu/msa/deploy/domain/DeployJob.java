@@ -13,7 +13,10 @@ import java.time.Instant;
 
 /** 배포 작업 큐 항목 — 인메모리 스레드풀 대신 DB에 적재해 다중 인스턴스에서 안전하게 처리한다. */
 @Entity
-@Table(name = "deploy_jobs")
+@Table(name = "deploy_jobs", indexes = {
+        // 큐 폴링(claim)·상태별 카운트 메트릭용
+        @jakarta.persistence.Index(name = "idx_deploy_jobs_status", columnList = "status"),
+})
 public class DeployJob {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -35,6 +38,10 @@ public class DeployJob {
 
     private Instant createdAt = Instant.now();
     private Instant updatedAt = Instant.now();
+
+    /** 재시도 백오프 — 이 시각 전에는 claim 대상에서 제외된다(null = 즉시 가능). */
+    @Column(name = "next_attempt_at")
+    private Instant nextAttemptAt;
 
     public DeployJob() {}
 
@@ -63,4 +70,6 @@ public class DeployJob {
     public void setLastError(String lastError) { this.lastError = lastError; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
+    public Instant getNextAttemptAt() { return nextAttemptAt; }
+    public void setNextAttemptAt(Instant nextAttemptAt) { this.nextAttemptAt = nextAttemptAt; }
 }

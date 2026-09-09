@@ -1,0 +1,137 @@
+# 배포 큐 워커 — backend 와 "동일 이미지"를 쓰되 역할만 분리한 별도 Deployment.
+#   API 파드(backend.yaml)  : EDU_DEPLOY_WORKER_ENABLED=false → HTTP 트래픽 전용, HPA(CPU) 스케일
+#   워커 파드(이 파일)      : EDU_DEPLOY_WORKER_ENABLED=true  → 큐 폴링 전용, 큐 길이(KEDA) 스케일
+# 두 축은 서로 영향을 주지 않는다(각자 Deployment/HPA·ScaledObject).
+# 다중 워커 안전성: claim 이 FOR UPDATE SKIP LOCKED 라 replica 가 늘어도 중복 처리가 없다.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-worker
+  namespace: edu-platform
+  labels:
+    app: backend-worker
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: backend-worker
+  template:
+    metadata:
+      labels:
+        app: backend-worker
+    spec:
+      serviceAccountName: edu-deployer   # kubectl/Kaniko 실행 권한 — 워커가 배포 주체
+      # 진행 중 배포는 최대 ~11분(Kaniko 640s) — SIGTERM 후 여유를 두되,
+      # 강제 종료돼도 requeueStale 이 RUNNING 작업을 회수하므로 유실은 없다.
+      terminationGracePeriodSeconds: 60
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: { app: backend-worker }
+      containers:
+        - name: backend-worker
+          image: registry.edu.internal/edu-msa-backend:0.8.0
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: EDU_DEPLOY_WORKER_ENABLED
+              value: "true"
+            - name: DB_URL
+              value: jdbc:postgresql://edu-db-pooler-rw.edu-platform.svc.cluster.local:5432/edumsa
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef: { name: edu-db-app, key: username }
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: edu-db-app, key: password }
+            # 워커는 트래픽이 없어 풀이 작아도 된다(배포 트랜잭션은 짧은 체크포인트뿐)
+            - name: DB_POOL_MAX_SIZE
+              value: "5"
+            - name: PORT
+              value: "8080"
+            - name: REDIS_HOST
+              value: edu-redis.edu-platform.svc.cluster.local
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: edu-redis-auth, key: password }
+            - name: EDU_SEED
+              value: "false"              # 시드는 API 파드 담당
+            - name: EDU_JWT_SECRET
+              valueFrom:
+                secretKeyRef: { name: edu-auth-jwt, key: EDU_JWT_SECRET }
+            - name: EDU_DEPLOY_MODE
+              value: "real"
+            - name: EDU_DEPLOY_NAMESPACE
+              value: edu-services
+            - name: EDU_DEPLOY_INGRESS_HOST
+              value: edu.internal
+            - name: EDU_DEPLOY_REGISTRY
+              value: registry.edu.internal
+            - name: EDU_DEPLOY_KANIKO_INSECURE
+              value: "false"
+            - name: EDU_GITEA_HOST
+              value: gitea.edu.internal
+            - name: EDU_GITEA_CLONE_BASE
+              value: http://gitea-http.gitea.svc:3000
+            - name: EDU_GITEA_USER
+              valueFrom: { secretKeyRef: { name: edu-gitea-token, key: username, optional: true } }
+            - name: EDU_GITEA_TOKEN
+              valueFrom: { secretKeyRef: { name: edu-gitea-token, key: token, optional: true } }
+          ports:
+            - name: http               # 메트릭(/actuator/prometheus)·헬스 전용 — 사용자 트래픽 없음
+              containerPort: 8080
+          readinessProbe:
+            httpGet: { path: /api/health, port: 8080 }
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /api/health, port: 8080 }
+            initialDelaySeconds: 40
+            periodSeconds: 15
+          resources:
+            requests: { cpu: "200m", memory: 512Mi }
+            limits: { cpu: "1", memory: 1Gi }
+---
+# 메트릭 스크레이프용 Service (사용자 트래픽 라우팅 없음 — Ingress 미연결)
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-worker
+  namespace: edu-platform
+  labels:
+    app: backend-worker
+spec:
+  selector:
+    app: backend-worker
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+---
+# 큐 길이 기반 워커 오토스케일 (KEDA prometheus scaler — 운영스택 설치 후 적용).
+# edu_deploy_queue_depth(대기 건수)가 워커당 threshold(3건)를 넘으면 replica 를 늘린다.
+# KEDA 미설치 환경에서는 이 리소스만 적용 실패하고 워커는 replicas 1 로 동작한다.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: backend-worker
+  namespace: edu-platform
+spec:
+  scaleTargetRef:
+    name: backend-worker
+  minReplicaCount: 1
+  maxReplicaCount: 5
+  pollingInterval: 15
+  cooldownPeriod: 300          # 배포 1건이 수 분 — 성급한 축소로 진행 중 작업을 흔들지 않는다
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://monitoring-kube-prometheus-prometheus.monitoring.svc:9090
+        query: max(edu_deploy_queue_depth)
+        threshold: "3"

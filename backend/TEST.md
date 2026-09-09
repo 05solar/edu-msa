@@ -14,6 +14,11 @@
   Hibernate `validate` 로 엔티티-스키마 일치 확인 → 시드 INSERT 까지 검증.
 - `CatalogCacheTest` — 카탈로그 캐시(simple 캐시로 로직 검증): 같은 키 재조회는
   DB 쿼리 0, 변경 지점(evictor)이 캐시를 즉시 무효화해 최신을 반환.
+- `DeployWorkerResilienceTest` — 재시도 지수 백오프(백오프 중 claim 제외→시각 경과 후 재선점),
+  워커 강제 종료 시 방치 RUNNING 회수(작업 유실 없음), tick 1회에 큐 소진(drain) 검증.
+- `ReadReplicaRoutingTest` — 서로 다른 H2 두 개(primary/replica)로 라우팅 증명:
+  replica 마킹 조회(list/counts)는 replica(빈 DB → 0건), 비마킹 readOnly(all/detail)와
+  쓰기는 primary(read-after-write 보존).
 - Docker 빌드 시 `-x test`로 이미지 빌드를 빠르게 하고, 테스트는 별도로 수행 가능.
 - 로컬(Windows) 주의: 사용자 경로에 한글이 있으면 Gradle 테스트 워커가 클래스패스를
   읽지 못한다. ASCII 정션 경로(`C:\edu-msa-build` → 본 저장소)에서

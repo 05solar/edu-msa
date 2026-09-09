@@ -12,7 +12,9 @@
 #   MODE=kind|server        기본 kind (kind 클러스터 자동 생성 / server 는 현재 kubeconfig 사용)
 #   DOMAIN=edu.localhost     플랫폼 접속 도메인 (kind 기본 edu.localhost, server 는 실도메인 지정)
 #   REGISTRY=localhost:5001  이미지 레지스트리 접두어 (kind 기본 localhost:5001)
-#   IMAGE_TAG=latest         이미지 태그
+#   IMAGE_TAG=git-<sha>      이미지 태그 — 기본은 현재 커밋의 불변 태그(git-<short sha>).
+#                            :latest 는 쓰지 않는다. 롤백은 이전 태그로 재실행:
+#                            IMAGE_TAG=git-<이전sha> ./deploy/bootstrap.sh core
 #   WITH_STACK=1|0           운영스택(모니터링·WAF·KEDA·로그·트레이스·cert-manager) 설치 (기본 up 에서 1)
 #   WITH_GPU=1|0             NVIDIA GPU Operator 설치(테넌트 GPU 사용 시) (기본 0)
 #   WITH_EXAMPLES=1|0        예제 서브 프로그램 7종(examples/)을 edu-services 에 배포 (기본 0)
@@ -26,7 +28,6 @@ MODE="${MODE:-kind}"
 CLUSTER="${CLUSTER:-edu}"
 REG_NAME="${REG_NAME:-kind-registry}"
 REG_PORT="${REG_PORT:-5001}"
-IMAGE_TAG="${IMAGE_TAG:-latest}"
 WITH_STACK="${WITH_STACK:-auto}"     # auto = up 서브커맨드에서 1
 WITH_GPU="${WITH_GPU:-0}"
 WITH_EXAMPLES="${WITH_EXAMPLES:-0}"
@@ -34,6 +35,11 @@ STORAGE_CLASS="${STORAGE_CLASS:-}"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 K8S="$ROOT/deploy/k8s"
+
+# 이미지 태그 — 미지정 시 현재 커밋 기반 불변 태그(git-<short sha>). :latest 는 쓰지 않는다.
+if [ -z "${IMAGE_TAG:-}" ]; then
+  IMAGE_TAG="git-$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo dev)"
+fi
 
 if [ "$MODE" = kind ]; then
   DOMAIN="${DOMAIN:-edu.localhost}"
@@ -133,6 +139,43 @@ build_images(){
   ok "이미지 3종 준비 완료"
 }
 
+# ---- 코어 시크릿 준비 --------------------------------------------------------
+# 매니페스트에는 어떤 자리표시자 Secret 도 없다(placeholder 반입 원천 차단).
+#  - kind(로컬/리허설): 없으면 무작위 값으로 생성한다.
+#  - server(운영): Sealed Secrets 등으로 사전 반영되어 있어야 하며, 없으면 중단한다.
+_rand(){ openssl rand -base64 "${1:-24}" 2>/dev/null || head -c "${1:-24}" /dev/urandom | od -An -tx1 | tr -d ' \n'; }
+ensure_secrets(){
+  local required=(edu-db edu-auth-db edu-auth-jwt edu-redis-auth)
+  if [ "$MODE" = server ]; then
+    local missing=()
+    local s; for s in "${required[@]}"; do
+      kubectl -n edu-platform get secret "$s" >/dev/null 2>&1 || missing+=("$s")
+    done
+    if [ "${#missing[@]}" -gt 0 ]; then
+      die "운영(server) 필수 Secret 누락: ${missing[*]} — deploy/k8s/secrets/README.md 의 Sealed Secrets 절차로 먼저 반영하세요."
+    fi
+    ok "운영 Secret 존재 확인 (${required[*]})"
+    return
+  fi
+  # kind: 무작위 생성(존재 시 유지)
+  kubectl -n edu-platform get secret edu-db >/dev/null 2>&1 || kubectl -n edu-platform \
+    create secret generic edu-db \
+    --from-literal=POSTGRES_DB=edumsa --from-literal=POSTGRES_USER=edumsa \
+    --from-literal=POSTGRES_PASSWORD="$(_rand 24)" >/dev/null
+  kubectl -n edu-platform get secret edu-auth-db >/dev/null 2>&1 || kubectl -n edu-platform \
+    create secret generic edu-auth-db \
+    --from-literal=POSTGRES_DB=eduauth --from-literal=POSTGRES_USER=eduauth \
+    --from-literal=POSTGRES_PASSWORD="$(_rand 24)" >/dev/null
+  kubectl -n edu-platform get secret edu-auth-jwt >/dev/null 2>&1 || kubectl -n edu-platform \
+    create secret generic edu-auth-jwt \
+    --from-literal=EDU_JWT_SECRET="$(_rand 48)" \
+    --from-literal=EDU_SEED_PASSWORD="$(_rand 12)" >/dev/null
+  kubectl -n edu-platform get secret edu-redis-auth >/dev/null 2>&1 || kubectl -n edu-platform \
+    create secret generic edu-redis-auth \
+    --from-literal=password="$(_rand 24)" >/dev/null
+  ok "로컬 Secret 준비 완료 (없던 것만 무작위 생성)"
+}
+
 # ---- 코어 매니페스트 렌더링(sed) + 적용 -------------------------------------
 apply_core(){
   log "코어 플랫폼 배포 (namespaces · DB · auth · backend · frontend · ingress)"
@@ -155,23 +198,28 @@ apply_core(){
     "$K8S/auth/auth-db.yaml"
     "$K8S/auth/auth-service.yaml"
     "$K8S/platform/backend.yaml"
+    "$K8S/platform/backend-worker.yaml"
     "$K8S/platform/frontend.yaml"
     "$K8S/platform/ingress.yaml"
   )
   local f base out
   for f in "${files[@]}"; do
     base="$(basename "$f")"; out="$tmp/$base"
-    # 공통: 레지스트리(이미지 접두어 + EDU_DEPLOY_REGISTRY) · 도메인 치환 — 순서 중요
+    # 공통: 레지스트리(이미지 접두어 + EDU_DEPLOY_REGISTRY) · 도메인 · 이미지 태그 치환 — 순서 중요
+    # (매니페스트의 고정 semver 태그를 이번 빌드의 불변 태그 IMAGE_TAG 로 바꾼다)
     sed -e "s#registry\.edu\.internal#${REGISTRY}#g" \
-        -e "s#edu\.internal#${DOMAIN}#g" "$f" > "$out"
+        -e "s#edu\.internal#${DOMAIN}#g" \
+        -e "s#\(edu-msa-[a-z-]*\):[A-Za-z0-9._-]*#\1:${IMAGE_TAG}#g" "$f" > "$out"
     # PVC 스토리지 클래스 주입(선택): STORAGE_CLASS 설정 시 마커를 실제 값으로 치환
     if [ -n "$STORAGE_CLASS" ]; then
       sed -i.bak "s/^  #EDU_STORAGE_CLASS/  storageClassName: ${STORAGE_CLASS}/" "$out" && rm -f "$out.bak"
     fi
-    # backend 는 HA(CloudNativePG Pooler) 대신 코어 단일 postgres 를 쓰도록 DB 설정 치환
-    if [ "$base" = backend.yaml ]; then
+    # backend(API·워커 공통)는 HA(CloudNativePG Pooler) 대신 코어 단일 postgres 를 쓰도록 치환.
+    # 단일 postgres 엔 replica 가 없으므로 DB_RO_URL 을 비워 read 라우팅을 끈다(워커 파일엔 없음).
+    if [ "$base" = backend.yaml ] || [ "$base" = backend-worker.yaml ]; then
       sed -i.bak \
         -e "s#edu-db-pooler-rw\.edu-platform#postgres.edu-platform#g" \
+        -e "/name: DB_RO_URL/{n;s#value: .*#value: \"\"#;}" \
         -e "s#name: edu-db-app, key: username#name: edu-db, key: POSTGRES_USER#g" \
         -e "s#name: edu-db-app, key: password#name: edu-db, key: POSTGRES_PASSWORD#g" \
         "$out" && rm -f "$out.bak"
@@ -196,7 +244,7 @@ apply_core(){
     if [ "$MODE" = kind ]; then
       sed -i.bak -e "s#https://${DOMAIN}#http://${DOMAIN}#g" "$out" && rm -f "$out.bak"
       # Gitea 공개 호스트는 예제 패턴과 동일한 gitea.localhost (도메인 치환 부산물 보정)
-      if [ "$base" = backend.yaml ]; then
+      if [ "$base" = backend.yaml ] || [ "$base" = backend-worker.yaml ]; then
         sed -i.bak -e "s#gitea\.${DOMAIN}#gitea.localhost#g" "$out" && rm -f "$out.bak"
       fi
     fi
@@ -214,17 +262,14 @@ apply_core(){
 
   kubectl apply -f "$tmp/namespaces.yaml"
   kubectl apply -f "$tmp/rbac.yaml"
-  # Redis 비밀번호 Secret — 평문을 매니페스트에 두지 않고 무작위 생성한다(존재 시 유지).
-  if ! kubectl -n edu-platform get secret edu-redis-auth >/dev/null 2>&1; then
-    local rpass; rpass="$(openssl rand -base64 24 2>/dev/null || head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')"
-    kubectl -n edu-platform create secret generic edu-redis-auth \
-      --from-literal=password="$rpass" >/dev/null 2>&1 || warn "edu-redis-auth Secret 생성 실패"
-  fi
+  ensure_secrets
   kubectl apply -f "$tmp/postgres.yaml"
   kubectl apply -f "$tmp/redis.yaml"
   kubectl apply -f "$tmp/auth-db.yaml"
   kubectl apply -f "$tmp/auth-service.yaml"   # backend 보다 먼저 — edu-auth-jwt Secret 생성
   kubectl apply -f "$tmp/backend.yaml"
+  # 워커(동일 이미지·큐 전용). KEDA 미설치면 ScaledObject 문서만 실패하고 Deployment 는 적용된다.
+  kubectl apply -f "$tmp/backend-worker.yaml" || warn "backend-worker 일부(ScaledObject) 적용 실패 — KEDA(운영스택) 설치 후 재적용하세요."
   kubectl apply -f "$tmp/frontend.yaml"
   kubectl apply -f "$tmp/ingress.yaml"
 
@@ -234,16 +279,7 @@ apply_core(){
   kubectl -n edu-platform rollout status deploy/frontend     --timeout=120s || warn "frontend 대기 초과"
   ok "코어 배포 완료"
 
-  if [ "$MODE" = server ]; then
-    warn "실서버 보안: 매니페스트의 자리표시자 Secret 을 즉시 교체하세요 —"
-    cat <<EOF
-    kubectl -n edu-platform create secret generic edu-auth-jwt \\
-      --from-literal=EDU_JWT_SECRET="\$(openssl rand -base64 48)" \\
-      --from-literal=EDU_SEED_PASSWORD="\$(openssl rand -base64 12)" \\
-      --dry-run=client -o yaml | kubectl apply -f -
-    kubectl -n edu-platform rollout restart deploy/auth-service deploy/backend
-EOF
-  fi
+  ok "배포 이미지 태그: ${IMAGE_TAG} (롤백: IMAGE_TAG=<이전 태그> $0 core 또는 kubectl rollout undo)"
 }
 
 # ---- 운영스택 (helm, 각 단계 best-effort) -----------------------------------

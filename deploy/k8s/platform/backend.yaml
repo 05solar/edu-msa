@@ -47,12 +47,19 @@ spec:
       terminationGracePeriodSeconds: 45
       containers:
         - name: backend
-          image: registry.edu.internal/edu-msa-backend:latest
+          # 불변 태그만 사용(:latest 금지) — bootstrap.sh 가 IMAGE_TAG(기본 git-<sha>)로 치환하고,
+          # 롤백은 이전 태그 재지정 또는 kubectl rollout undo 로 수행한다.
+          image: registry.edu.internal/edu-msa-backend:0.8.0
+          imagePullPolicy: IfNotPresent
           lifecycle:
             preStop:
               exec:
                 command: ["sh", "-c", "sleep 5"]
           env:
+            # API 파드는 배포 큐 워커를 돌리지 않는다 — 큐 처리는 backend-worker.yaml(동일 이미지,
+            # 큐 길이 기반 KEDA 스케일)이 전담해 HTTP 스케일 축과 분리된다.
+            - name: EDU_DEPLOY_WORKER_ENABLED
+              value: "false"
             # HA DB(CloudNativePG, postgres-ha.yaml) 사용: PgBouncer 풀러(edu-db-pooler-rw)를
             # 경유해 primary 로 라우팅 — 앱 replica 가 늘어도 DB 실커넥션을 풀러가 상한으로 묶는다.
             # 읽기 전용 워크로드 분리 시: edu-db-pooler-ro (replica 라우팅) 사용.
@@ -60,6 +67,10 @@ spec:
             # (개발용 단일 postgres.yaml 사용 시 bootstrap.sh 가 host=postgres, secret=edu-db 로 치환)
             - name: DB_URL
               value: jdbc:postgresql://edu-db-pooler-rw.edu-platform.svc.cluster.local:5432/edumsa
+            # read replica 라우팅 — 카탈로그 목록/집계(캐시 미스분)가 replica(ro 풀러)로 간다.
+            # 개발(단일 postgres)은 bootstrap.sh 가 값을 비워 라우팅을 끈다.
+            - name: DB_RO_URL
+              value: jdbc:postgresql://edu-db-pooler-ro.edu-platform.svc.cluster.local:5432/edumsa
             - name: DB_USER
               valueFrom:
                 secretKeyRef: { name: edu-db-app, key: username }
@@ -68,6 +79,11 @@ spec:
                 secretKeyRef: { name: edu-db-app, key: password }
             - name: PORT
               value: "8080"
+            # [부하 실측 2026-09-09] 2,000 RPS 혼합 조회에서 Hikari active ≤3(캐시 적중 91%) —
+            # 풀 10 으로 재실측해도 동일 성능(p95 5ms·pending 0). HPA max 10 replica × 10 = 100
+            # 클라이언트 ≤ 풀러 max_client_conn 1000(서버측은 풀러 pool_size 가 상한).
+            - name: DB_POOL_MAX_SIZE
+              value: "10"
             # 카탈로그 읽기 캐시(Redis) — 장애 시 DB 폴백이라 필수 의존 아님
             - name: REDIS_HOST
               value: edu-redis.edu-platform.svc.cluster.local

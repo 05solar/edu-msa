@@ -43,7 +43,13 @@ public class AuthService {
         this.demo = demo;
     }
 
-    @Transactional
+    /**
+     * 의도적으로 트랜잭션을 걸지 않는다 — bcrypt 검증(~50ms+)이 트랜잭션 안에 있으면
+     * 그 시간 동안 DB 커넥션을 점유해 로그인 폭주 시 풀이 고갈된다(부하 실측으로 확인).
+     * 계정 조회는 리포지토리의 짧은 읽기 트랜잭션, 토큰 저장은 issue() 안 save() 의
+     * 짧은 쓰기 트랜잭션으로 각각 분리되고, 이 경로는 엔티티를 변경하지 않으므로
+     * 묶음 트랜잭션이 필요 없다.
+     */
     public IssuedTokens login(String username, String rawPassword) {
         // 아이디 존재 여부를 응답으로 구분할 수 없도록 실패 메시지를 통일한다.
         Account account = accounts.findByUsername(username == null ? "" : username.trim())

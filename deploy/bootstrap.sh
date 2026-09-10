@@ -303,11 +303,20 @@ install_stack(){
   kubectl apply -f "$K8S/platform/edge/cert-manager/clusterissuers.yaml" 2>/dev/null || \
       warn "clusterissuers 적용 실패 — cert-manager CRD 준비 후 재적용하세요."
 
+  # alertmanager.enabled 명시: 과거 수동 설치(README 초기 명령)가 false 로 남긴 릴리스를
+  # 업그레이드해도 켜지도록 고정. podMonitorSelectorNilUsesHelmValues=false: CNPG 오퍼레이터가
+  # 만드는 PodMonitor(edu-db·edu-auth-db)에는 release 라벨이 없어 기본 셀렉터에 안 잡힌다 —
+  # 이 플래그가 없으면 DB 메트릭(cnpg_*)이 아예 수집되지 않는다.
   _try "kube-prometheus-stack (Prometheus·Grafana·Alertmanager)" \
       helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
-      -n monitoring --create-namespace --wait --timeout 8m
-  kubectl apply -f "$K8S/platform/monitoring/prometheus-rules.yaml" 2>/dev/null || true
-  kubectl apply -f "$K8S/platform/monitoring/backend-servicemonitor.yaml" 2>/dev/null || true
+      -n monitoring --create-namespace --wait --timeout 8m \
+      --set alertmanager.enabled=true \
+      --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false
+  # 경보 규칙·스크레이프 대상은 조용히 넘기지 않는다 — 적용 실패가 곧 "경보 없음"이다.
+  kubectl apply -f "$K8S/platform/monitoring/prometheus-rules.yaml" \
+      || warn "prometheus-rules 적용 실패 — 경보 규칙 없음. CRD 준비 후 재적용 필수."
+  kubectl apply -f "$K8S/platform/monitoring/backend-servicemonitor.yaml" \
+      || warn "backend-servicemonitor 적용 실패 — 앱 메트릭 미수집. 재적용 필수."
 
   _try "KEDA (scale-to-zero)" helm upgrade --install keda kedacore/keda \
       -n keda --create-namespace --wait --timeout 5m

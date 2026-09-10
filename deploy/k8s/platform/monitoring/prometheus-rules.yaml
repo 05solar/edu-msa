@@ -1,11 +1,12 @@
-# 플랫폼 경보 규칙. 라벨 release: kps 로 스택 Prometheus 가 선택.
+# 플랫폼 경보 규칙. 스택 Prometheus 의 ruleSelector 가 helm 릴리스명 라벨(release: monitoring)로
+# 선택하므로 반드시 일치해야 한다 (backend-servicemonitor.yaml 과 동일 규칙).
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
   name: edu-platform-rules
   namespace: monitoring
   labels:
-    release: kps
+    release: monitoring
 spec:
   groups:
     - name: edu-platform.rules
@@ -17,14 +18,85 @@ spec:
         #   labels: { severity: info }
         #   annotations:
         #     summary: "알림 파이프라인 헬스체크(항상 발화)"
-        # 백엔드 스크레이프 타깃 다운
-        # 주의: job 라벨은 Service 이름(backend)에서 온다. Service 개명/ServiceMonitor jobLabel 지정 시 갱신 필요.
+        # 스크레이프 타깃 다운 — job 라벨은 Service 이름에서 온다(개명 시 갱신 필요).
         - alert: EduBackendDown
           expr: up{job="backend"} == 0
           for: 2m
           labels: { severity: critical }
           annotations:
             summary: "백엔드가 다운 상태(스크레이프 실패)"
+        - alert: EduAuthDown
+          expr: up{job="auth-service"} == 0
+          for: 2m
+          labels: { severity: critical }
+          annotations:
+            summary: "인증 서비스가 다운 상태 — 로그인·토큰 갱신 불능"
+        - alert: EduWorkerDown
+          expr: up{job="backend-worker"} == 0
+          for: 5m
+          labels: { severity: warning }
+          annotations:
+            summary: "배포 워커 다운 — 배포 큐가 처리되지 않음"
+        # 앱 HTTP 5xx 비율(마이크로미터 서버 메트릭 기준, 트래픽 있는 경우만 분모 생성)
+        - alert: EduHttp5xxHigh
+          expr: >
+            sum by (job) (rate(http_server_requests_seconds_count{status=~"5.."}[5m]))
+            / sum by (job) (rate(http_server_requests_seconds_count[5m])) > 0.05
+          for: 5m
+          labels: { severity: critical }
+          annotations:
+            summary: "{{ $labels.job }} 5xx 비율 5% 초과(5분 지속)"
+        # 커넥션 풀 대기 지속 — 로그인 폭주/풀 고갈의 실측 시그니처(pending 발생 자체가 이상 신호)
+        - alert: EduHikariPendingSustained
+          expr: max by (job, pool) (hikaricp_connections_pending) > 5
+          for: 3m
+          labels: { severity: critical }
+          annotations:
+            summary: "{{ $labels.job }}/{{ $labels.pool }} DB 커넥션 대기 지속 — 풀 고갈 임박"
+        # CNPG 복제 지연(초). PodMonitor 수집 전제(bootstrap podMonitorSelectorNilUsesHelmValues=false).
+        - alert: EduDbReplicationLagHigh
+          expr: max by (cluster) (cnpg_pg_replication_lag) > 30
+          for: 5m
+          labels: { severity: warning }
+          annotations:
+            summary: "CNPG {{ $labels.cluster }} 복제 지연 30s 초과 — ro 라우팅 응답 낙후·failover 데이터 손실 위험"
+        # CNPG 인스턴스 수집 중단(파드 다운 포함)
+        - alert: EduDbInstanceDown
+          expr: count by (cluster) (cnpg_pg_postmaster_start_time) < 3
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "CNPG {{ $labels.cluster }} 가용 인스턴스 3 미만(10분 지속) — 복제본 이탈"
+        # 배포 큐 적체 — KEDA max(5 워커) 로도 소진 못하는 수준
+        - alert: EduDeployQueueBacklog
+          expr: max(edu_deploy_queue_depth) > 30
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "배포 큐 적체(>30, 10분) — 워커 처리량/실패 확인 필요"
+        # 배포 재시도 급증 — 빌드·레지스트리·클러스터 이상의 조기 신호
+        - alert: EduDeployRetriesHigh
+          expr: increase(edu_deploy_jobs_retries_total[15m]) > 5
+          labels: { severity: warning }
+          annotations:
+            summary: "배포 재시도 15분 내 5회 초과 — 파이프라인 이상"
+        # Redis 장애 폴백 동작 중 — rate limit 이 인메모리로 강등(다중 replica 간 비공유)
+        - alert: EduRedisFallbackActive
+          expr: increase(edu_auth_ratelimit_failover_total[5m]) > 0
+          for: 5m
+          labels: { severity: warning }
+          annotations:
+            summary: "auth rate-limit Redis 폴백 지속 — Redis 상태 확인 필요"
+        # PVC 잔여 10% 미만 — DB 디스크 고갈 예방.
+        # 주의: kind(local-path)는 kubelet 이 volume stats 를 노출하지 않아 staging 미검증 —
+        # 실서버 CSI 에서 유효. 데이터 없으면 발화하지 않는 안전한 형태.
+        - alert: EduPvcAlmostFull
+          expr: >
+            kubelet_volume_stats_available_bytes / kubelet_volume_stats_capacity_bytes < 0.10
+          for: 10m
+          labels: { severity: critical }
+          annotations:
+            summary: "PVC 잔여 10% 미만: {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }}"
         # 파드 크래시 루프
         - alert: EduPodCrashLooping
           expr: increase(kube_pod_container_status_restarts_total[10m]) > 3

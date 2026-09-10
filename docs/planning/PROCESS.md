@@ -15,6 +15,7 @@
 
 ## 진행 이력 (Change Log)
 
+- 2026-09-10 — **Production readiness review 수행 — 판정 CONDITIONAL GO**(docs/operations/PRODUCTION_READINESS.md). staging(kind 멀티노드) 실검증: 테스트/빌드/kubeconform 전부 통과, smoke 4/4, CNPG failover 드릴(183s 승격), **PITR 복구 드릴 성공**(시점 정확성 포함), stale replica 재클론, 경보 파이프라인 복구·실검증. 수정 3건: auth 로그인 트랜잭션 분리(bcrypt 커넥션 점유 제거), prometheus-rules 라벨 결함+필수 alert 10종, bootstrap 관측성 플래그(Alertmanager on·CNPG PodMonitor 수집). 배포 전 조건: 실서버 리허설·Alertmanager 수신처·NAT rate-limit 튜닝·수정 커밋 이미지 확정.
 - 2026-09-10 — 문서 정비: 확장성 개조(7단계) 이력·태깅 기준선(v0.8.0)·백로그 현황을 VERSIONS.md 에 반영, SCALABILITY_REVIEW.md 에 조치 완료 현황 표기.
 - 2026-09-09 — staging 실검증: kind 멀티노드(cp1+worker3, Calico)에 전체 스택 실배포 검증, 실행을 막던 배선 결함 4건 수정(ServiceMonitor release 라벨 kps→monitoring, auth Service 라벨/포트명 누락, bootstrap 코어 autoscale.yaml 누락, k6 hosts 오버라이드 부재). HPA 2→10 스케일아웃·KEDA 워커 1→4 스케일아웃 실측.
 - 2026-09-09 — 확장성 개조 13단계 완료(SCALABILITY_REVIEW §5 권장 조치 전체): ①코드 — 배포 트랜잭션 경계 분리, 카탈로그 페이지네이션+N+1 제거+DB 인덱스, 로그인 rate limit+데모 로그인 fail-safe, refresh_tokens 정리 스케줄러+임시파일 정리, Hikari/Tomcat 명시 설정+Flyway+graceful shutdown. ②인프라 — 멀티노드 운영 토폴로지 전환, auth-db CNPG 승격+barman 백업/PITR+PgBouncer Pooler, Redis(캐시·분산 rate-limit), Sealed Secrets+불변 이미지 태그(:latest 제거)+CI release. ③규모 검증 — k6 부하 테스트 체계(20만 계정 시드), 실측 기반 풀 튜닝(auth p95 12s→62ms), read replica 라우팅+정적 자산 캐시/압축, API/배포워커 스케일 축 분리+큐 깊이 기반 KEDA 오토스케일. 상세는 deploy/·backend/·auth-service/·frontend/PROCESS.md 참고.

@@ -441,9 +441,14 @@ C. brute-force 방어 유지(동일 IP): 오답 5회 → 401, 6회째부터 **42
 | frontend | git-85dd3d2 | 85dd3d2 | `sha256:c9cb7cd6…ad855c7` | **검증** | 통과 |
 
 - backend-worker 는 backend 와 동일 이미지(검증 동일). `:latest` 사용 없음(치환 결과 전수 확인).
-- **주의: 2차 점검에서 backend 소스 수정(§11-5 삭제 잔존 결함)이 추가돼, 최종 Production 태그는
-  본 점검 수정 커밋의 `git-<sha>` 다**(CI 자동 빌드 — push 직후 상태는 §최종 보고 참조, 미완이면
-  PENDING). 1차 이미지(git-85dd3d2)와 혼동 금지.
+- 2차 점검에서 backend 소스 수정(§11-5 삭제 잔존 결함)이 추가돼 **최종 Production 태그는
+  `git-5ac5c0e`** 다(1차 git-85dd3d2 와 혼동 금지). CI 빌드 완료·검증:
+
+| Service | Tag (최종) | Commit | Digest | Pull |
+|---|---|---|---|---|
+| backend(+worker) | git-5ac5c0e | 5ac5c0e | `sha256:f2bb5dcf…cd3ad584` | **검증**(RepoDigest 일치) |
+| auth-service | git-5ac5c0e | 5ac5c0e | `sha256:272d8665…325a17a8` | **검증** |
+| frontend | git-5ac5c0e | 5ac5c0e | `sha256:522ce0f7…6ffa2f80` | **검증** |
 
 ### 11-5. Production-like Rehearsal (STEP 4)
 

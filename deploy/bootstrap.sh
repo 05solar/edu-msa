@@ -307,11 +307,21 @@ install_stack(){
   # 업그레이드해도 켜지도록 고정. podMonitorSelectorNilUsesHelmValues=false: CNPG 오퍼레이터가
   # 만드는 PodMonitor(edu-db·edu-auth-db)에는 release 라벨이 없어 기본 셀렉터에 안 잡힌다 —
   # 이 플래그가 없으면 DB 메트릭(cnpg_*)이 아예 수집되지 않는다.
+  # 수신처(webhook URL)는 Secret edu-alert-receiver 로만 주입 — 존재할 때만 라우팅 values 적용.
+  # (없이 적용하면 url_file 이 가리키는 파일 부재로 Alertmanager 기동 실패 → 조건부 적용)
+  local am_values=()
+  if kubectl get secret edu-alert-receiver -n monitoring >/dev/null 2>&1; then
+    am_values=(-f "$K8S/platform/monitoring/alertmanager-values.yaml")
+    log "· Alertmanager 수신처 라우팅 활성(edu-alert-receiver 감지)"
+  else
+    warn "Alertmanager 수신처 미구성 — Secret edu-alert-receiver(monitoring ns, key: webhook-url) 반입 후 재실행해야 경보가 사람에게 전달된다."
+  fi
   _try "kube-prometheus-stack (Prometheus·Grafana·Alertmanager)" \
       helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
       -n monitoring --create-namespace --wait --timeout 8m \
       --set alertmanager.enabled=true \
-      --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false
+      --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false \
+      "${am_values[@]}"
   # 경보 규칙·스크레이프 대상은 조용히 넘기지 않는다 — 적용 실패가 곧 "경보 없음"이다.
   kubectl apply -f "$K8S/platform/monitoring/prometheus-rules.yaml" \
       || warn "prometheus-rules 적용 실패 — 경보 규칙 없음. CRD 준비 후 재적용 필수."

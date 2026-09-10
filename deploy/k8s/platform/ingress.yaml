@@ -41,9 +41,17 @@ metadata:
   name: edu-platform-auth
   namespace: edu-platform
   annotations:
-    # 클라이언트 IP 당 초당 5요청(버스트는 컨트롤러 기본 배수 적용) · 동시 연결 10
-    nginx.ingress.kubernetes.io/limit-rps: "5"
-    nginx.ingress.kubernetes.io/limit-connections: "10"
+    # NAT 대비 한도 (production readiness review 실측 근거):
+    # 학교·기관은 공유 공인 IP(NAT) 뒤 수백 명이 동시 로그인한다 — limit-rps 5 는
+    # staging 실측에서 단일 IP 30/s 중 25/s 를 차단했다(정상 사용자 오차단).
+    # 20 rps/IP × burst 5배(100 요청 흡수)로 상향 — 인증 CPU 보호(bcrypt ~50ms/건,
+    # 실측 코어당 ~21건/s)는 유지하면서 기관 단위 출근 버스트를 통과시킨다.
+    # brute-force 방어의 본체는 앱 계층 LoginGuard(계정 5회 실패 잠금 + IP 합산 실패
+    # 한도)이며 엣지 한도는 CPU-DoS 방호가 목적이다.
+    nginx.ingress.kubernetes.io/limit-rps: "20"
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "5"
+    # keep-alive 다중 사용자 NAT 에서 동시 연결 10 은 병목 — 100 으로 상향.
+    nginx.ingress.kubernetes.io/limit-connections: "100"
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
 spec:
   ingressClassName: nginx

@@ -1,0 +1,37 @@
+# Alertmanager 수신 경로 (kube-prometheus-stack helm values 오버레이)
+#
+# 수신처 주소(webhook URL — Slack incoming webhook 등)는 Git 에 평문으로 두지 않는다.
+# Secret `edu-alert-receiver`(monitoring ns, key: webhook-url)를 alertmanagerSpec.secrets 로
+# 파드에 마운트하고, 설정은 url_file 로 파일에서 읽는다(Alertmanager 0.26+).
+#
+# 운영 공급: Sealed Secrets 로 봉인해 반입(deploy/k8s/secrets/README.md 규칙 동일).
+#   kubectl -n monitoring create secret generic edu-alert-receiver \
+#     --from-literal=webhook-url='<수신 webhook URL>' --dry-run=client -o yaml | kubeseal ...
+#
+# bootstrap.sh 는 이 Secret 이 존재할 때만 본 파일을 -f 로 적용한다(없으면 기본 null 라우팅 +
+# 경고 — receiver 미구성 상태가 조용히 지나가지 않게 한다).
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    secrets:
+      - edu-alert-receiver
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      receiver: edu-webhook
+      group_by: ["alertname", "namespace"]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      routes:
+        # kps 헬스체크(상시 발화)는 수신처로 보내지 않는다.
+        - receiver: "null"
+          matchers:
+            - alertname = "Watchdog"
+    receivers:
+      - name: "null"
+      - name: edu-webhook
+        webhook_configs:
+          - url_file: /etc/alertmanager/secrets/edu-alert-receiver/webhook-url
+            send_resolved: true

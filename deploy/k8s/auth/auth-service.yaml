@@ -82,6 +82,12 @@ spec:
             # Redis 장애 시 인메모리 폴백으로 계속 제한한다(fail-open 아님).
             - name: EDU_RATELIMIT_STORE
               value: "redis"
+            # NAT 대비 IP 합산 실패 한도 상향(기본 30/10분 → 200/10분).
+            # 공유 공인 IP 뒤 수백 명 환경에서 오타 실패가 30건을 쉽게 넘는다 —
+            # 계정 단위 잠금(5회 실패, brute-force 방어의 본체)은 그대로 유지되고,
+            # 200/10분은 IP 단위 크리덴셜 스터핑(지속 20건/분↑)을 여전히 차단한다.
+            - name: EDU_RATELIMIT_IP_MAX
+              value: "200"
             - name: REDIS_HOST
               value: edu-redis.edu-platform.svc.cluster.local
             - name: REDIS_PASSWORD

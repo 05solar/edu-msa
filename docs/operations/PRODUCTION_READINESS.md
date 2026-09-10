@@ -1,8 +1,9 @@
 # PRODUCTION_READINESS.md · Production 배포 전 최종 점검
 
-> 점검일: 2026-09-10 · 기준 커밋: `d85ce9b`(main) + 본 점검에서 커밋된 수정
+> 1차 점검: 2026-09-10 (기준 `d85ce9b` → 수정 커밋 `85dd3d2`) · 2차 점검(Condition Closure): 2026-09-10 (§11)
 > 대상: v0.8.0 확장성 개조 완료본 · staging = kind 멀티노드(cp1+worker3, Calico)
-> **판정: CONDITIONAL GO** (§10) — Production 배포는 수행하지 않음(readiness review까지만).
+> **판정: CONDITIONAL GO** (§11-7 — 잔여 조건은 사람 실행 2건: 실서버 리허설, 운영 수신처 Secret 반입)
+> Production 배포는 수행하지 않음(readiness review까지만).
 
 ---
 
@@ -372,5 +373,141 @@ fail-closed 실증), 확장(HPA/KEDA 실측), 롤백 경로(불변 태그+GHCR+u
 
 ---
 
+## 11. 2차 점검 — Condition Closure (2026-09-10)
+
+1차 판정(§10)의 조건 4건을 순서대로 해소했다. 실측하지 못한 항목은 UNVERIFIED 로 명시한다.
+
+### 11-1. Condition Closure 요약
+
+| Condition | Before | After | Evidence |
+|---|---|---|---|
+| 1. Alertmanager 수신처 | 수신처 없음(AM 내부까지만) | **경로 구성 + 전달 체인 실검증**(테스트 webhook) · 운영 수신처 값은 RECEIVER_UNVERIFIED | §11-2 |
+| 2. NAT rate-limit | 10/s 단일 IP 에서 46% 차단 | **10/s 100% 통과 · burst 50 동시 100% · brute-force 방어 유지** | §11-3 |
+| 3. Production 이미지 | git-85dd3d2 미확인 | **GHCR tag/digest/pull 검증**(단, 2차 수정 커밋 이미지가 최종 — §11-4) | §11-4 |
+| 4. 실서버 리허설 | 미수행 | **UNVERIFIED**(접근 가능한 실서버 없음) — 런북 §11-5 완성 + staging 가능분(테넌트 E2E) 실측 | §11-5 |
+
+### 11-2. Alertmanager 수신 경로 (STEP 1)
+
+- 구성: `monitoring/alertmanager-values.yaml` 신설 — 라우팅(`edu-webhook` receiver, Watchdog 는
+  null)과 **`webhook_configs.url_file`** 로 수신 URL 을 Secret `edu-alert-receiver`(monitoring ns,
+  key `webhook-url`, `alertmanagerSpec.secrets` 마운트)에서 읽는다. **Git 에 평문 URL/자격 없음**
+  (values 파일에는 파일 경로만 존재 — 확인 완료).
+- bootstrap: Secret 존재 시에만 values 적용(부재 시 url_file 대상 없음으로 기동 실패하는 것을
+  방지), 부재 시 경고 출력(조용히 미구성 상태로 남지 않음).
+- 전 구간 실검증(staging): 합성 규칙 `EduReviewSyntheticFiring`(vector(1), for 0m) 적용 →
+  Prometheus **firing** → Alertmanager(설정에 edu-webhook 라우트 로드 확인) → 테스트 sink(파드)가
+  `{"receiver":"edu-webhook","status":"firing","alerts":[{"labels":{"alertname":"EduReviewSyntheticFiring"...` POST 수신.
+  실규칙(KubeProxyInstanceUnreachable 등)도 동일 경로로 전달됨(총 10건 수신). 검증 후 합성 규칙 삭제.
+- 상태: **CONFIG_READY + 전달 체인 VERIFIED(테스트 webhook)**. 운영 수신처(Slack/Email 실계정)는
+  이 환경에 자격 정보가 없어 **RECEIVER_UNVERIFIED** — 임의 값을 만들지 않았다. 운영 반입 절차:
+  Sealed Secrets 로 `edu-alert-receiver` 봉인 → bootstrap 재실행 → 합성 규칙 1회 발화로 전달 확인.
+
+### 11-3. NAT rate-limit (STEP 2)
+
+적용 지점 분석: ① 엣지 ingress-nginx(`edu-platform-auth` Ingress 주석 — IP 기준 rps/연결) ②
+앱 LoginGuard(계정 5회 실패 잠금 + IP 합산 **실패** 한도, Redis 분산 카운터). 정상(성공) 로그인은
+앱 계층에서 제한되지 않음을 실측으로 확인 — NAT 병목은 엣지가 유일했다.
+
+변경(최소): 엣지 `limit-rps` 5→**20**/IP + `limit-burst-multiplier` **5**(100요청 흡수) +
+`limit-connections` 10→**100**, 앱 `EDU_RATELIMIT_IP_MAX` 30→**200**/10분(실패 기준 — 캠퍼스
+NAT 오타 실패가 30 을 쉽게 넘음. 계정 5회 잠금은 불변, 지속 20실패/분 이상 스터핑은 여전히 차단).
+
+전/후 실측 (staging, 단일 IP, 정상 비밀번호, 60s 정속):
+
+| 시나리오 | Before (rps5) | After (rps20·burst100) |
+|---|---|---|
+| A. 5/s | (한도 내) | 301건 100% 통과 · p95 66ms |
+| A. 10/s | 통과 325(54%) · 차단 275(**46%**) | 600건 **100% 통과** · p95 54ms |
+| A. 30/s | 전일: ~5/s 통과·25/s 차단(83%) | 21.6/s 통과 · 8.3/s 차단(설계 상한) · p95 109ms |
+| A. 50/s | — | 20.3/s 통과(상한 유지) · p95 74ms |
+| B. 30 동시 burst | (burst 25 → 일부 차단) | **30/30 100%** · max 792ms |
+| B. 50 동시 | — | **50/50 100%** · max 1.4s |
+| B. 100 동시 | — | 93/100(93%) · p95 2.67s(bcrypt 대기열) |
+
+리소스(최대 부하 30~50/s 구간): auth CPU ~515m/파드(limit 1000m, 2 replica), 메모리 ~500Mi,
+**Hikari 피크 active 2 / pending 0**(80분 창 전체, 풀 40 — 로그인 트랜잭션 분리 효과),
+auth-db 실커넥션 13/200, **앱 5xx 0**, connection pool 고갈 없음.
+
+C. brute-force 방어 유지(동일 IP): 오답 5회 → 401, 6회째부터 **429**(계정 잠금) → 잠긴 계정은
+**정답도 429**(스터핑으로 비밀번호 확인 불가) → 같은 IP 의 다른 계정 정상 로그인 **200**(정상
+사용자 비영향). 부수 실측: 존재하지 않는 계정 30회 실패 시 IP 합산 차단 발동도 확인(방어 동작 증거).
+
+### 11-4. Production 이미지 (STEP 3)
+
+| Service | Tag | Commit | Digest | Pull | Manifest |
+|---|---|---|---|---|---|
+| backend | git-85dd3d2 | 85dd3d2 | `sha256:5c6db9cf…f142fd7` | **검증**(pull 후 RepoDigest 일치) | 치환 드라이런 통과 |
+| auth-service | git-85dd3d2 | 85dd3d2 | `sha256:6aa89940…f2d2025` | **검증** | 통과 |
+| frontend | git-85dd3d2 | 85dd3d2 | `sha256:c9cb7cd6…ad855c7` | **검증** | 통과 |
+
+- backend-worker 는 backend 와 동일 이미지(검증 동일). `:latest` 사용 없음(치환 결과 전수 확인).
+- **주의: 2차 점검에서 backend 소스 수정(§11-5 삭제 잔존 결함)이 추가돼, 최종 Production 태그는
+  본 점검 수정 커밋의 `git-<sha>` 다**(CI 자동 빌드 — push 직후 상태는 §최종 보고 참조, 미완이면
+  PENDING). 1차 이미지(git-85dd3d2)와 혼동 금지.
+
+### 11-5. Production-like Rehearsal (STEP 4)
+
+**접근 가능한 실서버/production-like 클러스터가 없어 리허설 본편은 UNVERIFIED.**
+아래 런북을 완성했고, staging(kind)에서 실행 가능한 항목은 실측했다.
+
+staging 에서 이번에 실측한 것:
+- **테넌트 배포 E2E**(런북 16): 등록(POST /api/programs, GitHub `test-code`) 201 → 승인 200 →
+  큐 적재 → 워커 claim → **Kaniko 빌드 31~34s** → 레지스트리 push(digest) → Deployment/Service/
+  Ingress/HPA/PDB 생성 → 파드 1/1 → `/svc/workdays/healthz` **200** → HTML 서빙 → 프로그램
+  status **public** 자동 전환. 1차 점검의 "테넌트 E2E 미검증(현 staging)" Medium 리스크 해소.
+- 그 과정에서 결함 1건 발견·수정·재검증: 프로그램 삭제 시 `deployment,service,ingress` 만 지우고
+  템플릿이 만드는 **hpa/pdb 가 잔존** → 삭제 목록에 추가(`DeploymentService.removeFor`).
+  수정 후 E2E 재실행: 리소스 5종 생성 → 삭제(204) → **잔존 0** 확인. gradle build 통과.
+- 부수 관측: E2E 도중 failover 드릴(§1)과 시간이 겹친 워커가 DB 커넥션 오류 후 자동 복구
+  (승격 완료 후 정상 처리) — 워커의 DB 장애 내성 간접 확인.
+
+**리허설 런북** (실서버에서 사람 실행 — 각 단계 검증 통과 전 다음 단계 진행 금지):
+
+| # | 단계 | 실행 | 통과 기준 |
+|---|---|---|---|
+| 1 | 전제 | 워커 3+·HA CP(또는 매니지드)·L4 LB·CSI 스토리지·DNS | `kubectl get nodes` 3+ Ready, StorageClass 존재, LB 외부 IP |
+| 2 | 오퍼레이터 | CNPG·ingress-nginx(WAF values)·cert-manager(ACME)·KEDA helm 설치 | 각 컨트롤러 파드 Ready, ClusterIssuer Ready |
+| 3 | Secrets | Sealed Secrets 컨트롤러 + 봉인본 4종 + `edu-db-backup-creds` + (`edu-alert-receiver`) | `ensure_secrets` 통과, placeholder 0 |
+| 4 | CNPG HA | postgres-ha·auth-db-ha apply(**storageClass 수동 지정**) | 각 3/3 healthy, Pooler Ready |
+| 5 | 백업 | 오브젝트 스토리지 endpointURL 실주소 확인 | `ContinuousArchiving=True`, on-demand Backup completed |
+| 6 | PITR sanity | 본 문서 §1 드릴 절차로 복구 클러스터 1회 생성·검증·삭제 | 복원 데이터 확인(주의: target 은 아카이브 WAL 범위 내) |
+| 7 | Redis | redis.yaml | 파드 Ready, PING(비밀번호) |
+| 8~11 | auth→backend→worker→frontend | IMAGE_TAG=git-<최종sha> 로 apply | 각 rollout 완료, /actuator/health UP |
+| 12 | ingress/TLS | ingress.yaml(DOMAIN 치환) + cert-manager 인증서 | https 200, 인증서 SAN 일치, WAF 403(XSS 페이로드) |
+| 13 | autoscale | autoscale.yaml + KEDA ScaledObject | HPA TARGETS 판독, ScaledObject Ready |
+| 14 | monitoring | kps(bootstrap 플래그) + rules + servicemonitor | 타깃 전부 up, Edu 규칙 로드, **수신처 전달 1회 확인**(§11-2 절차) |
+| 15 | smoke | §9-4 (k6 smoke 4/4 포함) | 전 항목 통과 |
+| 16 | 테넌트 E2E | 등록→승인→빌드→기동→헬스→**삭제 후 잔존 0** | staging 실측과 동일 기준 |
+
+### 11-6. Medium/Low 리스크 재확인 (차단 여부만)
+
+| 리스크 | 상태 | Production 차단? |
+|---|---|---|
+| auth HPA 부재 | 고정 2 replica. 실측: 30/s 부하에 CPU 51%/파드 — 엣지 20rps/IP 가 기관당 유입을 제한 | 아니오(용량 산정 후 후속) |
+| HA storageClass 수동 | 변화 없음 — 런북 4단계에 명문화 | 아니오(절차化됨) |
+| 테넌트 E2E | **해소** — staging 실측(§11-5) + 삭제 잔존 결함 수정 | — |
+| Loki/Tempo | 현 staging 미설치(메트릭·경보는 동작). 런북 14단계 이후 스택 설치 | 아니오 |
+| JWT HS256 회전 | 변화 없음 — 내부 2서비스 한정, 자원서버 추가 전 JWKS 전환 | 아니오 |
+| Redis 단일 | 변화 없음 — 폴백 실증 유지(§11-3 에서도 무영향 확인) | 아니오 |
+
+### 11-7. 최종 판정 — **CONDITIONAL GO (유지, 조건 축소)**
+
+GO 조건 8항 점검: ① 수신처 전달 — 체인 실검증·운영 값만 UNVERIFIED ② NAT burst — **실측 통과**
+③ 이미지 digest — 85dd3d2 검증·최종 커밋 빌드는 CI 상태에 따름 ④ 리허설 — **UNVERIFIED**(환경
+부재) ⑤ Critical/High 미해결 0(코드·설정 차원) ⑥ rollback 경로 유지(불변 태그·undo·PITR — 변경
+없음) ⑦ Secret 노출 없음(본 점검 산출물 전수 확인) ⑧ 데이터 보호 기존 검증 유지(드릴 산출물 정리
+완료, 클러스터 3/3 healthy).
+
+④와 ①의 운영 값이 실측되지 않았으므로 GO 를 선언하지 않는다. **남은 것은 코드/설정 작업이 아니라
+사람이 실서버에서 실행할 2건이다:**
+1. 운영 수신처 Secret(`edu-alert-receiver`) 반입 + 전달 1회 확인(§11-2 절차).
+2. 실서버 리허설 런북(§11-5) 1회 완주 — 특히 6(PITR)·12(TLS/WAF)·14(수신처)·16(E2E).
+
+두 건이 통과되면 별도 코드 변경 없이 GO 로 전환된다.
+
+---
+
 ## 갱신 이력
+- 2026-09-10 — 2차 점검(Condition Closure): 수신 경로 구성·실검증, NAT rate-limit 전/후 실측,
+  이미지 확정, 리허설 런북 + staging 테넌트 E2E 실측(삭제 잔존 결함 수정). 판정 CONDITIONAL GO 유지(조건 2건으로 축소).
 - 2026-09-10 — 최초 작성(Production readiness review 결과). 판정 CONDITIONAL GO.

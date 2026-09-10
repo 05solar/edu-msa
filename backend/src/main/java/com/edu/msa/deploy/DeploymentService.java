@@ -92,8 +92,10 @@ public class DeploymentService {
                     }
                 } else if (props.isReal()) {
                     // 소유자 권한이 이미 바뀌었을 수 있으므로 두 네임스페이스 모두에서 정리한다.
+                    // 템플릿이 만드는 리소스 전부를 지운다 — hpa/pdb 를 빼면 삭제 후에도 잔존한다
+                    // (staging E2E 드릴에서 실측된 누락).
                     for (String ns : List.of(props.namespace(), props.namespacePublic())) {
-                        runner.run(List.of("kubectl", "delete", "deployment,service,ingress", slug,
+                        runner.run(List.of("kubectl", "delete", "deployment,service,ingress,hpa,pdb", slug,
                                 "-n", ns, "--ignore-not-found"), null, 60);
                     }
                 }

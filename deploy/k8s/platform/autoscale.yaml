@@ -23,6 +23,35 @@ spec:
   minAvailable: 1
   selector: { matchLabels: { app: backend } }
 ---
+# auth-service HPA — GO 게이트 부하 실측 근거(2026-09-10):
+# 로그인은 bcrypt CPU 바운드로 replica(1 CPU limit)당 지속 ~16/s 가 상한이었다.
+# 출근 폭주 목표(~55/s)에는 2 replica 로 부족 → CPU 기준 확장(min 2, max 6 ≈ 96/s).
+# 커넥션 예산: max 6 × 풀 40 = 240 클라이언트 ≤ 풀러 max_client_conn 1000,
+# 서버측은 풀러 pool_size(rw 40×2)가 상한이라 transaction 풀링으로 다중화된다.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: auth-service
+  namespace: edu-platform
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: auth-service }
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 70 }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: auth-service
+  namespace: edu-platform
+spec:
+  minAvailable: 1
+  selector: { matchLabels: { app: auth-service } }
+---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:

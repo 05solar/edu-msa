@@ -32,7 +32,10 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
-      timeout: 2s
+      # 로그인 1회가 rate-limit 카운터 연산을 여러 번 수행한다 — Redis 장애 시 이 시간이
+      # 연산 수만큼 곱해진다(staging 장애 드릴 실측: 2s 설정에서 로그인 +10s).
+      timeout: ${REDIS_TIMEOUT:250ms}
+      connect-timeout: ${REDIS_CONNECT_TIMEOUT:500ms}
   lifecycle:
     timeout-per-shutdown-phase: ${EDU_SHUTDOWN_TIMEOUT:20s}
 

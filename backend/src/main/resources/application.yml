@@ -37,7 +37,10 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
-      timeout: 2s                       # 캐시 경로가 오래 매달리지 않게 짧게
+      # Redis 장애 시 요청당 이 시간 × 연산 수만큼 지연이 누적된다 — staging 장애 드릴 실측:
+      # 2s 설정에서 카탈로그 +4s(연산 2회)였다. 정상 연산은 1ms 미만이라 짧게 둬도 안전.
+      timeout: ${REDIS_TIMEOUT:250ms}
+      connect-timeout: ${REDIS_CONNECT_TIMEOUT:500ms}
   lifecycle:
     # graceful shutdown 시 진행 중 요청을 기다리는 최대 시간
     timeout-per-shutdown-phase: ${EDU_SHUTDOWN_TIMEOUT:20s}

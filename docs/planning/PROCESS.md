@@ -15,6 +15,7 @@
 
 ## 진행 이력 (Change Log)
 
+- 2026-09-10 — **readiness 3차(최종 GO 게이트) — CONDITIONAL GO 유지, 잔여는 환경 부재 2건뿐**(PRODUCTION_READINESS.md §12). 실서버·운영 수신처 접근 전수 탐색 후 부재 확정(BLOCKER — 임의 값 미생성). kind 에서 리허설 런북 전 단계 실측 완주: git-5ac5c0e 배포·smoke 10/10·백업 오브젝트 실확인·PITR 41s·failover 9s(RPO 0)·워커 kill 회수·NetPol 7/7·rollback 왕복·E2E 잔존 0·HPA 2→9→2·부하 사다리(서버 5xx 0). 실측 발견·수정 2건: Redis 타임아웃(장애 시 로그인 10s→0.4s), auth 용량 미달(High 재분류)→auth HPA(2–6)+PDB 신설.
 - 2026-09-10 — **readiness 2차(Condition Closure) — CONDITIONAL GO 유지, 잔여 조건 2건으로 축소**(PRODUCTION_READINESS.md §11). 해소: 수신 경로 구성+전달 체인 실검증(운영 수신처 값만 UNVERIFIED), NAT rate-limit 수정+전/후 부하 실측(10/s 46% 차단→100% 통과·방어 유지), git-85dd3d2 이미지 pull/digest 검증, staging 테넌트 배포 E2E 실측(삭제 시 hpa/pdb 잔존 결함 발견·수정·재검증). 실서버 리허설은 환경 부재로 UNVERIFIED — 런북 완성. 잔여(사람 실행): 운영 수신처 Secret 반입+확인, 실서버 리허설 1회 완주.
 - 2026-09-10 — **Production readiness review 수행 — 판정 CONDITIONAL GO**(docs/operations/PRODUCTION_READINESS.md). staging(kind 멀티노드) 실검증: 테스트/빌드/kubeconform 전부 통과, smoke 4/4, CNPG failover 드릴(183s 승격), **PITR 복구 드릴 성공**(시점 정확성 포함), stale replica 재클론, 경보 파이프라인 복구·실검증. 수정 3건: auth 로그인 트랜잭션 분리(bcrypt 커넥션 점유 제거), prometheus-rules 라벨 결함+필수 alert 10종, bootstrap 관측성 플래그(Alertmanager on·CNPG PodMonitor 수집). 배포 전 조건: 실서버 리허설·Alertmanager 수신처·NAT rate-limit 튜닝·수정 커밋 이미지 확정.
 - 2026-09-10 — 문서 정비: 확장성 개조(7단계) 이력·태깅 기준선(v0.8.0)·백로그 현황을 VERSIONS.md 에 반영, SCALABILITY_REVIEW.md 에 조치 완료 현황 표기.

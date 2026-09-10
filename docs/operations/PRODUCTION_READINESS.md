@@ -1,8 +1,9 @@
 # PRODUCTION_READINESS.md · Production 배포 전 최종 점검
 
-> 1차 점검: 2026-09-10 (기준 `d85ce9b` → 수정 커밋 `85dd3d2`) · 2차 점검(Condition Closure): 2026-09-10 (§11)
+> 1차 점검: 2026-09-10 (기준 `d85ce9b` → 수정 `85dd3d2`) · 2차(Condition Closure): §11 · 3차(최종 GO 게이트 리허설): §12
 > 대상: v0.8.0 확장성 개조 완료본 · staging = kind 멀티노드(cp1+worker3, Calico)
-> **판정: CONDITIONAL GO** (§11-7 — 잔여 조건은 사람 실행 2건: 실서버 리허설, 운영 수신처 Secret 반입)
+> **판정: CONDITIONAL GO 유지** (§12-8 — 실서버·운영 수신처가 이 환경에 물리적으로 부재(BLOCKER).
+> kind 에서 실측 가능한 리허설 전 항목은 완주·PASS. 남은 것은 실환경에서의 동일 절차 재실행뿐.)
 > Production 배포는 수행하지 않음(readiness review까지만).
 
 ---
@@ -512,7 +513,128 @@ GO 조건 8항 점검: ① 수신처 전달 — 체인 실검증·운영 값만 
 
 ---
 
+## 12. 3차 점검 — 최종 GO 게이트 리허설 (2026-09-10)
+
+목표: 잔여 조건 2건(운영 수신처 전달, 실서버 리허설)의 해소. **접근 가능 환경 전수 탐색 결과
+실서버·클라우드·운영 수신처가 이 환경에 존재하지 않음을 확정**(kubeconfig 는 `kind-edu` 단일,
+클라우드 CLI·ssh 대상 없음, 수신 endpoint 자격 없음 — 임의 값 미생성). 따라서 두 조건의 "실환경"
+부분은 **BLOCKER/UNVERIFIED** 로 유지하고, §11-5 리허설 런북의 **실행 가능한 전 단계를 kind
+멀티노드 staging 에서 완주**했다. 모든 수치는 실측이다.
+
+### 12-1. 리허설 환경 (실서버 아님 — 명시)
+
+| 항목 | 값 | 실서버 요건 대비 |
+|---|---|---|
+| K8s | v1.37.0, cp 1 + worker 3 (노드당 28c/16Gi — 동일 물리 호스트 공유) | 토폴로지 형태만 일치 |
+| CNI / NetPol | Calico(kube-system) / 강제 확인(12-6) | 일치 |
+| StorageClass | `standard`(local-path) — **분산 스토리지 아님 → 이 항목만으로 Production GO 불가** | 미충족(BLOCKER) |
+| LB / TLS | 없음(호스트 포트 매핑) / 미종단 | 미충족 — 실서버 항목 |
+| 오퍼레이터 | CNPG·KEDA·ingress-nginx·Prometheus·Alertmanager·MinIO 동작 | cert-manager·Sealed Secrets 컨트롤러는 이 staging 미설치 |
+
+### 12-2. 배포 리허설 — `git-5ac5c0e` (GHCR 실이미지)
+
+게이트 순서(Secret→CNPG→Pooler→Redis→auth→backend→worker→frontend→ingress→monitoring) 전부 통과:
+- Secret 5종 존재 확인, CNPG 2 클러스터 3/3, Pooler 8/8, Redis Running.
+- 4개 워크로드를 GHCR `git-5ac5c0e` 로 무중단 롤아웃 — CrashLoop/ImagePull/OOM/readiness 실패 0,
+  Flyway validate 통과(기동 성공). **kubelet imageID digest 가 GHCR digest 와 3종 모두 일치**
+  (인클러스터 pull 경로 실증).
+- smoke 10항목 전부 200(frontend/backend/auth health, login, refresh, list, search, counts, detail,
+  notifications).
+- rate-limit 재검증(최종 이미지): 10/s 정속 **100%**(601/601, p95 58ms), burst 50 동시 **100%**,
+  brute-force 유지(오답 5회→429 잠금·잠긴 계정 정답도 429·타계정 200).
+
+### 12-3. DB HA/DR (§9 런북 실행)
+
+| Test | Result | RTO | RPO | Evidence |
+|---|---|---|---|---|
+| on-demand Backup | PASS | — | — | Backup CR completed + **MinIO 오브젝트 실확인**(base 20260910T075759, WAL .gz) |
+| PITR (T1/T2/T3) | **PASS** | 복구 41s | target 시점까지 0 | A(T1)·B(T2) 복원, target 이후 C(T3) **부재**, Flyway V1·V2 온전, 앱 계정 TCP 접속 OK. 원본 무변경 |
+| Failover (primary 강제 kill) | **PASS** | 승격 **9s** · 앱 정상화 **~23s** · 3/3 재수렴 ~30s | **0** (kill 직전 커밋 마커 보존) | 프로브: 5xx 0, 타임아웃 3건(10초 창), 이후 연속 200 |
+| stale replica 재클론 | PASS (콜드부팅 자연 실험 2회 + 드릴 1회) | 수분 | — | PVC+파드 삭제→오퍼레이터 재클론→3/3 |
+
+### 12-4. 워커·KEDA (파드 kill 포함)
+
+- E2E 진행 중 워커 파드 강제 kill(작업 claim 3초 후) → stale 창(드릴 2분 설정) 경과 시
+  "방치된 RUNNING 1건 회수" → 재클레임(시도 2/2) → **정확히 1회 완료**. K8s 리소스 중복 0.
+  잔존: 중단된 1차 시도의 deployments 기록 행이 BUILDING 으로 남음(최신 행 우선이라 기능 영향
+  없음 — Low, 백로그).
+- 큐 기반 스케일아웃 1→4·소진 후 복귀는 09-09 staging 실측 기록 유지.
+
+### 12-5. 부하 실측 (단일 호스트 kind — 생성기·클러스터 동거 한계 명시)
+
+혼합(mixed) 사다리 — **서버측 진실: 25분 창 전체 앱 5xx = 0**, backend 처리 402,128건 전부 2xx:
+
+| Profile | Actual RPS | p50 | p95 | p99 | k6 Error | 해석 |
+|---|---:|---:|---:|---:|---:|---|
+| rps100 | 110 | 4ms | 15ms | 179ms | 0.17% | 정상 |
+| rps500 | 550 | 3ms | 6ms | 48ms | 2.97% | 오류=단일 IP 엣지 auth 한도(503/401), 서버 아님 |
+| rps1000 | 1,006 | 1ms | 5ms | 7ms | 52.4% | 상동 — **catalog 경로 p95 5ms 유지** |
+| rps2000 | 377(미달) | 1ms | 983ms | 65s | 60.6% | **생성기 포화(동일 호스트) — UNVERIFIED** |
+
+HPA: backend **2→9 스케일아웃**(피크), 부하 해소 후 **2 로 scale-in** 실측. auth CPU 피크 2,003m
+(2 replica limit 포화).
+
+로그인 직접 부하(인클러스터 k6 → auth ClusterIP, 엣지 우회) — 60s 정속:
+
+| RATE | 성공 처리 | ok p50/p95 | 5xx | 해석 |
+|---|---:|---|---:|---|
+| 50/s | **~32/s** | 9.0s / 20.1s | 0 | bcrypt CPU 상한(2×1c 공유 환경) — 대기열 지연 |
+| 100/s | ~22/s | 16.1s / 28.7s | 0 | CPU 포화 유지, 초과분 타임아웃 |
+| 200/s | ~10/s | 16.6s / 27.2s | 0 | 상동 |
+| 400/s | ~11/s | 18.3s / 28.8s | 0 | 상동 |
+
+- **bcrypt 커넥션 점유형 풀 고갈 재발 없음**: 창 전체 Hikari peak active 30/40, pending 피크 59 는
+  12배 과부하에서 CPU 포화에 후행하는 대기이며, 과거 시그니처(CPU 여유 상태에서 풀 전멸·p95 12s)와
+  다름. 트랜잭션 분리 유효 — GO 중단 조건 미해당.
+- **단, 용량 실측이 목표 미달**: replica 당 지속 ~16/s → 출근 피크(~55/s)에 2 replica 부족 →
+  기존 Medium(auth HPA 부재)을 **High 로 재분류 후 즉시 해소** — `autoscale.yaml` 에 auth HPA
+  (min 2 / max 6 ≈ 96/s, CPU 70%) + PDB 추가, staging 적용·메트릭 판독 확인. kubeconform Valid.
+
+### 12-6. 격리·복원력·경보 (실측)
+
+- **NetworkPolicy 7/7**: 차단 — public→플랫폼DB·public→인터넷·public→내부테넌트·내부테넌트→
+  auth DB·내부테넌트→backend 파드 / 허용 — public→DNS·내부테넌트→인터넷. (restricted 준수 프로브 파드)
+- **Redis 장애 드릴에서 결함 발견·수정·재검증**: 기존 command timeout 2s × 요청당 다중 연산으로
+  장애 시 카탈로그 +4s/요청·**로그인 +10s/요청** 실측 → `spring.data.redis` timeout 250ms +
+  connect-timeout 500ms(양 서비스, env 오버라이드) 적용 → 재드릴: 로그인 **0.40s**, 카탈로그
+  0.51s→**0.026s**(fast-fail 정착), 폴백으로 **전체 장애 없음**, rate-limit **fail-open 아님**
+  (429 발동 — 폴백은 파드별 카운터라 임계 도달이 replica 수만큼 지연되는 특성 문서화), 복구 후
+  정상(캐시 재생성·로그인 54ms). gradle build 양 서비스 통과.
+- **read replica**: 부하 중 replica 가 +2,801 tuple 흡수(라우팅 실동작), replication lag **0s**
+  (`pg_stat_replication` replay_lag / cnpg 메트릭).
+- **경보 실전 증거**: 이번 드릴 중 실규칙 3종이 자동 발화→수신 경로로 전달됨 —
+  EduBackendDown(재기동 창), EduPodCrashLooping, **EduRedisFallbackActive(Redis 드릴을 정확히 감지)**.
+  수신처는 여전히 테스트 sink(운영 endpoint 부재) — 체인 검증 완료 / 운영 값 RECEIVER_UNVERIFIED.
+- **rollback 왕복**: auth `git-85dd3d2` ↔ `git-5ac5c0e` — 양 버전 health UP, 무중단 전략 롤아웃,
+  스키마 호환(additive) 확인. (초단위 프로브 파일 유실 — 다운타임 수치 미기록)
+- 테넌트 E2E(최종 이미지): 등록→승인→Kaniko(31s)→기동→healthz 200→public→삭제 **잔존 0**
+  (Deployment/Service/Ingress/HPA/PDB/ConfigMap/Secret 전수 확인).
+
+### 12-7. 이번 점검 수정 사항 (실측 근거 있는 최소 변경 3건)
+
+1. `spring.data.redis` timeout/connect-timeout (backend·auth) — 12-6 결함.
+2. auth-service HPA(2–6) + PDB — 12-5 용량 실측.
+3. (환경) staging 이미지를 GHCR 최종 태그로 수렴 — 12-8 커밋 후 CI 태그 기준.
+
+### 12-8. 최종 판정 — **CONDITIONAL GO 유지**
+
+필수 NO-GO 조건 전수 점검: PITR **성공** · failover **성공** · 데이터 손실 **0** · Secret 노출
+**없음**(값 미출력 확인) · 인증 우회 **없음** · worker 유실/중복 **없음** · NetPol 격리 **성공** ·
+rollback **가능** · 필수 alert 전달 — **체인은 성공, 운영 수신처만 물리 부재**.
+
+GO 로 전환하지 못하는 이유는 코드·설정·절차가 아니라 **환경 부재** 2건뿐이다:
+1. 운영 수신처 endpoint(Slack/메신저) — Secret `edu-alert-receiver` 반입 후 전달 1회 확인(§11-2).
+2. 실서버 클러스터(분산 스토리지·LB·TLS/ACME·다중 IP NAT) — §11-5 런북 완주.
+   본 3차 점검으로 런북 전 단계의 절차·수치 기준선이 확보되었으므로, 실서버에서는 동일 절차의
+   재실행이다.
+
+---
+
 ## 갱신 이력
+- 2026-09-10 — 3차 점검(최종 GO 게이트): 실서버·수신처 부재 확정(BLOCKER), kind 에서 런북 전 단계
+  실측 완주 — git-5ac5c0e 배포 리허설·backup/PITR(41s)/failover(9s, RPO 0)·워커 kill 회수·NetPol 7/7·
+  Redis 장애(타임아웃 결함 수정)·replica·HPA 2→9·로그인 용량 실측(auth HPA 신설)·rollback 왕복·E2E 잔존 0.
+  판정 CONDITIONAL GO 유지(환경 2건).
 - 2026-09-10 — 2차 점검(Condition Closure): 수신 경로 구성·실검증, NAT rate-limit 전/후 실측,
   이미지 확정, 리허설 런북 + staging 테넌트 E2E 실측(삭제 잔존 결함 수정). 판정 CONDITIONAL GO 유지(조건 2건으로 축소).
 - 2026-09-10 — 최초 작성(Production readiness review 결과). 판정 CONDITIONAL GO.

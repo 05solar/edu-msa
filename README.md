@@ -208,6 +208,8 @@ npm run dev                               # http://localhost:5173
 | [VERSIONS.md](docs/planning/VERSIONS.md) | **버전 관리 & 고도화 이력** — 단계별 이력·태깅 규칙·Gitea 계획·백로그·진행 프로세스 |
 | [docs/GITEA_PLAN.md](docs/planning/GITEA_PLAN.md) | 내부 Gitea 구축 상세 계획 — 6단계 작업·기간·검증 시나리오 |
 | [deploy/PRODUCTION.md](deploy/PRODUCTION.md) | 실서버(k3s·Calico·레지스트리·도메인/TLS·CNPG·시크릿·GPU) 상세 가이드 |
+| [PRODUCTION_READINESS.md](docs/operations/PRODUCTION_READINESS.md) | Production 배포 전 점검 결과(1~3차) — 판정·실측 기준선 |
+| [PRODUCTION_INFRA_REQUIREMENTS.md](docs/operations/PRODUCTION_INFRA_REQUIREMENTS.md) | **인프라 담당자 전달용** — 운영 환경 요구사항·준비 체크리스트·재개 게이트 |
 | [docs/VIBE_CODING_GUIDE.md](docs/guides/VIBE_CODING_GUIDE.md) | 바이브 코더가 먼저 읽는 사람용 안내 |
 | [docs/MSA_SERVICE_SPEC.md](docs/architecture/MSA_SERVICE_SPEC.md) | 표준 서비스 규격(기술 계약) |
 | [docs/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) | 전체 아키텍처 설계 |

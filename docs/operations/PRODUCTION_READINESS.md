@@ -610,11 +610,19 @@ HPA: backend **2→9 스케일아웃**(피크), 부하 해소 후 **2 로 scale-
 - 테넌트 E2E(최종 이미지): 등록→승인→Kaniko(31s)→기동→healthz 200→public→삭제 **잔존 0**
   (Deployment/Service/Ingress/HPA/PDB/ConfigMap/Secret 전수 확인).
 
-### 12-7. 이번 점검 수정 사항 (실측 근거 있는 최소 변경 3건)
+### 12-7. 이번 점검 수정 사항 (실측 근거 있는 최소 변경) 및 **최종 Production 이미지**
 
 1. `spring.data.redis` timeout/connect-timeout (backend·auth) — 12-6 결함.
 2. auth-service HPA(2–6) + PDB — 12-5 용량 실측.
-3. (환경) staging 이미지를 GHCR 최종 태그로 수렴 — 12-8 커밋 후 CI 태그 기준.
+
+수정 커밋 `2737bdc` 를 CI 가 빌드 — **최종 Production 태그 `git-2737bdc`**(이전 git-5ac5c0e 대체).
+staging 4개 워크로드를 이 태그로 수렴, kubelet imageID digest 일치 + smoke 4/4 재확인:
+
+| Service | Tag (최종) | Digest | Pull/기동 |
+|---|---|---|---|
+| backend(+worker) | git-2737bdc | `sha256:a13dcb7d…4ebd243` | 검증(digest 일치·무중단 롤아웃) |
+| auth-service | git-2737bdc | `sha256:8e116caf…0cfe0355` | 검증 |
+| frontend | git-2737bdc | `sha256:9e031afd…f8bae1c9` | 검증 |
 
 ### 12-8. 최종 판정 — **CONDITIONAL GO 유지**
 

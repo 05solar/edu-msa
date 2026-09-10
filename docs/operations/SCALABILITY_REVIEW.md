@@ -2,6 +2,11 @@
 
 > 검토일: 2026-09-09 · 대상: `deploy/`(K8s·compose 전체), `backend/`, `auth-service/`, `frontend/`(서빙 구성)
 > 기준: **수십만 명(예: 20만~50만 계정, 피크 동시접속 1만~5만, 피크 수천 RPS)** 을 감당할 수 있는가.
+>
+> **조치 현황 (2026-09-10): §5 권장 조치 0~2단계(1~13) 전부 구현·kind 멀티노드 staging 실검증 완료.**
+> 본문의 지적 사항은 검토 시점 기준 기록으로 보존한다. 조치 이력은
+> [VERSIONS.md §2 7단계](../planning/VERSIONS.md) 및 `deploy/`·`backend/`·`auth-service/` 각 PROCESS.md 참고.
+> 잔여 권장(auth HPA·로그인 트랜잭션 bcrypt 분리 등)은 VERSIONS.md §4 백로그로 이관.
 
 ---
 

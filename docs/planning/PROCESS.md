@@ -15,6 +15,9 @@
 
 ## 진행 이력 (Change Log)
 
+- 2026-09-10 — 문서 정비: 확장성 개조(7단계) 이력·태깅 기준선(v0.8.0)·백로그 현황을 VERSIONS.md 에 반영, SCALABILITY_REVIEW.md 에 조치 완료 현황 표기.
+- 2026-09-09 — staging 실검증: kind 멀티노드(cp1+worker3, Calico)에 전체 스택 실배포 검증, 실행을 막던 배선 결함 4건 수정(ServiceMonitor release 라벨 kps→monitoring, auth Service 라벨/포트명 누락, bootstrap 코어 autoscale.yaml 누락, k6 hosts 오버라이드 부재). HPA 2→10 스케일아웃·KEDA 워커 1→4 스케일아웃 실측.
+- 2026-09-09 — 확장성 개조 13단계 완료(SCALABILITY_REVIEW §5 권장 조치 전체): ①코드 — 배포 트랜잭션 경계 분리, 카탈로그 페이지네이션+N+1 제거+DB 인덱스, 로그인 rate limit+데모 로그인 fail-safe, refresh_tokens 정리 스케줄러+임시파일 정리, Hikari/Tomcat 명시 설정+Flyway+graceful shutdown. ②인프라 — 멀티노드 운영 토폴로지 전환, auth-db CNPG 승격+barman 백업/PITR+PgBouncer Pooler, Redis(캐시·분산 rate-limit), Sealed Secrets+불변 이미지 태그(:latest 제거)+CI release. ③규모 검증 — k6 부하 테스트 체계(20만 계정 시드), 실측 기반 풀 튜닝(auth p95 12s→62ms), read replica 라우팅+정적 자산 캐시/압축, API/배포워커 스케일 축 분리+큐 깊이 기반 KEDA 오토스케일. 상세는 deploy/·backend/·auth-service/·frontend/PROCESS.md 참고.
 - 2026-09-04 — v0.7.0 릴리스(Gitea 1~6단계 main 병합·태깅). 시각 문서 HTML 전량(html/*.html·deploy/infra-overview.html)을 원격 추적에서 제외(로컬 보관) — README·DEPLOY 참조 정리.
 - 2026-09-03 — 대외 검토용 시각 문서 4종을 원격 추적에서 제외(.gitignore 등재, 로컬 보관) — README 문서 지도 링크 정리.
 - 2026-09-03 — 프로그램 삭제 기능: 소유자 본인 삭제 + 관리자 삭제(DELETE /api/programs/{id}, 배포 흔적·의견·알림 동반 정리), 내 프로그램·운영 관리자 화면에 삭제 버튼. 백엔드 컴파일·프론트 빌드·목업 E2E 검증.

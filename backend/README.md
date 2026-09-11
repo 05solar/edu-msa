@@ -72,7 +72,7 @@ com.edu.msa
 | `GET /api/programs`, `/api/programs/{id}`, 의견 등록 등 | 로그인 사용자 |
 | `POST /api/programs` (프로그램 등록), `POST /api/deploy/validate` (레포 규격 정적 검증) | CODER 이상 |
 | `DELETE /api/programs/{id}` (프로그램 삭제 — 소유자 본인, ADMIN은 전체. 배포 컨테이너/K8s 리소스·라우트·의견·알림도 함께 정리) | CODER 이상(소유자 검증) |
-| `/api/programs/all`, `/api/programs/pending`, `/api/programs/*/review`, `/api/review/logs`, `/api/programs/*/deploy`, `/api/deploy`, `/api/users`, `/api/users/*/role` | ADMIN |
+| `/api/programs/all`, `/api/programs/pending`, `/api/programs/*/review`, `/api/review/logs`, `/api/programs/*/deploy`, `/api/users`, `/api/users/*/role` | ADMIN |
 
 계정·권한의 단일 소스는 auth-service다. 회원가입은 항상 최소 권한(USER)으로 만들어지고,
 CODER/ADMIN 상향은 신청→운영 관리자 승인으로만 부여된다(자가 상승 불가). 자세한 흐름은
@@ -98,7 +98,7 @@ CODER/ADMIN 상향은 신청→운영 관리자 승인으로만 부여된다(자
 | GET | `/api/users` | ADMIN | 사용자 목록 |
 | PATCH | `/api/users/{name}/role` | ADMIN | 권한 변경(표시용) |
 | POST | `/api/deploy/validate` | CODER+ | 레포 표준 규격 정적 검증(빌드/배포 없음, 등록자 자가 점검) |
-| POST | `/api/deploy` · `/api/programs/{id}/deploy` | ADMIN | 배포(작업 큐 적재) |
+| POST | `/api/programs/{id}/deploy` | ADMIN | 배포(작업 큐 적재 — 배포는 항상 프로그램 기반) |
 | GET | `/api/programs/{id}/deployment` | 로그인 | 최근 배포 상태 |
 
 ### 배포 파이프라인 (deploy 도메인)
@@ -130,10 +130,13 @@ CODER/ADMIN 상향은 신청→운영 관리자 승인으로만 부여된다(자
 ```bash
 # 저장소 루트에서 (Windows PowerShell: $env:EDU_DEPLOY_MODE="docker")
 cd deploy && EDU_DEPLOY_MODE=docker docker compose up --build -d
-# 로그인 토큰으로 ADMIN 배포 호출
-curl -X POST localhost:8088/api/deploy -H 'Content-Type: application/json' \
+# 배포는 항상 프로그램 기반이다(P2-3 — ad-hoc /api/deploy 제거): 등록 → 해당 id 로 배포
+PID=$(curl -s -X POST localhost:8088/api/programs -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer <ADMIN JWT>' \
-  -d '{"repoUrl":"local://examples/data-summarizer"}'
+  -d '{"name":"데이터 요약기","summary":"예제","cat":"data","repo":"local://examples/data-summarizer"}' | jq .id)
+curl -X POST localhost:8088/api/programs/$PID/deploy -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer <ADMIN JWT>' \
+  -d "{\"programId\":$PID,\"repoUrl\":\"local://examples/data-summarizer\"}"
 # 배포 완료 후 http://data-summarizer.localhost 로 접속 → 실제 배포된 컨테이너
 ```
 compose는 호스트 `docker.sock`과 `examples/`를 백엔드에 마운트한다. 매니페스트 템플릿은

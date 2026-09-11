@@ -15,6 +15,8 @@
 
 ## 진행 이력 (Change Log)
 
+- 2026-09-11 — **P2-3 ad-hoc 배포 경로 제거(CLOSED)**: 실호출자 없는 POST /api/deploy(프로그램 없는 배포)를 제거하고 enqueue 에 programId 불변식 가드 추가 — 모든 배포가 프로그램 lifecycle(P0-2 동시성·P1-5 소유권/정리)을 타도록 일원화. legacy null 데이터는 이력 행뿐(active 0)이라 정리 불요. staging 검증(제거·validate 유지·E2E+redeploy·신규 invariant 0). 상세 backend/PROCESS.md.
+
 - 2026-09-11 — **P2-2 service.yaml 리소스 검증-실제 limit 정합(CLOSED)**: 검증 상한을 고정값이 아닌 렌더 limits 와 동일한 플랫폼 설정(단일 출처)으로 전환 — request>limit 스펙이 kubectl 단계 대신 검증 단계에서 명확한 메시지로 조기 차단(빌드 자원 낭비 제거). quantity 등가 비교·env override 동시 반영·기동 시 설정 오류 fail-fast/WARN. staging 재현→차단 실측·E2E 완주. 상세 backend/PROCESS.md.
 
 - 2026-09-11 — **P2-1 알림 페이지네이션·보존 정책(CLOSED)**: 목록 전건 로드 제거(서버 페이지 20/최대 100·created_at+id 결정적 최신순·V5), 읽은 알림 90일 보존 후 배치 삭제 스케줄러(미읽음 자동 삭제 없음), 실 PG 101k EXPLAIN(BitmapOr·0.6ms) 검증, 프론트 더보기+서버 unread 배지(역할 공지 표시 회귀 수정). uid 소유권·IDOR 차단 불변. 상세 backend/PROCESS.md.

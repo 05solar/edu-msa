@@ -56,12 +56,15 @@ public class DeployJobService {
      */
     @Transactional
     public DeployJobResponse enqueue(Long programId, String repoUrl, String branch, String actor) {
-        if (programId != null) {
-            var existing = repo.findFirstByProgramIdAndStatusInOrderByIdDesc(programId, ACTIVE);
-            if (existing.isPresent()) {
-                duplicateSuppressed.increment();
-                return toResponse(existing.get());
-            }
+        if (programId == null) {
+            // [P2-3 불변식] 모든 배포는 프로그램에 소속된다 — slug 소유권(P0-2)·K8s
+            // ownership/cleanup(P1-5)·중복 방지(partial unique)가 전부 프로그램 단위다.
+            throw new IllegalArgumentException("프로그램 없는 배포는 지원하지 않습니다. 프로그램을 등록한 뒤 배포하세요.");
+        }
+        var existing = repo.findFirstByProgramIdAndStatusInOrderByIdDesc(programId, ACTIVE);
+        if (existing.isPresent()) {
+            duplicateSuppressed.increment();
+            return toResponse(existing.get());
         }
         return toResponse(repo.save(new DeployJob(programId, repoUrl, branch, actor)));
     }

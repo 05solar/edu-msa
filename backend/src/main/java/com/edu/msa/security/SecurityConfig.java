@@ -60,7 +60,6 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/users").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/users/*/role").hasRole("ADMIN")
                         // 실제 배포는 운영 관리자만.
-                        .requestMatchers(HttpMethod.POST, "/api/deploy").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/programs/*/deploy").hasRole("ADMIN")
                         // 재배포는 소유자 본인용 — 소유자 일치 검증은 ProgramService 가 수행한다.
                         .requestMatchers(HttpMethod.POST, "/api/programs/*/redeploy").hasAnyRole("CODER", "ADMIN")

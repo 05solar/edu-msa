@@ -51,7 +51,7 @@ class DeployWorkerResilienceTest {
     @Test
     @Transactional
     void 실패한_작업은_지수_백오프와_함께_재큐잉되고_백오프_중에는_claim_되지_않는다() {
-        Long id = jobs.enqueue(null, "sample://retry-case", "main", "t").id();
+        Long id = jobs.enqueue(7101L, "sample://retry-case", "main", "t").id();
 
         DeployJob claimed = jobs.claimNext();
         assertNotNull(claimed);
@@ -81,7 +81,7 @@ class DeployWorkerResilienceTest {
     @Test
     @Transactional
     void 워커_강제종료로_방치된_RUNNING_작업은_회수되어_유실되지_않는다() {
-        Long id = jobs.enqueue(null, "sample://crash-case", "main", "t").id();
+        Long id = jobs.enqueue(7102L, "sample://crash-case", "main", "t").id();
         assertNotNull(jobs.claimNext());   // RUNNING 전이 = 워커가 잡은 상태
 
         // 워커 프로세스가 죽어 complete() 가 영원히 호출되지 않은 상황 모사(갱신 시각을 과거로)
@@ -102,9 +102,9 @@ class DeployWorkerResilienceTest {
     @Transactional
     void tick_한_번에_큐가_빌_때까지_연속_처리한다() {
         when(deployments.deploy(any())).thenReturn(response(DeploymentStatus.RUNNING));
-        jobs.enqueue(null, "sample://drain-1", "main", "t");
-        jobs.enqueue(null, "sample://drain-2", "main", "t");
-        jobs.enqueue(null, "sample://drain-3", "main", "t");
+        jobs.enqueue(7103L, "sample://drain-1", "main", "t");
+        jobs.enqueue(7104L, "sample://drain-2", "main", "t");
+        jobs.enqueue(7105L, "sample://drain-3", "main", "t");
 
         worker.tick();
 

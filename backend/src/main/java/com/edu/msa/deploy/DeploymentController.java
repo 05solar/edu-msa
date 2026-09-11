@@ -43,14 +43,11 @@ public class DeploymentController {
         return service.validate(req);
     }
 
-    /** 임의 레포 배포 — 작업 큐에 적재하고 즉시 반환(워커가 비동기 처리). */
-    @PostMapping("/deploy")
-    @ResponseStatus(HttpStatus.ACCEPTED)
-    public DeployJobResponse deploy(@Valid @RequestBody DeployRequest req) {
-        return jobService.enqueue(req.programId(), req.repoUrl(), req.branch(), req.actor());
-    }
+    // [P2-3] 프로그램 없는 ad-hoc 배포(POST /api/deploy)는 제거됐다 — 모든 배포는
+    // 프로그램 lifecycle(등록→승인→배포→삭제)을 탄다. slug 소유권·중복 방지·
+    // K8s ownership/cleanup 이 전부 프로그램 단위이기 때문이다(P0-2/P1-5).
 
-    /** 특정 프로그램 배포 — 작업 큐에 적재. */
+    /** 특정 프로그램 배포 — 작업 큐에 적재(대상 프로그램은 경로 id 가 결정한다). */
     @PostMapping("/programs/{id}/deploy")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public DeployJobResponse deployProgram(@PathVariable Long id, @Valid @RequestBody DeployRequest req) {

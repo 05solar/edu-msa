@@ -30,13 +30,21 @@ export function setup() {
       JSON.stringify({ username: __ENV.ADMIN_USER, password: __ENV.ADMIN_PASS }),
       { headers: { 'Content-Type': 'application/json' } });
   if (res.status !== 200) throw new Error(`관리자 로그인 실패(${res.status}) — ADMIN_USER/ADMIN_PASS 확인`);
-  return { token: res.json().accessToken };
+  const token = res.json().accessToken;
+  // P2-3: ad-hoc(/api/deploy) 제거 — 배포는 항상 프로그램 기반이므로 측정용 프로그램을 만든다.
+  const prog = http.post(`${BASE_URL}/api/programs`,
+      JSON.stringify({ name: 'loadtest-deploy-flow', summary: 'k6', cat: 'etc',
+        repo: 'sample://test-code', branch: 'main' }),
+      { headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } });
+  if (prog.status !== 201) throw new Error(`측정용 프로그램 생성 실패(${prog.status})`);
+  return { token, programId: prog.json().id };
 }
 
 export function requestDeploy(data) {
-  // 큐 적재(202) — 워커 처리량은 /api/deploy/jobs 로 병행 관측한다
-  const res = http.post(`${BASE_URL}/api/deploy`,
-      JSON.stringify({ repoUrl: 'sample://test-code', branch: 'main', actor: 'loadtest' }),
+  // 큐 적재(202) — 워커 처리량은 /api/deploy/jobs 로 병행 관측한다.
+  // 같은 프로그램의 active 작업이 있으면 기존 작업 반환(멱등 — 역시 202).
+  const res = http.post(`${BASE_URL}/api/programs/${data.programId}/deploy`,
+      JSON.stringify({ programId: data.programId, repoUrl: 'sample://test-code', branch: 'main', actor: 'loadtest' }),
       { headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.token}` },
         tags: { name: 'deploy_enqueue' } });
   check(res, { 'deploy 202': (r) => r.status === 202 });

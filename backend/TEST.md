@@ -10,6 +10,11 @@
   N+1 제거(Hibernate statistics 로 페이지당 쿼리 수 고정 계측), 알림 미읽음 DB COUNT 검증.
 - `DeploymentCleanupTest` — 배포 성공/실패/validate 모두 임시 clone 디렉터리가 finally 로
   정리되고, local:// 예제 경로(비-ephemeral)는 삭제되지 않는지 검증.
+- `CommandRunnerTest` — P1-4 외부 명령 타임아웃 견고성(플레인 JUnit·Linux 컨테이너):
+  무출력/부분출력 hung 프로세스가 지정 timeout(1s)에 종료·출력 확보, 자식 프로세스
+  트리 정리(/proc 상태로 좀비 구분), 손자의 파이프 보유에도 결과 반환 지연 없음(부분
+  수집 표시), 8MB 출력 flood 절단+truncated 표시, stdout/stderr 병합 무교착, 인터럽트
+  즉시 반환+플래그 복원, timeout 후 연속 실행, 실 git clone(환경 부재 시 스킵).
 - `ServiceSpecSecurityTest` — P1-2 비신뢰 service.yaml 안전성: raw 치환 주입 재현(렌더러
   단독으론 annotation 주입 성립 → 검증이 거부해야 함을 계약으로 고정), 전역 !!태그·alias
   폭탄·과중첩·중복 키·멀티 문서·정의 외 필드 거부, name/health/cpu/memory 주입 문자 거부·

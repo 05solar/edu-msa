@@ -6,7 +6,7 @@ import com.edu.msa.common.Role;
 import com.edu.msa.notification.domain.Notification;
 import com.edu.msa.notification.dto.NotificationResponse;
 import com.edu.msa.notification.repository.NotificationRepository;
-import java.util.List;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,9 +36,16 @@ public class NotificationService {
         repo.save(Notification.toRole(role, toUserDisplay, kind, title, sub, pid));
     }
 
+    /**
+     * 최신순 페이지 조회(P2-1) — 기본 20건·최대 100건(카탈로그 페이지네이션과 동일 관례).
+     * 필터·정렬·LIMIT 은 전부 DB 가 수행한다.
+     */
     @Transactional(readOnly = true)
-    public List<NotificationResponse> listFor(Long uid, Role role) {
-        return repo.findForRecipient(uid, role).stream().map(this::toResponse).toList();
+    public com.edu.msa.common.PageResponse<NotificationResponse> listFor(Long uid, Role role, int page, int size) {
+        var pageable = org.springframework.data.domain.PageRequest.of(
+                Math.max(page, 0), Math.min(Math.max(size, 1), 100));
+        return com.edu.msa.common.PageResponse.of(
+                repo.findForRecipient(uid, role, pageable).map(this::toResponse));
     }
 
     @Transactional(readOnly = true)

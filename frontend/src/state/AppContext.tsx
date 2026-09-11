@@ -96,6 +96,9 @@ interface AppContextValue {
   notis: Notification[]
   myNotis: Notification[]
   unreadCount: number
+  /** P2-1 서버 페이지네이션 — 더 가져올 페이지가 있는지 / 다음 페이지 로드. */
+  notiHasMore: boolean
+  loadMoreNotis: () => void
   readNoti: (id: number) => void
   readAllNotis: () => void
 
@@ -174,6 +177,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const [programs, setPrograms] = useState<Program[]>(() => USE_API ? [] : PROGRAMS.map((p) => ({ ...p })))
   const [notis, setNotis] = useState<Notification[]>(() => USE_API ? [] : NOTIS_SEED.map((n) => ({ ...n })))
+  const [notiPage, setNotiPage] = useState(0)
+  const [notiTotalPages, setNotiTotalPages] = useState(1)
+  const [serverUnread, setServerUnread] = useState(0)
   const [adminLog, setAdminLog] = useState<AdminLogEntry[]>(() => ADMIN_LOG_SEED.map((a) => ({ ...a })))
   const [users, setUsers] = useState<AppUser[]>(() => USE_API ? [] : USERS_SEED.map((u) => ({ ...u })))
   const [favByRole, setFavByRole] = useState<Record<Role, number[]>>(FAVORITES_SEED)
@@ -367,9 +373,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try { setAdminLog(await api.reviewLogs()) } catch { /* noop */ }
   }, [])
   const refreshNotisFor = useCallback(async (_name: string) => {
-    // 서버가 JWT 로 현재 사용자를 판단하므로 이름을 보내지 않는다(권한 전환 시 토큰이 바뀌어 있음)
-    try { setNotis(await api.notifications()) } catch { /* noop */ }
+    // 서버가 JWT 로 현재 사용자를 판단한다(권한 전환 시 토큰이 바뀌어 있음).
+    // P2-1: 첫 페이지만 로드(전건 로드 금지) — 이전 사용자 목록은 교체로 제거된다.
+    try {
+      const pageRes = await api.notifications(0)
+      setNotis(pageRes.items)
+      setNotiPage(0)
+      setNotiTotalPages(pageRes.totalPages)
+      const c = await api.notiUnreadCount()
+      setServerUnread(c.count)
+    } catch { /* noop */ }
   }, [])
+
+  const notiHasMore = USE_API && notiPage + 1 < notiTotalPages
+  const loadMoreNotis = useCallback(async () => {
+    if (!USE_API) return
+    const next = notiPage + 1
+    try {
+      const pageRes = await api.notifications(next)
+      // id 기준 중복 방지(더보기 사이에 새 알림이 끼어도 같은 항목을 두 번 붙이지 않는다)
+      setNotis((prev) => {
+        const seen = new Set(prev.map((n) => n.id))
+        return [...prev, ...pageRes.items.filter((n) => !seen.has(n.id))]
+      })
+      setNotiPage(next)
+      setNotiTotalPages(pageRes.totalPages)
+    } catch { /* noop */ }
+  }, [notiPage])
   const mergeProgram = useCallback((p: Program) => {
     setPrograms((prev) => prev.some((x) => x.id === p.id) ? prev.map((x) => x.id === p.id ? p : x) : [p, ...prev])
   }, [])
@@ -429,14 +459,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [favorites, programs],
   )
 
-  const myNotis = useMemo(() => notis.filter((n) => n.to === me.name), [notis, me.name])
-  const unreadCount = useMemo(() => myNotis.filter((n) => !n.read).length, [myNotis])
+  // API 모드: 서버가 uid|역할 공지로 이미 필터해 반환한다(P1-5) — 클라이언트 이름 필터 금지
+  // (역할 공지는 to 표시가 "운영 관리자"라 이름 필터에 걸러지는 회귀가 있었다).
+  const myNotis = useMemo(() => (USE_API ? notis : notis.filter((n) => n.to === me.name)), [notis, me.name])
+  // 배지: API 모드는 서버 COUNT(첫 페이지만 로드하므로 로컬 계산 불가), 목업은 로컬 계산
+  const unreadCount = USE_API ? serverUnread : myNotis.filter((n) => !n.read).length
   const readNoti = useCallback((id: number) => {
-    setNotis((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
+    setNotis((prev) => {
+      const target = prev.find((n) => n.id === id)
+      if (target && !target.read) setServerUnread((c) => Math.max(0, c - 1))
+      return prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+    })
     if (USE_API) api.readNoti(id).catch(() => { /* noop */ })
   }, [])
   const readAllNotis = useCallback(() => {
-    setNotis((prev) => prev.map((n) => (n.to === me.name ? { ...n, read: true } : n)))
+    setNotis((prev) => prev.map((n) => (USE_API || n.to === me.name ? { ...n, read: true } : n)))
+    setServerUnread(0)
     if (USE_API) api.readAllNotis().catch(() => { /* noop */ })
     toast('모든 알림을 읽음 처리했습니다.', 'info')
   }, [me.name, toast])
@@ -592,7 +630,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     programs, progOf, publicPrograms, myPrograms, canSee,
     filters, setFilters, resetFilters,
     favorites, isFav, toggleFav, favPrograms,
-    notis, myNotis, unreadCount, readNoti, readAllNotis,
+    notis, myNotis, unreadCount, notiHasMore, loadMoreNotis, readNoti, readAllNotis,
     adminLog, users, pendingPrograms, reviewProgram, setUserRole,
     addProgram, redeployProgram, deleteProgram, addComment, loadDetail,
     toasts, toast, dismissToast,

@@ -2,7 +2,7 @@ package com.edu.msa.notification;
 
 import com.edu.msa.notification.dto.NotificationResponse;
 import com.edu.msa.security.AuthPrincipal;
-import java.util.List;
+
 import java.util.Map;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,9 +26,13 @@ public class NotificationController {
         this.service = service;
     }
 
+    /** 최신순 페이지 응답(P2-1) — 기본 20건, size 상한 100(카탈로그와 동일 관례). */
     @GetMapping
-    public List<NotificationResponse> list(@AuthenticationPrincipal AuthPrincipal who) {
-        return service.listFor(who.id(), who.role());
+    public com.edu.msa.common.PageResponse<NotificationResponse> list(
+            @AuthenticationPrincipal AuthPrincipal who,
+            @org.springframework.web.bind.annotation.RequestParam(required = false, defaultValue = "0") int page,
+            @org.springframework.web.bind.annotation.RequestParam(required = false, defaultValue = "20") int size) {
+        return service.listFor(who.id(), who.role(), page, size);
     }
 
     @GetMapping("/unread-count")

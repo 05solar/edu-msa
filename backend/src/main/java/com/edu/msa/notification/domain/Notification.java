@@ -17,6 +17,9 @@ import jakarta.persistence.Table;
         // 사용자별 목록 조회·미읽음 카운트가 인덱스를 타게 한다.
         @Index(name = "idx_notifications_to_read", columnList = "to_user, is_read"),
         @Index(name = "idx_notifications_recipient_read", columnList = "recipient_id, is_read"),
+        // 최신순 페이지 조회용 — OR 조건이라 PostgreSQL 이 두 축을 BitmapOr 로 합친다(P2-1)
+        @Index(name = "idx_notifications_recipient_created", columnList = "recipient_id, created_at"),
+        @Index(name = "idx_notifications_role_created", columnList = "recipient_role, created_at"),
 })
 public class Notification {
     @Id
@@ -42,6 +45,9 @@ public class Notification {
     private Long programId;
     @Column(name = "is_read")
     private boolean read;
+    /** 최신순 정렬·보존 정책(읽은 알림 retention) 기준(P2-1). */
+    @Column(name = "created_at", nullable = false)
+    private java.time.Instant createdAt = java.time.Instant.now();
 
     protected Notification() {}
 
@@ -80,4 +86,5 @@ public class Notification {
     public Long getProgramId() { return programId; }
     public boolean isRead() { return read; }
     public void setRead(boolean read) { this.read = read; }
+    public java.time.Instant getCreatedAt() { return createdAt; }
 }

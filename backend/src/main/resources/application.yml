@@ -77,6 +77,12 @@ management:
 
 edu:
   seed: ${EDU_SEED:true}    # 최초 실행 시 목업 데이터 시드 여부
+  notification:
+    # 보존 정책(P2-1): "읽은" 알림만 retention 경과 후 배치 삭제(미읽음은 자동 삭제 없음)
+    retention-days: ${EDU_NOTI_RETENTION_DAYS:90}
+    cleanup-enabled: ${EDU_NOTI_CLEANUP_ENABLED:true}
+    cleanup-batch-size: ${EDU_NOTI_CLEANUP_BATCH:500}
+    cleanup-interval-ms: ${EDU_NOTI_CLEANUP_INTERVAL_MS:3600000}
   datasource:
     # read replica 라우팅(선택) — 설정 시 replica 마킹된 readOnly 조회(카탈로그 목록/집계)가
     # 이 URL(K8s: edu-db-pooler-ro)로 간다. 미설정이면 라우팅 자체가 꺼진다(단일 datasource).

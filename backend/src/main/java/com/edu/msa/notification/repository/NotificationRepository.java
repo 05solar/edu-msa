@@ -14,9 +14,29 @@ import org.springframework.data.repository.query.Param;
  */
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
-    @Query("select n from Notification n where n.recipientId = :uid "
-            + "or (n.recipientRole is not null and n.recipientRole = :role) order by n.id desc")
-    List<Notification> findForRecipient(@Param("uid") Long uid, @Param("role") Role role);
+    /**
+     * 최신순 페이지 조회(P2-1) — 필터·정렬·LIMIT 전부 DB 에서 수행한다(전건 로드 금지).
+     * 정렬은 created_at DESC + id DESC(동일 시각 tie-breaker — 페이지 사이 중복/누락 방지).
+     */
+    @Query(value = "select n from Notification n where n.recipientId = :uid "
+            + "or (n.recipientRole is not null and n.recipientRole = :role) "
+            + "order by n.createdAt desc, n.id desc",
+            countQuery = "select count(n) from Notification n where n.recipientId = :uid "
+                    + "or (n.recipientRole is not null and n.recipientRole = :role)")
+    org.springframework.data.domain.Page<Notification> findForRecipient(
+            @Param("uid") Long uid, @Param("role") Role role,
+            org.springframework.data.domain.Pageable pageable);
+
+    /**
+     * 보존 정책(P2-1) — "읽은" 알림만 retention 경과 후 배치 삭제한다(미읽음은 절대 자동
+     * 삭제하지 않는다). LIMIT 서브쿼리로 한 번에 지우는 양을 제한해 긴 잠금이 없고,
+     * 삭제는 멱등이라 여러 replica 가 동시에 돌아도 충돌하지 않는다(auth cleaner 패턴).
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query(value = "DELETE FROM notifications WHERE id IN "
+            + "(SELECT id FROM notifications WHERE is_read = true AND created_at < :cutoff LIMIT :batch)",
+            nativeQuery = true)
+    int deleteOldReadBatch(@Param("cutoff") java.time.Instant cutoff, @Param("batch") int batch);
 
     void deleteByProgramId(Long programId);
 

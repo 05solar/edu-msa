@@ -27,7 +27,7 @@ function bumpPatch(ver: string): string {
 const DEPLOYING = ['pending', 'validating', 'building', 'deploying']
 
 export function My() {
-  const { role, myPrograms, favPrograms, myNotis, unreadCount, readNoti, readAllNotis, go, myTab, setMyTab,
+  const { role, myPrograms, favPrograms, myNotis, unreadCount, notiHasMore, loadMoreNotis, readNoti, readAllNotis, go, myTab, setMyTab,
     account, demoMode, requestRoleUpgrade, cancelRoleUpgrade, redeployProgram, deleteProgram } = useApp()
   const canRegister = role === 'coder' || role === 'admin'
   const tab: Tab = (!canRegister && myTab === 'mine') ? 'fav' : myTab
@@ -288,6 +288,11 @@ export function My() {
               <span className="nr-k"><Icon name={NOTI_ICON[n.kind]} size={15} /></span>
             </div>
           ))}
+          {notiHasMore && (
+            <button className="btn ghost" style={{ margin: '10px auto', display: 'block' }} onClick={loadMoreNotis}>
+              더보기
+            </button>
+          )}
         </div>
       )}
     </div>

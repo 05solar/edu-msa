@@ -9,6 +9,8 @@
 
 ## 진행 이력 (Change Log)
 
+- 2026-09-11 — P2-1 알림 페이지네이션: api.notifications(page,size) 페이지 응답 + notiUnreadCount 신설, AppContext 가 첫 페이지(20건)만 로드하고 "더보기"(loadMoreNotis — id 기준 중복 방지 append)로 추가 로드, unread 배지는 서버 COUNT(read/read-all 시 로컬 감소·0), 사용자/권한 전환 시 page 0 부터 교체 로드. API 모드의 클라이언트 이름 필터 제거 — 역할 공지(to="운영 관리자")가 걸러지던 회귀 수정(서버가 uid|role 로 이미 필터). My 알림 탭에 더보기 버튼. tsc+vite build 통과, staging 스모크 확인.
+
 - 2026-09-11 — P1-5 identity 반영: 프로그램 등록 시 owner 전송 제거(서버가 JWT 로 결정 — 보내도 무시됨), Program 타입에 ownerId 추가, "내 프로그램" 필터를 ownerId===account.id 우선(legacy·목업은 이름 폴백)으로 전환. tsc+vite build 통과, staging API 회귀 확인.
 
 - 2026-09-11 — P1-1(알림 IDOR) API 계약 반영: `api.notifications()`·`api.readAllNotis()` 에서 `?to=` 사용자 식별자 전달 제거 — 서버가 JWT 로 현재 사용자를 판단한다(경로 불변). AppContext 의 두 호출부만 수정, 기능(목록·unread 배지·단일/전체 읽음·권한 전환 시 재조회) 불변. 검증: tsc + vite build 통과, staging API 로 본인 조회·읽음 정상 확인.

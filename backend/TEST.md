@@ -10,6 +10,10 @@
   N+1 제거(Hibernate statistics 로 페이지당 쿼리 수 고정 계측), 알림 미읽음 DB COUNT 검증.
 - `DeploymentCleanupTest` — 배포 성공/실패/validate 모두 임시 clone 디렉터리가 finally 로
   정리되고, local:// 예제 경로(비-ephemeral)는 삭제되지 않는지 검증.
+- `NotificationPaginationTest` — P2-1 알림 페이지네이션·보존: 기본 20건 최신순(전건 미반환),
+  동일 시각 tie 포함 페이지 간 중복/누락 없음, size 1~100 강제·음수 방어, 역할 공지는 역할
+  수신자 페이지에 개인 알림과 병합, 타인은 파라미터 조작으로도 0건(IDOR), 보존 정책
+  (오래된 읽음만 삭제·미읽음/최근 읽음 보존·사용자 무관), 정리 실패 시 스케줄러 생존.
 - `OwnershipIdentityTest` — P1-5 소유권 UID 판정: 클라이언트 owner/ownerId 위조 무시,
   동명이인(이름 동일·uid 상이) 삭제/재배포 403, 개명(같은 uid·새 이름) 후 소유권 유지,
   legacy(owner_id null)는 이름 일치로도 불가(ADMIN remediation 만), 응답 ownerId+표시 owner.

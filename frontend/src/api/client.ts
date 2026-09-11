@@ -129,7 +129,10 @@ export const api = {
     req<Comment>(`/programs/${id}/comments`, { method: 'POST', body: JSON.stringify(body) }),
 
   // 대상 사용자는 서버가 JWT 로 판단한다 — 사용자 식별자를 보내지 않는다(P1-1 IDOR 수정).
-  notifications: () => req<Notification[]>('/notifications'),
+  // P2-1: 서버 페이지네이션(최신순·기본 20건) — 전건 로드하지 않는다.
+  notifications: (page = 0, size = 20) =>
+    req<PageDto<Notification>>(`/notifications?page=${page}&size=${size}`),
+  notiUnreadCount: () => req<{ count: number }>('/notifications/unread-count'),
   readNoti: (id: number) => req<void>(`/notifications/${id}/read`, { method: 'POST' }),
   readAllNotis: () => req<void>('/notifications/read-all', { method: 'POST' }),
 

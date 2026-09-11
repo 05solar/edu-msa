@@ -72,8 +72,8 @@ class NotificationOwnershipTest {
         mvc.perform(get("/api/notifications")
                         .header("Authorization", "Bearer " + token(UID_A, SAME_NAME, "USER")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].title").value("A 알림"));
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].title").value("A 알림"));
     }
 
     @Test
@@ -121,11 +121,11 @@ class NotificationOwnershipTest {
         mvc.perform(get("/api/notifications")
                         .header("Authorization", "Bearer " + token(7777L, "관리자", "ADMIN")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.title=='등록 요청 공지')]").exists());
+                .andExpect(jsonPath("$.items[?(@.title=='등록 요청 공지')]").exists());
         mvc.perform(get("/api/notifications")
                         .header("Authorization", "Bearer " + token(UID_A, SAME_NAME, "USER")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1));   // 자기 알림뿐, 관리자 공지 미포함
+                .andExpect(jsonPath("$.items.length()").value(1));   // 자기 알림뿐, 관리자 공지 미포함
     }
 
     @Test
@@ -134,8 +134,8 @@ class NotificationOwnershipTest {
         mvc.perform(get("/api/notifications")
                         .header("Authorization", "Bearer " + token(UID_A, "개명한이름", "USER")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].title").value("A 알림"));
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].title").value("A 알림"));
     }
 
     @Test

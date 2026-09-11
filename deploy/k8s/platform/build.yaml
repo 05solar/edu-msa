@@ -1,0 +1,136 @@
+# 빌드 전용 격리 네임스페이스(edu-build) — Kaniko 인클러스터 빌드가 여기서만 실행된다.
+#
+# 배경(P0-1): 사용자 제공 Dockerfile 의 RUN 은 임의 코드다. 종전에는 빌드 Job 이
+# 플랫폼 네임스페이스(edu-platform — PSA·NetworkPolicy 없음)에서 기본 SA 토큰을 문 채
+# 무제한 리소스로 돌았다. 이 파일이 그 실행 환경을 격리한다:
+#   · 다른 플랫폼 서비스/Secret 없음(레지스트리 push 자격만 이 ns 에 둔다)
+#   · PodSecurity baseline 강제 — privileged/hostPath/hostNetwork 차단
+#     (restricted 불가 사유: Kaniko executor 는 루트로 레이어를 추출·RUN 을 실행해야 한다.
+#      runAsNonRoot 를 요구하는 restricted 에서는 빌드 자체가 불가능 — 대신 Job 템플릿의
+#      명시적 securityContext(caps drop·no-priv-esc·seccomp)로 보강한다.)
+#   · default-deny NetworkPolicy — DNS·공인 인터넷(레포 clone)·레지스트리·Gitea 만 egress 허용,
+#     사설망(클러스터 서비스·K8s API·메타데이터)은 차단
+#   · ResourceQuota/LimitRange — 악성 빌드의 CPU/메모리/디스크 남용 상한
+#   · 전용 SA(edu-kaniko, 토큰 미마운트) — 빌드는 K8s API 가 전혀 필요 없다
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: edu-build
+  labels:
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+# Kaniko 전용 SA — 권한 바인딩 없음 + 토큰 자동 마운트 금지(SA 수준 기본값).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: edu-kaniko
+  namespace: edu-build
+automountServiceAccountToken: false
+---
+# ※ default SA 도 토큰 미마운트로 잠근다(심층 방어) — SA 컨트롤러와의 생성 경합 때문에
+#   매니페스트가 아니라 bootstrap 이 apply 직후 patch 한다. 수동 적용 시:
+#   kubectl -n edu-build patch serviceaccount default -p '{"automountServiceAccountToken":false}'
+---
+# 동시 빌드는 워커 수(KEDA max 5)에 비례 — Job 당 limit(1cpu/2Gi)의 5~6개 분량으로 상한.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: edu-build-quota
+  namespace: edu-build
+spec:
+  hard:
+    pods: "12"
+    requests.cpu: "3"
+    requests.memory: 4Gi
+    limits.cpu: "6"
+    limits.memory: 12Gi
+    requests.ephemeral-storage: 12Gi
+    limits.ephemeral-storage: 48Gi
+---
+# limit 미지정 파드가 들어와도(예: edu-deployer 로 생성되는 임의 Job) 기본 상한을 강제한다.
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: edu-build-limits
+  namespace: edu-build
+spec:
+  limits:
+    - type: Container
+      default: { cpu: "1", memory: 2Gi, ephemeral-storage: 8Gi }
+      defaultRequest: { cpu: 250m, memory: 512Mi, ephemeral-storage: 1Gi }
+      max: { cpu: "2", memory: 4Gi, ephemeral-storage: 16Gi }
+---
+# ---------- 기본 차단(ingress/egress 모두) ----------
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: default-deny-all, namespace: edu-build }
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+# ---------- DNS 만 허용 ----------
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: allow-dns, namespace: edu-build }
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+---
+# ---------- 공인 인터넷 egress 허용, 사설망 차단 ----------
+# 소스 레포가 임의 외부 주소(GitHub 등)라 완전 allowlist 는 불가능하다(등록 시 URL 형식만
+# 검증됨). 대신 사설 대역·링크로컬을 제외해 클러스터 내부 서비스·K8s API(ClusterIP)·
+# 클라우드 메타데이터(169.254.169.254) 접근을 차단한다. 공인 egress 자체를 막아야 하는
+# 운영 정책이라면 내부 Gitea 전용으로 좁히고 이 정책을 제거하면 된다(§운영 옵션).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: allow-internet-except-private, namespace: edu-build }
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
+---
+# ---------- 레지스트리 push 허용(포트 한정) ----------
+# push 대상 레지스트리는 대개 사설 endpoint(사내 레지스트리·kind-registry)라 위 정책만으로는
+# 막힌다. 레지스트리 표준 포트(5000)만 목적지 무관 허용한다 — 사설망에서 5000 포트로 노출된
+# 것은 이 플랫폼에선 레지스트리뿐이다. 운영에서 레지스트리 IP 가 고정이면 cidr 를 해당
+# 주소/32 로 좁히는 것을 권장한다(잔여 위험 §PRODUCTION_READINESS 기록).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: allow-registry-push, namespace: edu-build }
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock: { cidr: 0.0.0.0/0 }
+      ports:
+        - { protocol: TCP, port: 5000 }
+---
+# ---------- 내부 Gitea clone 허용(설치 시) ----------
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: allow-gitea-clone, namespace: edu-build }
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: gitea } }
+      ports:
+        - { protocol: TCP, port: 3000 }

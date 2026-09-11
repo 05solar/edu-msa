@@ -1,8 +1,20 @@
-﻿# Kaniko 인클러스터 빌드 Job (real 모드). 호스트 docker.sock 미사용(rootless).
-# 플레이스홀더: SLUG · NAMESPACE · IMAGE · CONTEXT · GIT_CRED_ENV (모두 이중 중괄호 표기)
+# Kaniko 인클러스터 빌드 Job (real 모드). 호스트 docker.sock 미사용.
+# 플레이스홀더: SLUG · NAMESPACE · IMAGE · CONTEXT · GIT_CRED_ENV · BUILD_CPU_LIMIT ·
+# BUILD_MEM_LIMIT (모두 이중 중괄호 표기)
 # GIT_CRED_ENV 자리는 내부 Gitea 비공개 레포일 때만 GIT_USERNAME/GIT_PASSWORD
-# (edu-gitea-token Secret 참조) env 블록으로 치환된다 — 그 외에는 빈 줄.
+# (edu-gitea-token Secret 참조 — 빌드 네임스페이스에 있어야 한다) env 블록으로 치환된다.
 # ※ 주석에 이중 중괄호 리터럴을 쓰지 말 것 — 렌더러가 주석까지 치환한다.
+#
+# [P0-1 격리] 사용자 Dockerfile 의 RUN 은 임의 코드로 간주한다:
+#  · 빌드 전용 네임스페이스(기본 edu-build — deploy/k8s/platform/build.yaml 의
+#    PSA baseline + default-deny NetworkPolicy + Quota/LimitRange)에서만 실행
+#  · 전용 SA(edu-kaniko) + 토큰 미마운트 — 빌드는 K8s API 가 필요 없다
+#  · seccomp RuntimeDefault + no-new-privs + capability 최소화(레이어 추출·패키지
+#    설치에 필요한 파일 소유권/권한 계열만 유지 — 루트 실행 자체는 Kaniko 구조상 필수)
+#  · CPU/메모리/임시디스크 상한 + activeDeadlineSeconds(워커가 죽어도 900s 후 강제 종료)
+#  · 잔여 위험: Kaniko 는 빌드와 실행기를 격리하지 않으므로 RUN 이 /kaniko/.docker 의
+#    push 자격을 읽을 수 있다 — 자격은 레포지토리 단위 push 전용(단기 토큰 권장)으로
+#    발급하고, 이 ns 에는 그 Secret 외에 아무것도 두지 않는다.
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -11,9 +23,16 @@ metadata:
 spec:
   backoffLimit: 1
   ttlSecondsAfterFinished: 600
+  # 서버측 wait(600s)보다 길게 — 워커 유실 시에도 빌드 파드가 무한히 살아남지 않게 한다.
+  activeDeadlineSeconds: 900
   template:
     spec:
       restartPolicy: Never
+      serviceAccountName: edu-kaniko
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        seccompProfile: { type: RuntimeDefault }
       containers:
         - name: kaniko
           image: gcr.io/kaniko-project/executor:v1.23.2   # 불변 태그 핀 고정(:latest 금지)
@@ -23,6 +42,18 @@ spec:
             - "--destination={{IMAGE}}"
             {{EXTRA_ARGS}}
 {{GIT_CRED_ENV}}
+          securityContext:
+            # runAsNonRoot/readOnlyRootFilesystem 불가: Kaniko 는 루트로 이미지 레이어를
+            # 루트파일시스템에 추출하고 RUN 을 실행한다. 대신 아래로 공격면을 줄인다.
+            privileged: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+              # 레이어 추출(chown/chmod)·패키지 설치(setuid/setgid 전환)에 필요한 최소 집합.
+              add: ["CHOWN", "DAC_OVERRIDE", "FOWNER", "SETGID", "SETUID", "SETFCAP"]
+          resources:
+            requests: { cpu: 250m, memory: 512Mi, ephemeral-storage: 1Gi }
+            limits: { cpu: "{{BUILD_CPU_LIMIT}}", memory: "{{BUILD_MEM_LIMIT}}", ephemeral-storage: 8Gi }
           volumeMounts:
             - name: docker-config
               mountPath: /kaniko/.docker

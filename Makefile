@@ -75,11 +75,11 @@ prod-preflight: prod-guard
 	  && echo "  ✓ 레지스트리 v2 응답 OK" || echo "  ! 레지스트리 $(PROD_REGISTRY) /v2/ 미응답 — 주소/인증 확인"
 	@echo "== 3. GitHub 빌드(real 파이프라인) 전제 =="
 	@kubectl -n edu-platform get sa edu-deployer >/dev/null 2>&1 && echo "  ✓ ServiceAccount edu-deployer" || echo "  ! rbac.yaml 미적용 (prod-core 가 적용함)"
-	@kubectl auth can-i create jobs.batch -n edu-platform --as=system:serviceaccount:edu-platform:edu-deployer 2>/dev/null | grep -q yes \
-	  && echo "  ✓ Kaniko Job 생성 권한" || echo "  ! Kaniko Job 권한 없음 — rbac.yaml 재적용 필요"
-	@kubectl -n edu-platform get secret edu-registry-auth >/dev/null 2>&1 \
-	  && echo "  ✓ 레지스트리 push Secret(edu-registry-auth)" \
-	  || echo "  ! edu-registry-auth 없음 — 사설 레지스트리면 push 실패. make prod-registry-secret 으로 생성"
+	@kubectl auth can-i create jobs.batch -n edu-build --as=system:serviceaccount:edu-platform:edu-deployer 2>/dev/null | grep -q yes \
+	  && echo "  ✓ Kaniko Job 생성 권한(edu-build)" || echo "  ! Kaniko Job 권한 없음 — build.yaml·rbac.yaml 재적용 필요"
+	@kubectl -n edu-build get secret edu-registry-auth >/dev/null 2>&1 \
+	  && echo "  ✓ 레지스트리 push Secret(edu-registry-auth, edu-build)" \
+	  || echo "  ! edu-registry-auth(edu-build) 없음 — 사설 레지스트리면 push 실패. make prod-registry-secret 으로 생성"
 	@echo "== 4. 예제 7종(서브도메인) 전제 =="
 	@getent hosts "$(PROD_DOMAIN)" >/dev/null 2>&1 && echo "  ✓ DNS $(PROD_DOMAIN)" || echo "  ! DNS $(PROD_DOMAIN) 미해석"
 	@getent hosts "preflight-check.$(PROD_DOMAIN)" >/dev/null 2>&1 \
@@ -92,7 +92,10 @@ prod-preflight: prod-guard
 #   make prod-registry-secret PROD_REGISTRY=... REG_USER=... REG_PASS=...
 prod-registry-secret: prod-guard
 	@[ -n "$(REG_USER)" ] && [ -n "$(REG_PASS)" ] || { echo "REG_USER / REG_PASS 를 지정하세요"; exit 1; }
-	kubectl -n edu-platform create secret docker-registry edu-registry-auth \
+	# 빌드 Job 이 격리 ns(edu-build)에서 돌므로 push 자격도 그 ns 에 둔다.
+	# 주의: 사용자 Dockerfile RUN 이 이 자격을 읽을 수 있다(Kaniko 구조 한계) —
+	# 반드시 해당 레포지토리 push 전용(가능하면 단기) 계정으로 발급할 것.
+	kubectl -n edu-build create secret docker-registry edu-registry-auth \
 	  --docker-server=$(PROD_REGISTRY) --docker-username=$(REG_USER) --docker-password=$(REG_PASS) \
 	  --dry-run=client -o yaml | kubectl apply -f -
 

@@ -94,8 +94,12 @@ edu:
     namespace-public: ${EDU_DEPLOY_NAMESPACE_PUBLIC:edu-services-public}  # 외부(비신뢰)
     ingress-host: ${EDU_DEPLOY_INGRESS_HOST:edu.internal}
     registry: ${EDU_DEPLOY_REGISTRY:registry.edu.internal}
-    build-namespace: ${EDU_DEPLOY_BUILD_NAMESPACE:edu-platform}   # Kaniko 빌드 실행 ns
+    # Kaniko 빌드 실행 ns — 미신뢰 Dockerfile 격리 전용(deploy/k8s/platform/build.yaml).
+    # 플랫폼 네임스페이스(edu-platform)를 지정하면 안 된다.
+    build-namespace: ${EDU_DEPLOY_BUILD_NAMESPACE:edu-build}
     kaniko-insecure: ${EDU_DEPLOY_KANIKO_INSECURE:false}          # HTTP 레지스트리(kind 등)면 true
+    build-cpu-limit: ${EDU_DEPLOY_BUILD_CPU_LIMIT:1}              # 빌드 Job 상한(LimitRange max 이내)
+    build-memory-limit: ${EDU_DEPLOY_BUILD_MEMORY_LIMIT:2Gi}
     replicas: ${EDU_DEPLOY_REPLICAS:1}
     cpu-limit: ${EDU_DEPLOY_CPU_LIMIT:500m}
     memory-limit: ${EDU_DEPLOY_MEMORY_LIMIT:512Mi}

@@ -11,9 +11,14 @@ public class DeployProperties {
     @Value("${edu.deploy.namespace-public:edu-services-public}") private String namespacePublic; // 외부(비신뢰)
     @Value("${edu.deploy.ingress-host:edu.internal}") private String ingressHost;
     @Value("${edu.deploy.registry:registry.edu.internal}") private String registry;
-    @Value("${edu.deploy.build-namespace:edu-platform}") private String buildNamespace; // Kaniko 빌드 실행 ns
+    // Kaniko 빌드 실행 ns — 미신뢰 Dockerfile 이 실행되므로 반드시 격리 전용 네임스페이스
+    // (deploy/k8s/platform/build.yaml: PSA baseline·default-deny NetPol·Quota)를 쓴다.
+    @Value("${edu.deploy.build-namespace:edu-build}") private String buildNamespace;
     // 레지스트리가 HTTP(비TLS)일 때 Kaniko 에 --insecure 를 준다 (kind 로컬 레지스트리, 일부 사내 레지스트리)
     @Value("${edu.deploy.kaniko-insecure:false}") private boolean kanikoInsecure;
+    // 빌드 Job 리소스 상한 — edu-build 의 LimitRange max(cpu 2 / mem 4Gi) 이내여야 한다.
+    @Value("${edu.deploy.build-cpu-limit:1}")      private String buildCpuLimit;
+    @Value("${edu.deploy.build-memory-limit:2Gi}") private String buildMemoryLimit;
     @Value("${edu.deploy.replicas:1}")         private int replicas;
     @Value("${edu.deploy.cpu-limit:500m}")     private String cpuLimit;
     @Value("${edu.deploy.memory-limit:512Mi}") private String memoryLimit;
@@ -73,6 +78,8 @@ public class DeployProperties {
     public String registry() { return registry; }
     public String buildNamespace() { return buildNamespace; }
     public boolean kanikoInsecure() { return kanikoInsecure; }
+    public String buildCpuLimit() { return buildCpuLimit; }
+    public String buildMemoryLimit() { return buildMemoryLimit; }
     public int replicas() { return replicas; }
     public String cpuLimit() { return cpuLimit; }
     public String memoryLimit() { return memoryLimit; }

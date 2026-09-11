@@ -65,6 +65,8 @@ public class ManifestRenderer {
                 .replace("{{NAMESPACE}}", namespace)
                 .replace("{{IMAGE}}", image)
                 .replace("{{CONTEXT}}", ctx)
+                .replace("{{BUILD_CPU_LIMIT}}", props.buildCpuLimit())
+                .replace("{{BUILD_MEM_LIMIT}}", props.buildMemoryLimit())
                 // HTTP(비TLS) 레지스트리 지원 — edu.deploy.kaniko-insecure=true 일 때만
                 .replace("{{EXTRA_ARGS}}",
                         props.kanikoInsecure() ? "- \"--insecure\"\n            - \"--insecure-pull\"" : "")

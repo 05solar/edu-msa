@@ -86,13 +86,18 @@ roleRef:
   name: edu-deployer
   apiGroup: rbac.authorization.k8s.io
 ---
-# Kaniko 인클러스터 빌드 — 백엔드가 빌드 네임스페이스(edu-platform)에 Job 을 생성/감시한다.
+# Kaniko 인클러스터 빌드 — 백엔드가 빌드 네임스페이스(edu-build)에 Job 을 생성/감시한다.
 # (real 모드 필수. 이 권한이 없으면 "Kaniko 빌드 Job 생성 실패"로 GitHub 레포 배포가 전부 실패)
+#
+# [P0-1] 의도적으로 edu-platform 이 아니다: backend 가 침해돼도 Job 을 만들 수 있는 곳은
+# PSA baseline·default-deny NetPol·Quota 가 강제되는 edu-build 뿐이라, privileged/hostPath
+# 파드나 플랫폼 Secret 마운트 워크로드 생성으로 이어지지 않는다(권한 상승 차단).
+# edu-build 네임스페이스는 platform/build.yaml 이 만든다 — rbac 적용 전에 있어야 한다.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: edu-builder
-  namespace: edu-platform
+  namespace: edu-build
 rules:
   - apiGroups: ["batch"]
     resources: ["jobs"]
@@ -105,7 +110,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: edu-builder
-  namespace: edu-platform
+  namespace: edu-build
 subjects:
   - kind: ServiceAccount
     name: edu-deployer

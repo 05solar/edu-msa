@@ -39,7 +39,8 @@
 | `10-resourcequota-limits.yaml` | 네임스페이스별 ResourceQuota + LimitRange | 자원 독식 방지·기본 한도 |
 | `20-networkpolicy.yaml` | 기본 차단(deny-by-default) + DNS/Ingress만 허용, 사설망·메타데이터 차단 | 네트워크 격리 |
 | `30-runtimeclass-gvisor.yaml` | 샌드박스 런타임(gVisor) RuntimeClass | 커널 공격면 격리(비신뢰) |
-| `40-kaniko-build-job.template.yaml` | 인클러스터 Kaniko 빌드 Job 템플릿 | **docker.sock 없이** 안전 빌드 |
+| `40-kaniko-build-job.template.yaml` | 인클러스터 Kaniko 빌드 Job 템플릿(참고용 — 원본은 backend 리소스) | **docker.sock 없이** 안전 빌드 |
+| `platform/build.yaml` | **빌드 격리 ns(`edu-build`)** — PSA baseline·default-deny NetPol·Quota/LimitRange·전용 SA | 미신뢰 Dockerfile RUN 격리(P0-1) |
 | `platform/gitea/networkpolicy.yaml` | gitea 네임스페이스 기본 차단 + ingress-nginx→3000·DNS만 허용 (PodSecurity 라벨은 bootstrap이 적용: enforce=baseline, warn/audit=restricted) | 내부 코드 저장소 격리 |
 
 추가로 **서비스 매니페스트 템플릿**(`deploy/k8s/service-template.yaml`,
@@ -57,6 +58,12 @@
   공개 tier는 DNS 외 egress 없음(완전 격리).
 - **ResourceQuota/LimitRange**: 한 서비스가 CPU/메모리/파드 수를 독식하지 못하게.
 - **Kaniko 빌드**: 호스트 도커 소켓(=사실상 루트) 노출 없이 사용자 공간에서 이미지 빌드.
+- **빌드 격리 네임스페이스(P0-1, `edu-build`)**: 사용자 Dockerfile 의 `RUN` 은 임의 코드로
+  간주한다. 빌드 Job 은 전용 ns(`deploy/k8s/platform/build.yaml`)에서만 실행 — PSA baseline,
+  default-deny NetworkPolicy(DNS·공인 인터넷·레지스트리 5000·Gitea 만 egress, K8s API·
+  사설망·메타데이터 차단), Quota/LimitRange, 전용 SA(`edu-kaniko`, 토큰 미마운트),
+  명시적 securityContext(caps drop ALL + 최소 추가, seccomp RuntimeDefault)와 리소스 상한.
+  backend 의 `edu-builder` RBAC 도 이 ns 로 한정된다(플랫폼 ns 에 Job 생성 불가).
 
 ## 4. 검증 (로컬 kind)
 

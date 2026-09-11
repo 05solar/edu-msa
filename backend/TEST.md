@@ -10,6 +10,10 @@
   N+1 제거(Hibernate statistics 로 페이지당 쿼리 수 고정 계측), 알림 미읽음 DB COUNT 검증.
 - `DeploymentCleanupTest` — 배포 성공/실패/validate 모두 임시 clone 디렉터리가 finally 로
   정리되고, local:// 예제 경로(비-ephemeral)는 삭제되지 않는지 검증.
+- `KanikoJobIsolationTest` — P0-1 빌드 격리 계약 고정: 빌드 ns 기본값 `edu-build`,
+  렌더링된 Kaniko Job 의 전용 SA(edu-kaniko)/토큰 미마운트/명시적 securityContext
+  (caps drop ALL·seccomp·no-priv-esc)/리소스 상한(cpu·mem·ephemeral-storage)/
+  activeDeadline, 미치환 플레이스홀더 부재, repoUrl·branch 주입 방지(형식 위반 거부).
 - `SchemaMigrationTest` — 빈 H2(PostgreSQL 모드)에 Flyway V1 실적용 →
   Hibernate `validate` 로 엔티티-스키마 일치 확인 → 시드 INSERT 까지 검증.
 - `CatalogCacheTest` — 카탈로그 캐시(simple 캐시로 로직 검증): 같은 키 재조회는

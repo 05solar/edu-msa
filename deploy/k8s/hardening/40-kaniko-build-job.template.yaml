@@ -1,17 +1,36 @@
-﻿# 인클러스터 이미지 빌드(Kaniko) — 호스트 docker.sock 없이 안전하게 빌드/푸시.
-# 프로덕션 real 모드에서 docker build 대신 이 Job을 생성해 사용한다.
+# [참고 문서용] 인클러스터 이미지 빌드(Kaniko) — 호스트 docker.sock 없이 빌드/푸시.
+#
+# ※ 실제 렌더링에 쓰이는 원본은 backend 리소스의
+#   `backend/src/main/resources/deploy-templates/kaniko-job.yaml` 이다(백엔드가 치환·적용).
+#   이 파일은 하드닝 문서 세트의 예시로, 원본과 동일한 격리 정책을 유지해야 한다.
+#
+# [P0-1 격리 — 원본과 동일]
+#  · 빌드는 격리 전용 네임스페이스 edu-build(platform/build.yaml: PSA baseline ·
+#    default-deny NetworkPolicy · ResourceQuota/LimitRange)에서만 실행한다.
+#  · 전용 SA(edu-kaniko) + 토큰 미마운트 — 빌드는 K8s API 가 필요 없다.
+#  · seccomp RuntimeDefault + no-new-privs + capability 최소화. (runAsNonRoot 는 불가 —
+#    Kaniko 는 루트로 레이어 추출·RUN 실행. PSA restricted 대신 baseline + 명시 컨텍스트.)
+#  · 리소스 상한 + activeDeadlineSeconds — 악성 빌드의 자원 남용·잔류 차단.
+#  · 잔여 위험: RUN 이 /kaniko/.docker 의 push 자격을 읽을 수 있다(Kaniko 는 빌드/실행기
+#    격리를 제공하지 않음) — 자격은 레포지토리 push 전용·단기 토큰으로 발급한다.
 # 플레이스홀더: {{SLUG}} {{IMAGE}} {{REPO_URL}} {{BRANCH}}
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: build-{{SLUG}}
-  namespace: edu-platform
+  namespace: edu-build
 spec:
   backoffLimit: 1
   ttlSecondsAfterFinished: 600
+  activeDeadlineSeconds: 900
   template:
     spec:
       restartPolicy: Never
+      serviceAccountName: edu-kaniko
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        seccompProfile: { type: RuntimeDefault }
       containers:
         - name: kaniko
           image: gcr.io/kaniko-project/executor:v1.23.2   # 불변 태그 핀 고정(:latest 금지)
@@ -19,17 +38,25 @@ spec:
             - "--context={{REPO_URL}}#refs/heads/{{BRANCH}}"   # git 컨텍스트 직접 clone
             - "--destination={{IMAGE}}"
             - "--dockerfile=Dockerfile"
-            - "--cache=true"
+          securityContext:
+            privileged: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+              add: ["CHOWN", "DAC_OVERRIDE", "FOWNER", "SETGID", "SETUID", "SETFCAP"]
+          resources:
+            requests: { cpu: 250m, memory: 512Mi, ephemeral-storage: 1Gi }
+            limits: { cpu: "1", memory: 2Gi, ephemeral-storage: 8Gi }
           volumeMounts:
             - name: docker-config       # 레지스트리 인증(푸시용)
               mountPath: /kaniko/.docker
       volumes:
         - name: docker-config
           secret:
-            secretName: edu-registry-auth   # kubectl create secret docker-registry ...
+            secretName: edu-registry-auth
+            optional: true
 ---
-# 레지스트리 인증 시크릿 생성 예시:
-#   kubectl -n edu-platform create secret docker-registry edu-registry-auth \
+# 레지스트리 인증 시크릿은 빌드 네임스페이스에 둔다(레포지토리 push 전용 계정 권장):
+#   kubectl -n edu-build create secret docker-registry edu-registry-auth \
 #     --docker-server=registry.edu.internal \
 #     --docker-username=<U> --docker-password=<P>
-# Kaniko는 루트/도커데몬 없이 사용자 공간에서 이미지를 빌드하므로 docker.sock 노출이 필요 없다.

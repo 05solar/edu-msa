@@ -104,6 +104,10 @@ spec:
               value: "real"
             - name: EDU_DEPLOY_NAMESPACE
               value: edu-services
+            # [P0-1] Kaniko 빌드 격리 ns — 이미지 기본값과 무관하게 매니페스트에서 강제한다
+            # (platform/build.yaml 의 PSA·NetPol·Quota 가 적용되는 곳에서만 빌드 실행).
+            - name: EDU_DEPLOY_BUILD_NAMESPACE
+              value: edu-build
             - name: EDU_DEPLOY_INGRESS_HOST
               value: edu.internal
 # Kaniko push 대상이자 테넌트 매니페스트의 이미지 접두어(노드가 pull 가능해야 함).

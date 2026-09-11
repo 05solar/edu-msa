@@ -69,6 +69,9 @@ spec:
               value: "real"
             - name: EDU_DEPLOY_NAMESPACE
               value: edu-services
+            # [P0-1] Kaniko 빌드 격리 ns — 매니페스트에서 명시적으로 강제한다
+            - name: EDU_DEPLOY_BUILD_NAMESPACE
+              value: edu-build
             - name: EDU_DEPLOY_INGRESS_HOST
               value: edu.internal
             - name: EDU_DEPLOY_REGISTRY

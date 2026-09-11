@@ -192,6 +192,7 @@ apply_core(){
   local tmp; tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' RETURN
   local files=(
     "$K8S/namespaces.yaml"
+    "$K8S/platform/build.yaml"
     "$K8S/platform/rbac.yaml"
     "$K8S/platform/postgres.yaml"
     "$K8S/platform/redis.yaml"
@@ -262,7 +263,19 @@ apply_core(){
   fi
 
   kubectl apply -f "$tmp/namespaces.yaml"
+  # 빌드 격리 ns(edu-build: PSA·NetPol·Quota·SA) — rbac 의 edu-builder 바인딩이 이 ns 를 참조
+  kubectl apply -f "$tmp/build.yaml"
   kubectl apply -f "$tmp/rbac.yaml"
+  # [P0-1 마이그레이션] 기존 클러스터에 남은 구 edu-builder(edu-platform) 권한 제거 —
+  # apply 는 이동된 Role 을 지우지 않으므로 명시 삭제한다(신규 클러스터에선 no-op).
+  kubectl -n edu-platform delete role/edu-builder rolebinding/edu-builder --ignore-not-found
+  # [P0-1 심층 방어] edu-build 의 default SA 토큰 미마운트 — SA 컨트롤러 생성을 기다렸다 patch
+  for _ in 1 2 3 4 5; do
+    kubectl -n edu-build get sa default >/dev/null 2>&1 && break; sleep 1
+  done
+  kubectl -n edu-build patch serviceaccount default \
+    -p '{"automountServiceAccountToken": false}' >/dev/null 2>&1 \
+    || warn "edu-build default SA automount patch 실패 — 수동 확인 필요"
   ensure_secrets
   kubectl apply -f "$tmp/postgres.yaml"
   kubectl apply -f "$tmp/redis.yaml"
@@ -440,6 +453,17 @@ EOF
     else
       warn "Gitea 봇 토큰 발급 실패 — 수동 발급 후 Secret 생성: deploy/k8s/platform/gitea/README.md 참고"
     fi
+  fi
+  # Kaniko 빌드 Job 은 격리 ns(edu-build)에서 돌므로 같은 토큰이 그 ns 에도 필요하다.
+  # 신규 발급뿐 아니라 기존 클러스터 재실행(edu-platform 에 이미 존재)도 동기화한다.
+  if kubectl -n edu-platform get secret edu-gitea-token >/dev/null 2>&1 \
+      && ! kubectl -n edu-build get secret edu-gitea-token >/dev/null 2>&1; then
+    kubectl -n edu-platform get secret edu-gitea-token -o yaml \
+      | sed -e 's/namespace: edu-platform/namespace: edu-build/' \
+            -e '/resourceVersion:\|uid:\|creationTimestamp:/d' \
+      | kubectl apply -f - >/dev/null 2>&1 \
+      && ok "edu-gitea-token Secret 동기화 (edu-platform → edu-build)" \
+      || warn "edu-gitea-token Secret(edu-build) 동기화 실패 — 비공개 레포 빌드 불가"
   fi
 
   # 4단계(자동 재배포): webhook 서명 시크릿 + Gitea default webhook.

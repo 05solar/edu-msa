@@ -21,6 +21,8 @@ deploy/k8s/
 
 ```bash
 kubectl apply -f namespaces.yaml
+kubectl apply -f platform/build.yaml           # 빌드 격리 ns(edu-build) — rbac 이 참조하므로 먼저
+kubectl -n edu-build patch serviceaccount default -p '{"automountServiceAccountToken":false}'
 kubectl apply -f platform/rbac.yaml
 kubectl apply -f platform/postgres.yaml
 kubectl apply -f auth/auth-db.yaml

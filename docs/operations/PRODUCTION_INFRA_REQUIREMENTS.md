@@ -163,8 +163,9 @@ S3 API 호환이면 됨(S3·MinIO 운영 인스턴스·기타 호환 스토리�
 | ④ | `edu-redis-auth` (edu-platform) | password | redis·auth·backend·worker | 필수 |
 | ⑤ | `edu-db-backup-creds` (edu-platform) | ACCESS_KEY_ID / ACCESS_SECRET_KEY | CNPG 백업(§9) | 필수(HA) |
 | ⑥ | `edu-alert-receiver` (**monitoring**) | `webhook-url` | Alertmanager(§12) | 필수 |
-| ⑦ | `edu-gitea-token` (edu-platform) | username / token | backend·worker (optional 참조) | Gitea 사용 시 |
+| ⑦ | `edu-gitea-token` (edu-platform **+ edu-build**) | username / token | backend·worker (optional 참조) · Kaniko 빌드 Job(edu-build) — bootstrap 이 edu-build 로 자동 동기화 | Gitea 사용 시 |
 | ⑧ | `edu-gitea-webhook` (edu-platform) | secret | backend (optional) | Gitea 사용 시 |
+| ⑨ | `edu-registry-auth` (**edu-build**) | docker-registry 형식 | Kaniko push 자격(`make prod-registry-secret`) — **레포지토리 push 전용(단기) 계정** 필수: 사용자 Dockerfile RUN 이 이 값을 읽을 수 있음(Kaniko 구조 한계) | 사설 레지스트리 인증 시 |
 
 참고: HA(CNPG) 경로의 앱 계정 Secret(`edu-db-app`/`edu-auth-db-app`)은 **오퍼레이터가 자동
 생성** — 담당자가 만들지 않는다.

@@ -15,6 +15,7 @@
 
 ## 진행 이력 (Change Log)
 
+- 2026-09-11 — GitHub 언어 통계 보정: .gitattributes 신설 — frontend/public/guides/*.html(다운로드용 가이드 2개, 이미지 인라인으로 약 3.9MB — 저장소 바이트의 80%+)을 linguist-documentation 으로 분류해 언어 비율이 HTML 로 표시되던 문제 해결. 파일 추적·배포는 불변, push 후 Linguist 재계산 시 반영.
 - 2026-09-11 — **P1-4 CommandRunner 타임아웃 견고성(CLOSED)**: readAllBytes 의 EOF 대기가 waitFor(timeout)를 막던 구조(재현: timeout 1s 에 8~30s 블로킹·자식 잔존·출력 무제한)를 리더 스레드 분리+프로세스 트리 kill(grace 후 forcibly)+출력 상한(1MiB·truncated 표시)+stdin 차단+인터럽트 정리로 수정. 반환 계약·재시도 정책·argv 실행 방식 불변. CommandRunnerTest 11건 + gradle 전체 + staging E2E 실측. 상세 backend/PROCESS.md.
 - 2026-09-11 — **P1-3 refresh token 회전 동시성(CLOSED)**: auth-service 회전을 DB 조건부 UPDATE 로 원자화(동일 토큰 동시 N요청 → 정확히 1 성공·신규 토큰 1개, replica 무관). 폐기 재제출은 revoked_at(V2) 기준 grace 창(30s)으로 "동시 경쟁 패배(정상)"와 "오래된 재사용(탈취 — 전 세션 폐기)" 구분, 만료 쿠키 제출로는 전 세션을 끊지 않게 정련. 수정 전 staging 실측 10/10 성공(불변식 붕괴) → 수정 후 1/10·active 1 실측, 20 병렬 452ms·deadlock 0. 상세 auth-service/PROCESS.md.
 - 2026-09-11 — **P1-2 service.yaml 파싱·매니페스트 생성 하드닝(CLOSED)**: SnakeYAML SafeConstructor+LoaderOptions(중복 키·alias·중첩·크기 제한), 정의 외 필드 거부(화이트리스트), 렌더러 raw 치환 4필드(name/health/cpu/memory) 엄격 검증으로 YAML/매니페스트 주입 차단(개행·따옴표·중괄호·콜론 금지, cpu≤2000m·memory≤2Gi=LimitRange max), 파싱 오류는 영구 오류(재시도 금지)·사용자용 한 줄 메시지. 수정 전 staging 실HTTP 로 name 주입 검증 통과 재현 → 수정 후 4종 차단+정상 레포 무회귀+E2E 완주 실측. 규격 문서에 형식·상한 명시. 상세 backend/PROCESS.md.

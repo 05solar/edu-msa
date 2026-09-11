@@ -15,3 +15,8 @@
 *.pdf binary
 *.jar binary
 *.zip binary
+
+# GitHub Linguist 언어 통계 보정 — 다운로드용 사용자 가이드(이미지 인라인이라 수 MB)는
+# 코드가 아니라 문서로 분류한다. 이 두 파일이 저장소 전체 바이트의 80% 이상을 차지해
+# 언어 비율이 HTML 로 표시되던 문제의 원인이었다. 파일 자체는 그대로 추적·배포된다.
+frontend/public/guides/*.html linguist-documentation

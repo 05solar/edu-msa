@@ -45,7 +45,7 @@ class DeployWorkerResilienceTest {
     @MockBean private DeploymentService deployments;
 
     private DeploymentResponse response(DeploymentStatus status) {
-        return new DeploymentResponse(1L, null, "s", "n", status, null, null, "simulate", null, null, Instant.now());
+        return new DeploymentResponse(1L, null, "s", "n", status, null, null, "simulate", null, null, Instant.now(), false);
     }
 
     @Test

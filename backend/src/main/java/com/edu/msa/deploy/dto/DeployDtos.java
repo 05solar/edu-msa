@@ -40,7 +40,9 @@ public final class DeployDtos {
     public record DeploymentResponse(
             Long id, Long programId, String slug, String name,
             DeploymentStatus status, String url, String imageTag, String mode,
-            String manifest, String log, Instant createdAt
+            String manifest, String log, Instant createdAt,
+            // 영구 오류(규격 위반·slug 예약 충돌) — 워커가 재시도 큐에 넣지 않는 신호(P0-2)
+            boolean permanentFailure
     ) {}
 
     public record DeployJobResponse(

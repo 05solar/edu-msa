@@ -1,9 +1,10 @@
 package com.edu.msa.deploy;
 
 import com.edu.msa.deploy.domain.ServiceSpec;
-import com.edu.msa.deploy.repository.DeploymentRepository;
+import com.edu.msa.deploy.repository.SlugClaimRepository;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
@@ -16,10 +17,10 @@ public class ServiceSpecValidator {
     private static final Set<String> CATEGORIES =
             Set.of("doc", "student", "curri", "budget", "facil", "data", "civil");
 
-    private final DeploymentRepository deployments;
+    private final SlugClaimRepository slugClaims;
 
-    public ServiceSpecValidator(DeploymentRepository deployments) {
-        this.deployments = deployments;
+    public ServiceSpecValidator(SlugClaimRepository slugClaims) {
+        this.slugClaims = slugClaims;
     }
 
     /** 오류 목록을 반환한다(빈 목록이면 통과). currentProgramId 는 재배포 허용용(없으면 null). */
@@ -31,9 +32,12 @@ public class ServiceSpecValidator {
         if (spec.slug() == null || !SLUG.matcher(spec.slug()).matches()) {
             errors.add("service.yaml: slug 형식이 올바르지 않습니다. (^[a-z][a-z0-9-]{1,38}$)");
         } else {
-            boolean dup = currentProgramId != null
-                    ? deployments.existsBySlugAndProgramIdNot(spec.slug(), currentProgramId)
-                    : deployments.existsBySlug(spec.slug());
+            // UX 용 사전 검사 — 동시성 정합성은 배포 시점의 slug_claims INSERT(SlugClaims.claim)가
+            // DB PK 로 최종 보장한다(이 읽기 검사만으로는 TOCTOU 를 막을 수 없다).
+            boolean dup = slugClaims.findById(spec.slug())
+                    .map(c -> currentProgramId == null
+                            || !Objects.equals(c.getProgramId(), currentProgramId))
+                    .orElse(false);
             if (dup) {
                 errors.add("service.yaml: slug 가 이미 다른 서비스와 중복됩니다: " + spec.slug());
             }

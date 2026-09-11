@@ -60,7 +60,12 @@ public class DeployWorker {
             DeploymentResponse dep = deployments.deploy(
                     new DeployRequest(job.getProgramId(), job.getRepoUrl(), job.getBranch(), job.getActor()));
             boolean ok = dep.status() == DeploymentStatus.RUNNING;
-            jobs.complete(job.getId(), ok, dep.id(), ok ? null : ("배포 상태=" + dep.status()));
+            if (!ok && dep.permanentFailure()) {
+                // 규격 위반·slug 예약 충돌 — 재시도해도 결과가 같으니 백오프 큐에 넣지 않는다(P0-2)
+                jobs.completeTerminal(job.getId(), "영구 오류(재시도 안 함) — 배포 로그 참조 · 배포 상태=" + dep.status());
+            } else {
+                jobs.complete(job.getId(), ok, dep.id(), ok ? null : ("배포 상태=" + dep.status()));
+            }
         } catch (Exception e) {
             jobs.complete(job.getId(), false, null, e.getMessage());
         }

@@ -22,6 +22,10 @@ public interface DeployJobRepository extends JpaRepository<DeployJob, Long> {
 
     List<DeployJob> findAllByOrderByIdDesc();
 
+    /** 같은 프로그램의 active(QUEUED/RUNNING) 작업 — 중복 enqueue 흡수(멱등)용. */
+    java.util.Optional<DeployJob> findFirstByProgramIdAndStatusInOrderByIdDesc(
+            Long programId, java.util.Collection<com.edu.msa.common.DeployJobStatus> statuses);
+
     void deleteByProgramId(Long programId);
 
     /** 상태별 건수 — 큐 메트릭(edu.deploy.jobs)용. */

@@ -29,15 +29,40 @@ public class DeployJobService {
     @Value("${edu.deploy.worker.stale-minutes:15}")
     private long staleMinutes;
 
+    /** active(중복 흡수 대상) 상태 — 이 상태의 작업이 있으면 같은 프로그램의 enqueue 는 멱등이다. */
+    private static final List<DeployJobStatus> ACTIVE =
+            List.of(DeployJobStatus.QUEUED, DeployJobStatus.RUNNING);
+
+    private final Counter duplicateSuppressed;
+
     public DeployJobService(DeployJobRepository repo, MeterRegistry registry) {
         this.repo = repo;
         this.retries = Counter.builder("edu.deploy.jobs.retries")
                 .description("배포 작업 재시도(재큐잉) 횟수")
                 .register(registry);
+        this.duplicateSuppressed = Counter.builder("edu.deploy.jobs.duplicate.suppressed")
+                .description("중복 배포 요청 흡수(기존 active 작업 반환) 횟수")
+                .register(registry);
     }
 
+    /**
+     * 배포 작업 적재 — 같은 프로그램의 active(QUEUED/RUNNING) 작업이 있으면 새로 만들지
+     * 않고 그 작업을 반환한다(더블클릭·승인 중복·webhook replay·network retry 멱등 흡수).
+     *
+     * 아래 조회는 빠른 경로(UX)일 뿐이며, 동시 INSERT 경쟁의 최종 심판은 PostgreSQL 의
+     * 부분 유니크 인덱스(uq_deploy_jobs_active_program, V3)다 — 경쟁에서 진 트랜잭션은
+     * 제약 위반으로 롤백되고 GlobalExceptionHandler 가 409 로 변환한다.
+     * JVM 락을 쓰지 않으므로 replica 몇 개에서든 동일하게 동작한다.
+     */
     @Transactional
     public DeployJobResponse enqueue(Long programId, String repoUrl, String branch, String actor) {
+        if (programId != null) {
+            var existing = repo.findFirstByProgramIdAndStatusInOrderByIdDesc(programId, ACTIVE);
+            if (existing.isPresent()) {
+                duplicateSuppressed.increment();
+                return toResponse(existing.get());
+            }
+        }
         return toResponse(repo.save(new DeployJob(programId, repoUrl, branch, actor)));
     }
 
@@ -78,6 +103,21 @@ public class DeployJobService {
             j.setStatus(DeployJobStatus.FAILED);
             j.setLastError(error);
         }
+        j.touch();
+        repo.save(j);
+    }
+
+    /**
+     * 영구 오류(규격 검증 실패·slug 예약 충돌 등) — 재시도해도 해결되지 않으므로
+     * attempts 잔여와 무관하게 즉시 FAILED terminal 로 종료한다(백오프 큐 재진입 금지).
+     */
+    @Transactional
+    public void completeTerminal(Long jobId, String error) {
+        DeployJob j = repo.findById(jobId).orElse(null);
+        if (j == null) return;
+        j.setStatus(DeployJobStatus.FAILED);
+        j.setLastError(error);
+        j.setNextAttemptAt(null);
         j.touch();
         repo.save(j);
     }

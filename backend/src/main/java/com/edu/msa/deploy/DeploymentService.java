@@ -18,12 +18,16 @@ import com.edu.msa.notification.NotificationService;
 import com.edu.msa.program.domain.Program;
 import com.edu.msa.program.repository.ProgramRepository;
 import com.edu.msa.user.repository.AppUserRepository;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,12 +37,16 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Service
 public class DeploymentService {
 
+    private static final Logger log = LoggerFactory.getLogger(DeploymentService.class);
+
     private final SourceResolver resolver;
     private final SpecParser parser;
     private final ServiceSpecValidator validator;
     private final ManifestRenderer renderer;
     private final DeploymentRepository deployments;
     private final DeployJobRepository deployJobs;
+    private final com.edu.msa.deploy.repository.SlugClaimRepository slugClaimRepo;
+    private final SlugClaims slugClaims;
     private final DeployProperties props;
     private final CommandRunner runner;
     private final ProgramRepository programs;
@@ -47,19 +55,25 @@ public class DeploymentService {
     private final TransactionTemplate tx;
     private final TempCleaner cleaner;
     private final CatalogCacheEvictor cacheEvictor;
+    private final Counter ownershipSkips;
 
     public DeploymentService(SourceResolver resolver, SpecParser parser, ServiceSpecValidator validator,
                              ManifestRenderer renderer, DeploymentRepository deployments,
-                             DeployJobRepository deployJobs, DeployProperties props,
+                             DeployJobRepository deployJobs,
+                             com.edu.msa.deploy.repository.SlugClaimRepository slugClaimRepo,
+                             SlugClaims slugClaims, DeployProperties props,
                              CommandRunner runner, ProgramRepository programs, NotificationService notifications,
                              AppUserRepository appUsers, PlatformTransactionManager txManager,
-                             TempCleaner cleaner, CatalogCacheEvictor cacheEvictor) {
+                             TempCleaner cleaner, CatalogCacheEvictor cacheEvictor,
+                             MeterRegistry registry) {
         this.resolver = resolver;
         this.parser = parser;
         this.validator = validator;
         this.renderer = renderer;
         this.deployments = deployments;
         this.deployJobs = deployJobs;
+        this.slugClaimRepo = slugClaimRepo;
+        this.slugClaims = slugClaims;
         this.props = props;
         this.runner = runner;
         this.programs = programs;
@@ -68,6 +82,9 @@ public class DeploymentService {
         this.tx = new TransactionTemplate(txManager);
         this.cleaner = cleaner;
         this.cacheEvictor = cacheEvictor;
+        this.ownershipSkips = Counter.builder("edu.deploy.cleanup.ownership.skips")
+                .description("cleanup 시 소유자 불일치로 K8s 리소스 삭제를 건너뛴 횟수")
+                .register(registry);
     }
 
     /**
@@ -92,17 +109,39 @@ public class DeploymentService {
                     }
                 } else if (props.isReal()) {
                     // 소유자 권한이 이미 바뀌었을 수 있으므로 두 네임스페이스 모두에서 정리한다.
-                    // 템플릿이 만드는 리소스 전부를 지운다 — hpa/pdb 를 빼면 삭제 후에도 잔존한다
-                    // (staging E2E 드릴에서 실측된 누락).
                     for (String ns : List.of(props.namespace(), props.namespacePublic())) {
-                        runner.run(List.of("kubectl", "delete", "deployment,service,ingress,hpa,pdb", slug,
-                                "-n", ns, "--ignore-not-found"), null, 60);
+                        deleteOwnedTenantResources(slug, ns, programId);
                     }
                 }
             }
         });
+        // slug 소유권 반납 — 프로그램이 사라지면 그 slug 는 다시 예약 가능해진다.
+        slugClaimRepo.deleteByProgramId(programId);
         deployJobs.deleteByProgramId(programId);
         deployments.deleteByProgramId(programId);
+    }
+
+    /**
+     * slug 이름의 테넌트 리소스(deployment/service/ingress/hpa/pdb — hpa/pdb 를 빼면
+     * 삭제 후 잔존한다: staging E2E 실측)를 정리하되, 삭제 전에 소유(edu.msa/program-id
+     * 라벨)를 확인한다(P0-2). 같은 이름이 이미 다른 프로그램 소유로 재생성돼 있으면
+     * 아무것도 지우지 않고 경고만 남긴다. 라벨이 없는 리소스(구버전 배포)는 기존대로 정리.
+     */
+    private void deleteOwnedTenantResources(String slug, String ns, Long programId) {
+        CommandRunner.Result cur = runner.run(List.of("kubectl", "get", "deployment", slug, "-n", ns,
+                "-o", "go-template={{index .metadata.labels \"edu.msa/program-id\"}}"), null, 30);
+        if (cur.ok()) {
+            String owner = cur.output() == null ? "" : cur.output().trim();
+            boolean labeled = !owner.isBlank() && !owner.contains("no value");
+            if (labeled && !owner.equals(String.valueOf(programId))) {
+                ownershipSkips.increment();
+                log.warn("cleanup 건너뜀 — ns {} 의 리소스가 다른 프로그램 소유(요청 {} ≠ 현재 {})", ns, programId, owner);
+                return;
+            }
+        }
+        // 리소스 부재(잔재 svc 등만 남은 경우 포함)·본인 소유·라벨 없는 구버전 — 기존 정리 수행
+        runner.run(List.of("kubectl", "delete", "deployment,service,ingress,hpa,pdb", slug,
+                "-n", ns, "--ignore-not-found"), null, 60);
     }
 
     /**
@@ -163,6 +202,7 @@ public class DeploymentService {
         StringBuilder log = new StringBuilder();
         line(log, "배포 시작 · mode=" + props.mode());   // 대상 네임스페이스는 검증 후 신뢰도에 따라 결정
         SourceMaterial mat = null;
+        boolean permanentFailure = false;   // 영구 오류(규격 위반·slug 충돌) — 재시도 금지 신호
         try {
             d.setStatus(DeploymentStatus.VALIDATING);
             saveState(d);
@@ -172,7 +212,14 @@ public class DeploymentService {
             List<String> errors = validator.validate(spec, mat.hasDockerfile(), req.programId());
             if (!errors.isEmpty()) {
                 errors.forEach(e -> line(log, "검증 오류: " + e));
-                throw new DeployException("표준 규격 검증 실패");
+                // 규격 위반은 재시도해도 같은 결과 — 백오프 재시도 큐에 넣지 않는다.
+                throw DeployException.permanent("표준 규격 검증 실패");
+            }
+            // [P0-2] slug 소유권 원자 예약 — DB PK(INSERT 경쟁)가 최종 심판이라 동시에
+            // 같은 slug 로 들어온 다른 프로그램은 여기서 정확히 하나만 통과한다.
+            // (validator 의 중복 검사는 읽기라 UX 용일 뿐 동시성을 막지 못한다)
+            if (!slugClaims.claim(spec.slug(), req.programId())) {
+                throw DeployException.permanent("slug 가 이미 다른 서비스에 예약되어 있습니다: " + spec.slug());
             }
             d.setSlug(spec.slug());
             d.setName(spec.name());
@@ -180,7 +227,7 @@ public class DeploymentService {
             d.setImageTag(tag);
             String image = renderer.imageRef(spec, tag);
             String ns = resolveNamespace(req.programId());   // 신뢰도별 네임스페이스
-            line(log, "규격 검증 통과 · slug=" + spec.slug() + " · port=" + spec.port()
+            line(log, "규격 검증 통과 · slug=" + spec.slug() + " (소유권 예약 확인) · port=" + spec.port()
                     + " · health=" + spec.healthOrDefault() + " · namespace=" + ns);
 
             String url;
@@ -215,8 +262,8 @@ public class DeploymentService {
                     line(log, "[simulate] kubectl wait job/build-" + spec.slug() + " --for=condition=complete");
                 }
 
-                // 3. 매니페스트 렌더링
-                String manifest = renderer.render(spec, tag, ns);
+                // 3. 매니페스트 렌더링 (소유권 라벨 포함 — cleanup 이 이 라벨로 소유를 검증한다)
+                String manifest = renderer.render(spec, tag, ns, req.programId(), d.getId());
                 d.setManifest(manifest);
                 line(log, "매니페스트 렌더링 완료 (Deployment/Service/Ingress) · ns=" + ns);
 
@@ -253,7 +300,8 @@ public class DeploymentService {
             return toResponse(saved);
         } catch (DeployException e) {
             d.setStatus(DeploymentStatus.FAILED);
-            line(log, "배포 실패: " + e.getMessage());
+            permanentFailure = e.isPermanent();
+            line(log, "배포 실패" + (permanentFailure ? "(영구 오류 — 재시도 안 함)" : "") + ": " + e.getMessage());
         } catch (Exception e) {
             d.setStatus(DeploymentStatus.FAILED);
             line(log, "배포 오류: " + e.getMessage());
@@ -263,7 +311,7 @@ public class DeploymentService {
             cleanupWorkDir(mat);
         }
         d.setLogText(log.toString());
-        return toResponse(saveState(d));
+        return toResponse(saveState(d), permanentFailure);
     }
 
     /**
@@ -331,7 +379,7 @@ public class DeploymentService {
         }
         writeTraefikRoute(log, spec.slug(), host, container, spec.port());
         waitHealthy(log, container, spec.port(), spec.healthOrDefault());
-        d.setManifest(renderer.render(spec, d.getImageTag(), ns));   // 매니페스트도 참고용으로 보관(네임스페이스 반영)
+        d.setManifest(renderer.render(spec, d.getImageTag(), ns, d.getProgramId(), d.getId()));   // 참고용 보관
         line(log, "컨테이너 실행 확인 · " + container + " (서브도메인 " + host + ")");
         return "http://" + host;
     }
@@ -417,8 +465,15 @@ public class DeploymentService {
         return toResponse(d, d.getStatus());
     }
 
+    private DeploymentResponse toResponse(Deployment d, boolean permanentFailure) {
+        return new DeploymentResponse(d.getId(), d.getProgramId(), d.getSlug(), d.getName(),
+                d.getStatus(), d.getUrl(), d.getImageTag(), props.mode(), d.getManifest(), d.getLogText(),
+                d.getCreatedAt(), permanentFailure);
+    }
+
     private DeploymentResponse toResponse(Deployment d, DeploymentStatus status) {
         return new DeploymentResponse(d.getId(), d.getProgramId(), d.getSlug(), d.getName(),
-                status, d.getUrl(), d.getImageTag(), props.mode(), d.getManifest(), d.getLogText(), d.getCreatedAt());
+                status, d.getUrl(), d.getImageTag(), props.mode(), d.getManifest(), d.getLogText(),
+                d.getCreatedAt(), false);
     }
 }

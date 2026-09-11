@@ -10,6 +10,16 @@
   N+1 제거(Hibernate statistics 로 페이지당 쿼리 수 고정 계측), 알림 미읽음 DB COUNT 검증.
 - `DeploymentCleanupTest` — 배포 성공/실패/validate 모두 임시 clone 디렉터리가 finally 로
   정리되고, local:// 예제 경로(비-ephemeral)는 삭제되지 않는지 검증.
+- `SlugClaimConcurrencyTest` — P0-2 slug TOCTOU 재현(동시 exists 검사 둘 다 통과) +
+  원자 예약 검증: 8스레드 동시 claim 은 정확히 1승, 같은 프로그램 재예약 멱등,
+  다른 프로그램 거부, validator 사전검사 연동.
+- `DeployJobIdempotencyTest` — P0-2 중복 배포 흡수: 반복 enqueue(더블클릭·webhook replay)가
+  기존 active 작업을 반환, RUNNING 중 흡수, 종료 후 신규 허용, completeTerminal 은
+  재시도 없이 FAILED. (동시 INSERT 경쟁은 PostgreSQL 부분 유니크가 심판 — H2 미지원이라
+  실 PostgreSQL/staging 에서 별도 실측)
+- `DeploymentOwnershipCleanupTest` — P0-2 cleanup 소유권 보호: 다른 프로그램 소유
+  (edu.msa/program-id 라벨) 리소스는 삭제하지 않고 경고, 본인 소유는 삭제+slug 예약 반납,
+  라벨 없는 구버전 리소스는 기존대로 정리.
 - `KanikoJobIsolationTest` — P0-1 빌드 격리 계약 고정: 빌드 ns 기본값 `edu-build`,
   렌더링된 Kaniko Job 의 전용 SA(edu-kaniko)/토큰 미마운트/명시적 securityContext
   (caps drop ALL·seccomp·no-priv-esc)/리소스 상한(cpu·mem·ephemeral-storage)/

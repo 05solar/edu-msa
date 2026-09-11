@@ -8,8 +8,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface DeploymentRepository extends JpaRepository<Deployment, Long> {
     List<Deployment> findByProgramIdOrderByIdDesc(Long programId);
     Optional<Deployment> findTopByProgramIdOrderByIdDesc(Long programId);
-    boolean existsBySlug(String slug);
-    // 같은 프로그램의 재배포는 허용하고, 다른 프로그램이 같은 slug를 쓰는 경우만 중복으로 본다.
-    boolean existsBySlugAndProgramIdNot(String slug, Long programId);
+    // slug 중복 검사는 deployments 이력이 아니라 slug_claims(소유권 예약)가 담당한다(P0-2).
     void deleteByProgramId(Long programId);
 }

@@ -9,6 +9,8 @@ metadata:
     app: {{SLUG}}
     edu.category: "{{CATEGORY}}"
     app.kubernetes.io/managed-by: edu-msa
+    edu.msa/program-id: "{{PROGRAM_ID}}"
+    edu.msa/deployment-id: "{{DEPLOYMENT_ID}}"
   annotations:
     edu.msa/display-name: "{{NAME}}"
 spec:
@@ -83,6 +85,9 @@ metadata:
   namespace: {{NAMESPACE}}
   labels:
     app: {{SLUG}}
+    app.kubernetes.io/managed-by: edu-msa
+    edu.msa/program-id: "{{PROGRAM_ID}}"
+    edu.msa/deployment-id: "{{DEPLOYMENT_ID}}"
 spec:
   selector:
     app: {{SLUG}}
@@ -95,6 +100,10 @@ kind: Ingress
 metadata:
   name: {{SLUG}}
   namespace: {{NAMESPACE}}
+  labels:
+    app.kubernetes.io/managed-by: edu-msa
+    edu.msa/program-id: "{{PROGRAM_ID}}"
+    edu.msa/deployment-id: "{{DEPLOYMENT_ID}}"
   annotations:
     # 하위 경로 보존 rewrite — /svc/<slug>/foo → /foo (고정 '/' 는 모든 하위 경로를 루트로 밀어버린다)
     nginx.ingress.kubernetes.io/use-regex: "true"
@@ -131,6 +140,10 @@ kind: HorizontalPodAutoscaler
 metadata:
   name: {{SLUG}}
   namespace: {{NAMESPACE}}
+  labels:
+    app.kubernetes.io/managed-by: edu-msa
+    edu.msa/program-id: "{{PROGRAM_ID}}"
+    edu.msa/deployment-id: "{{DEPLOYMENT_ID}}"
 spec:
   scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: {{SLUG}} }
   minReplicas: {{REPLICAS}}
@@ -147,6 +160,10 @@ kind: PodDisruptionBudget
 metadata:
   name: {{SLUG}}
   namespace: {{NAMESPACE}}
+  labels:
+    app.kubernetes.io/managed-by: edu-msa
+    edu.msa/program-id: "{{PROGRAM_ID}}"
+    edu.msa/deployment-id: "{{DEPLOYMENT_ID}}"
 spec:
   maxUnavailable: 1
   selector:

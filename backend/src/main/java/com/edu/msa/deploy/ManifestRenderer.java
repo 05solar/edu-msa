@@ -21,8 +21,15 @@ public class ManifestRenderer {
         return props.registry() + "/" + spec.slug() + ":" + tag;
     }
 
-    public String render(ServiceSpec spec, String imageTag, String namespace) {
+    /**
+     * 테넌트 매니페스트 렌더링. programId/deploymentId 는 소유권 라벨(edu.msa/program-id·
+     * deployment-id)로 들어간다 — cleanup(removeFor)이 삭제 전 이 라벨로 소유를 검증한다(P0-2).
+     */
+    public String render(ServiceSpec spec, String imageTag, String namespace,
+                         Long programId, Long deploymentId) {
         return template
+                .replace("{{PROGRAM_ID}}", programId == null ? "adhoc" : String.valueOf(programId))
+                .replace("{{DEPLOYMENT_ID}}", deploymentId == null ? "unknown" : String.valueOf(deploymentId))
                 .replace("{{SLUG}}", spec.slug())
                 .replace("{{NAME}}", spec.name() == null ? spec.slug() : spec.name())
                 .replace("{{IMAGE}}", imageRef(spec, imageTag))

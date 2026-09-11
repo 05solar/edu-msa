@@ -15,6 +15,8 @@
 
 ## 진행 이력 (Change Log)
 
+- 2026-09-11 — **통합 검증 + 배포 후보 재확정: git-27b1c50 (CODE READY / CONDITIONAL GO — BLOCKED BY INFRA)**: 코드 고도화 전체(P0 2·P1 5·P2 3) 누적 존재 감사 → clean 전체 테스트(backend 84·auth 22 — 실패 0) → frontend tsc+build → Flyway 신규(빈 PG V1→V5/V1→V2)·기존(staging CNPG) 2경로 → kubeconform 72리소스 Invalid 0 → 위험 문자열 스캔 → git push(aaeb891..27b1c50) → CI(release.yml)가 git-27b1c50 3종 빌드·GHCR push → registry digest 조회·fresh pull·staging pod imageID 일치 → smoke 10/10 → 테넌트 E2E+redeploy 완주(잔존 0) → 보안·동시성 라이브 회귀(ad-hoc 401/신규 null job 0·리소스 한계 검증·알림 페이지/상한·동일 refresh 10동시 1승/9패·active 1). 이전 후보 git-2737bdc 폐기, PRODUCTION_READINESS §12-7b·INFRA_REQUIREMENTS §1-2 를 새 태그/digest 로 갱신(이력 보존). 잔여 블로커는 인프라 2건(운영 클러스터·Alertmanager 수신처)뿐.
+
 - 2026-09-11 — **P2-3 ad-hoc 배포 경로 제거(CLOSED)**: 실호출자 없는 POST /api/deploy(프로그램 없는 배포)를 제거하고 enqueue 에 programId 불변식 가드 추가 — 모든 배포가 프로그램 lifecycle(P0-2 동시성·P1-5 소유권/정리)을 타도록 일원화. legacy null 데이터는 이력 행뿐(active 0)이라 정리 불요. staging 검증(제거·validate 유지·E2E+redeploy·신규 invariant 0). 상세 backend/PROCESS.md.
 
 - 2026-09-11 — **P2-2 service.yaml 리소스 검증-실제 limit 정합(CLOSED)**: 검증 상한을 고정값이 아닌 렌더 limits 와 동일한 플랫폼 설정(단일 출처)으로 전환 — request>limit 스펙이 kubectl 단계 대신 검증 단계에서 명확한 메시지로 조기 차단(빌드 자원 낭비 제거). quantity 등가 비교·env override 동시 반영·기동 시 설정 오류 fail-fast/WARN. staging 재현→차단 실측·E2E 완주. 상세 backend/PROCESS.md.

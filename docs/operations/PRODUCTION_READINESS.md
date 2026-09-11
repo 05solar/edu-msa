@@ -624,6 +624,24 @@ staging 4개 워크로드를 이 태그로 수렴, kubelet imageID digest 일치
 | auth-service | git-2737bdc | `sha256:8e116caf…0cfe0355` | 검증 |
 | frontend | git-2737bdc | `sha256:9e031afd…f8bae1c9` | 검증 |
 
+### 12-7b. 코드 고도화 이후 배포 후보 갱신 (2026-09-11)
+
+git-2737bdc 이후 코드 고도화(P0 2·P1 5·P2 3 — Kaniko 격리, slug 동시성/멱등, 알림 IDOR,
+service.yaml 하드닝, refresh 원자 회전, CommandRunner 타임아웃, UID identity, 알림
+페이지네이션/보존, 리소스 검증 정합, ad-hoc 경로 제거)가 main 에 병합됨에 따라
+**현재 배포 후보를 `git-27b1c50` 으로 교체한다**(git-2737bdc 는 이력으로만 유지).
+통합 재검증: backend 84·auth 22 테스트 0실패(clean) · Flyway 신규(빈 PG V1→V5/V1→V2)·
+기존(staging CNPG 실데이터) 2경로 · kubeconform 72리소스 Invalid 0 · smoke 10/10 ·
+테넌트 E2E+redeploy 완주(잔존 0) · 보안/동시성 라이브 회귀(ad-hoc 401·리소스 한계·알림
+페이지/격리·동일 refresh 10동시 1승) 전부 통과. registry digest 조회·fresh pull·staging
+pod imageID 일치 확인:
+
+| Service | Tag (현재 후보) | Digest |
+|---|---|---|
+| backend(+worker) | git-27b1c50 | `sha256:5d266634e479…ac0a03a1` |
+| auth-service | git-27b1c50 | `sha256:1d4e02f6072b…4c4f3d35` |
+| frontend | git-27b1c50 | `sha256:d4c21c963700…11952979` |
+
 ### 12-8. 최종 판정 — **CONDITIONAL GO 유지**
 
 필수 NO-GO 조건 전수 점검: PITR **성공** · failover **성공** · 데이터 손실 **0** · Secret 노출

@@ -1,6 +1,6 @@
 # PRODUCTION_INFRA_REQUIREMENTS.md · Production 인프라 요구사항 (담당자 전달용)
 
-> 작성일: 2026-09-10 · 기준 커밋: `43e3f92` (배포 후보 `2737bdc`)
+> 작성일: 2026-09-10 · 갱신: 2026-09-11 · 기준 커밋: `27b1c50` (배포 후보 `git-27b1c50`)
 > 목적: **인프라/운영 담당자가 이 문서만으로 Production 환경을 준비**할 수 있게 한다.
 > 배경: 코드·설정·staging(kind 멀티노드) 검증은 완료(CONDITIONAL GO,
 > [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) §12). 배포가 막힌 이유는 코드가 아니라
@@ -14,19 +14,22 @@
 | 항목 | 값 |
 |---|---|
 | 판정 | **CONDITIONAL GO / BLOCKED BY INFRA** |
-| 코드·설정 | 완료 — main == origin/main, working tree clean |
-| staging 검증 | 리허설 런북 전 단계 실측 완주(백업·PITR 41s·failover 9s/RPO 0·E2E·부하·경보 체인) |
+| 코드·설정 | 완료 — main == origin/main, working tree clean. **코드 고도화 반영: P0 2건·P1 5건·P2 3건 CLOSED**(Kaniko 격리·slug 동시성·알림 IDOR·YAML 하드닝·refresh 원자화·CommandRunner 타임아웃·UID identity·알림 페이지네이션/보존·리소스 검증 정합·ad-hoc 제거 — docs/planning/PROCESS.md) |
+| staging 검증 | 리허설 런북 전 단계 실측 완주(백업·PITR 41s·failover 9s/RPO 0·E2E·부하·경보 체인) + **git-27b1c50 통합 재검증**(backend 84·auth 22 테스트 0실패, Flyway 신규/기존 2경로 V5·V2, kubeconform Invalid 0, smoke 10/10, E2E+redeploy, 보안·동시성 라이브 회귀) |
 | 미충족 | ① Production Kubernetes 클러스터 ② 운영 Alertmanager 수신처 endpoint |
 
 ## 2. 배포 이미지 (확정 — 변경 금지)
 
-`IMAGE_TAG=git-2737bdc` (`:latest` 미사용, digest 고정 검증 완료):
+`IMAGE_TAG=git-27b1c50` (`:latest` 미사용, CI(release.yml) 빌드 — registry digest 조회·fresh pull·staging pod imageID 일치 검증 완료. 이전 후보 git-2737bdc 는 코드 고도화 이전이라 폐기):
 
 | Service | Image | Digest |
 |---|---|---|
-| backend / backend-worker(동일 이미지) | `ghcr.io/05solar/edu-msa/edu-msa-backend:git-2737bdc` | `sha256:a13dcb7def21b8329014a40595218787007df89b0d17274e96161b6684ebd243` |
-| auth-service | `ghcr.io/05solar/edu-msa/edu-msa-auth-service:git-2737bdc` | `sha256:8e116caf361908026fd96145df40a61787d29829a0a46c7faa18a2ea0cfe0355` |
-| frontend | `ghcr.io/05solar/edu-msa/edu-msa-frontend:git-2737bdc` | `sha256:9e031afdb37cbbcfdd83e5ab14c455f91e0e3b46d3a74ea958c170ecf8bae1c9` |
+| backend / backend-worker(동일 이미지) | `ghcr.io/05solar/edu-msa/edu-msa-backend:git-27b1c50` | `sha256:5d266634e47912ea72ceefeb887d26e2c3d009fed5f8fa384b2c29b2ac0a03a1` |
+| auth-service | `ghcr.io/05solar/edu-msa/edu-msa-auth-service:git-27b1c50` | `sha256:1d4e02f6072b69483fafe3d5de1d3b4d2c5a0da2fe6f2d06dadd52694c4f3d35` |
+| frontend | `ghcr.io/05solar/edu-msa/edu-msa-frontend:git-27b1c50` | `sha256:d4c21c963700c9ec2131533b877ebce6896ab7eec50fa683d07edb9711952979` |
+
+주의: 이 태그의 backend 는 Flyway **V5**, auth-service 는 **V2** 까지 포함한다 — 기동 시
+기존 DB 에 자동 적용된다(staging CNPG 실데이터에서 검증 완료·backfill 없는 안전 전환).
 
 ## 3. Kubernetes 클러스터 요구사항
 

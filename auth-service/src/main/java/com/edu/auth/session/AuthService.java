@@ -32,6 +32,15 @@ public class AuthService {
     private final JwtTokenProvider jwt;
     private final DemoProperties demo;
 
+    /**
+     * 폐기 토큰 재제출을 "동시 회전 경쟁 패배(정상)"로 볼 시간 창(초).
+     * 이 창 안의 재제출은 401 만 반환하고, 그보다 오래된 재사용은 탈취 의심으로
+     * 계정 전 세션을 폐기한다. 창 안의 공격 재사용도 어차피 401 로 실패한다 —
+     * 놓치는 것은 징벌적 전체 폐기뿐이다(승자 세션 오폐기 방지와의 트레이드오프).
+     */
+    @org.springframework.beans.factory.annotation.Value("${edu.auth.reuse-grace-seconds:30}")
+    private long reuseGraceSeconds;
+
     public AuthService(AccountRepository accounts, RefreshTokenRepository refreshTokens,
                        SessionRevoker sessionRevoker, PasswordEncoder passwordEncoder,
                        JwtTokenProvider jwt, DemoProperties demo) {
@@ -79,6 +88,20 @@ public class AuthService {
         return issue(account, jwt.getDemoRefreshTtlSeconds());
     }
 
+    /**
+     * 회전(rotation)의 불변식: 동일 refresh token 은 정확히 한 번만 성공한다(P1-3).
+     *
+     * 과거의 조회→isUsable→revoke 는 읽기·검사·쓰기가 분리돼 동시 요청이 전부
+     * 통과했다(실측: 동일 토큰 10요청 → 세션 10개 발급). 지금은 DB 조건부 UPDATE
+     * (consumeIfUsable)가 소비를 원자적으로 판정한다 — replica 수와 무관.
+     *
+     * 폐기된 토큰 재제출의 구분(revoked_at 기준):
+     *  · 방금(reuse-grace 이내) 폐기됨 → 동시 회전 경쟁 패배(브라우저 다중 탭 등
+     *    정상 시나리오) — 401 만 반환하고 승자의 새 세션은 유지한다.
+     *  · 그보다 오래됐거나 시각 불명 → 탈취 의심 — 계정 전 세션 폐기(기존 정책).
+     *  · 만료(expires_at 경과)만으로는 전 세션을 끊지 않는다 — 방치된 탭의 만료
+     *    쿠키 제출은 공격 신호가 아니다(과거엔 이 경우도 전 세션이 끊겼다 — 정련).
+     */
     @Transactional
     public IssuedTokens refresh(String rawRefreshToken) {
         if (rawRefreshToken == null || rawRefreshToken.isBlank()) {
@@ -89,21 +112,38 @@ public class AuthService {
         RefreshToken stored = refreshTokens.findByTokenHash(JwtTokenProvider.hash(rawRefreshToken))
                 .orElseThrow(() -> new UnauthorizedException("만료되었거나 사용할 수 없는 세션입니다."));
 
-        if (!stored.isUsable()) {
-            // 이미 폐기된 토큰이 다시 제출되면 탈취 가능성이 있으므로 해당 계정의 세션을 모두 끊는다.
-            // 아래에서 예외를 던지므로 폐기는 별도 트랜잭션으로 커밋시킨다.
-            sessionRevoker.revokeAllOf(stored.getAccountId());
+        OffsetDateTime now = OffsetDateTime.now();
+        if (stored.getExpiresAt().isBefore(now)) {
             throw new UnauthorizedException("만료되었거나 사용할 수 없는 세션입니다.");
         }
 
-        Account account = accounts.findById(claims.get("uid", Number.class).longValue())
-                .orElseThrow(() -> new UnauthorizedException("계정을 찾을 수 없습니다."));
-
-        stored.revoke();
-        // 회전 시 원래 세션의 유효 기간을 유지한다.
-        // 그러지 않으면 짧게 발급한 데모 세션이 갱신될 때마다 일반 세션 길이로 늘어난다.
+        // 회전 시 원래 세션의 유효 기간을 유지한다(소비 전에 읽는다 — 아래 UPDATE 가
+        // 영속성 컨텍스트를 비운다). 짧게 발급한 데모 세션이 갱신될 때마다 일반 세션
+        // 길이로 늘어나는 것을 막는다.
         long ttlSeconds = Duration.between(stored.getCreatedAt(), stored.getExpiresAt()).toSeconds();
-        return issue(account, ttlSeconds > 0 ? ttlSeconds : jwt.getRefreshTtlSeconds());
+        Long accountId = stored.getAccountId();
+        Long tokenId = stored.getId();
+
+        if (refreshTokens.consumeIfUsable(tokenId, now) == 1) {
+            // 승자 — 이 요청만 회전에 성공한다.
+            Account account = accounts.findById(claims.get("uid", Number.class).longValue())
+                    .orElseThrow(() -> new UnauthorizedException("계정을 찾을 수 없습니다."));
+            if (!account.getId().equals(accountId)) {
+                throw new UnauthorizedException("만료되었거나 사용할 수 없는 세션입니다.");
+            }
+            return issue(account, ttlSeconds > 0 ? ttlSeconds : jwt.getRefreshTtlSeconds());
+        }
+
+        // 소비 실패 = 이미 폐기된 토큰. 방금 폐기(동시 경쟁 패배)인지 오래된 재사용
+        // (탈취 의심)인지 revoked_at 으로 구분한다(컨텍스트가 비워졌으므로 재조회).
+        OffsetDateTime revokedAt = refreshTokens.findById(tokenId)
+                .map(RefreshToken::getRevokedAt).orElse(null);
+        if (revokedAt != null && revokedAt.isAfter(now.minusSeconds(reuseGraceSeconds))) {
+            throw new UnauthorizedException("만료되었거나 사용할 수 없는 세션입니다.");
+        }
+        // 탈취 의심 — 예외로 롤백되지 않도록 전 세션 폐기는 별도 트랜잭션으로 커밋한다.
+        sessionRevoker.revokeAllOf(accountId);
+        throw new UnauthorizedException("만료되었거나 사용할 수 없는 세션입니다.");
     }
 
     @Transactional

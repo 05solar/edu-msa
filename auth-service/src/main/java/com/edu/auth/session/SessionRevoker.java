@@ -23,6 +23,6 @@ public class SessionRevoker {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void revokeAllOf(Long accountId) {
-        refreshTokens.revokeAllByAccountId(accountId);
+        refreshTokens.revokeAllByAccountId(accountId, java.time.OffsetDateTime.now());
     }
 }

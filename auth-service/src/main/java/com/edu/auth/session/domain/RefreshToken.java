@@ -41,6 +41,10 @@ public class RefreshToken {
     @Column(nullable = false)
     private boolean revoked;
 
+    /** 폐기 시각(P1-3) — 동시 회전 경쟁 패배(방금)와 탈취 의심(과거) 구분 근거. */
+    @Column(name = "revoked_at")
+    private OffsetDateTime revokedAt;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt = OffsetDateTime.now();
 
@@ -57,9 +61,13 @@ public class RefreshToken {
     public String getTokenHash() { return tokenHash; }
     public OffsetDateTime getExpiresAt() { return expiresAt; }
     public boolean isRevoked() { return revoked; }
+    public OffsetDateTime getRevokedAt() { return revokedAt; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
 
-    public void revoke() { this.revoked = true; }
+    public void revoke() {
+        this.revoked = true;
+        if (this.revokedAt == null) this.revokedAt = OffsetDateTime.now();
+    }
 
     public boolean isUsable() {
         return !revoked && expiresAt.isAfter(OffsetDateTime.now());

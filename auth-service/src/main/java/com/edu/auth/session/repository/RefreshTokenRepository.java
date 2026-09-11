@@ -12,9 +12,21 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
 
     Optional<RefreshToken> findByTokenHash(String tokenHash);
 
+    /**
+     * 회전 소비를 원자적으로 수행한다(P1-3) — usable(미폐기) 상태에서만 폐기로 전환.
+     * 반환 1 = 이 요청이 소비에 성공(승자), 0 = 다른 요청이 방금 소비함(동시 경쟁 패자).
+     * 동일 토큰의 동시 refresh 는 DB 의 조건부 UPDATE 행 잠금이 최종 심판이라
+     * replica 몇 개에서든 정확히 한 요청만 승자가 된다(JVM 락 불사용).
+     */
+    @Modifying(clearAutomatically = true)
+    @Query("update RefreshToken t set t.revoked = true, t.revokedAt = :now "
+            + "where t.id = :id and t.revoked = false")
+    int consumeIfUsable(@Param("id") Long id, @Param("now") OffsetDateTime now);
+
     @Modifying
-    @Query("update RefreshToken t set t.revoked = true where t.accountId = :accountId and t.revoked = false")
-    int revokeAllByAccountId(@Param("accountId") Long accountId);
+    @Query("update RefreshToken t set t.revoked = true, t.revokedAt = :now "
+            + "where t.accountId = :accountId and t.revoked = false")
+    int revokeAllByAccountId(@Param("accountId") Long accountId, @Param("now") OffsetDateTime now);
 
     @Modifying
     @Query("delete from RefreshToken t where t.expiresAt < :now")

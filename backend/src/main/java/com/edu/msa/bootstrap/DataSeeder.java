@@ -108,6 +108,9 @@ public class DataSeeder implements CommandLineRunner {
         p.setSlug(slugFrom(s.repo(), s.id()));
         p.setCat(s.cat());
         p.setOwner(s.owner());
+        // 시드는 플랫폼이 큐레이션한 내부 기본 서비스다 — 배포 신뢰 tier 는 내부로 둔다.
+        // ownerId 는 auth 계정과의 대응을 단정할 수 없어 null(소유자 액션은 ADMIN 경로만).
+        p.setOwnerTrusted(true);
         p.setDept(s.dept());
         p.setVersion(s.ver());
         p.setSummary(s.summary());

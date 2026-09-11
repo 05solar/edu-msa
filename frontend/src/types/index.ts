@@ -24,6 +24,7 @@ export interface Program {
   name: string
   cat: CategoryId
   owner: string
+  ownerId?: number | null
   dept: string
   ver: string
   updated: string

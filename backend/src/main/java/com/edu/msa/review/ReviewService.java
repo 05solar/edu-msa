@@ -83,7 +83,7 @@ public class ReviewService {
             case STOP -> "공개가 중지되었습니다.";
             case RESUME -> "다시 공개되었습니다.";
         };
-        notifications.push(p.getOwner(), kind,
+        notifications.push(p.getOwnerId(), p.getOwner(), kind,
                 "「" + p.getName() + "」 등록 요청이 " + label,
                 "운영 관리자 " + who + " · " + LocalDate.now(),
                 p.getId());

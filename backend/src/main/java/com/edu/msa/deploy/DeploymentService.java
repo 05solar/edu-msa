@@ -11,13 +11,12 @@ import com.edu.msa.deploy.dto.DeployDtos.DeploymentResponse;
 import com.edu.msa.deploy.dto.DeployDtos.SpecView;
 import com.edu.msa.deploy.dto.DeployDtos.ValidateRequest;
 import com.edu.msa.deploy.dto.DeployDtos.ValidationResult;
-import com.edu.msa.common.Role;
+
 import com.edu.msa.deploy.repository.DeployJobRepository;
 import com.edu.msa.deploy.repository.DeploymentRepository;
 import com.edu.msa.notification.NotificationService;
 import com.edu.msa.program.domain.Program;
 import com.edu.msa.program.repository.ProgramRepository;
-import com.edu.msa.user.repository.AppUserRepository;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.io.File;
@@ -51,7 +50,6 @@ public class DeploymentService {
     private final CommandRunner runner;
     private final ProgramRepository programs;
     private final NotificationService notifications;
-    private final AppUserRepository appUsers;
     private final TransactionTemplate tx;
     private final TempCleaner cleaner;
     private final CatalogCacheEvictor cacheEvictor;
@@ -63,7 +61,7 @@ public class DeploymentService {
                              com.edu.msa.deploy.repository.SlugClaimRepository slugClaimRepo,
                              SlugClaims slugClaims, DeployProperties props,
                              CommandRunner runner, ProgramRepository programs, NotificationService notifications,
-                             AppUserRepository appUsers, PlatformTransactionManager txManager,
+                             PlatformTransactionManager txManager,
                              TempCleaner cleaner, CatalogCacheEvictor cacheEvictor,
                              MeterRegistry registry) {
         this.resolver = resolver;
@@ -78,7 +76,6 @@ public class DeploymentService {
         this.runner = runner;
         this.programs = programs;
         this.notifications = notifications;
-        this.appUsers = appUsers;
         this.tx = new TransactionTemplate(txManager);
         this.cleaner = cleaner;
         this.cacheEvictor = cacheEvictor;
@@ -146,14 +143,15 @@ public class DeploymentService {
 
     /**
      * 업로더 신뢰도에 따라 배포 네임스페이스를 정한다.
-     * 내부 직원(CODER/ADMIN) → edu-services, 외부 사용자(USER)·익명·불명 → edu-services-public(비신뢰).
+     * 내부(생성 시점 JWT role 이 CODER/ADMIN — owner_trusted 스냅샷) → edu-services,
+     * 그 외(외부 사용자·소유자 불명 legacy) → edu-services-public(비신뢰, fail-closed).
+     * 표시 이름 문자열로는 절대 신뢰를 판정하지 않는다(P1-5 — 동명이인 위장 차단).
      */
     private String resolveNamespace(Long programId) {
         if (programId == null) return props.namespacePublic();
         Program p = programs.findById(programId).orElse(null);
         if (p == null) return props.namespacePublic();
-        Role role = appUsers.findByName(p.getOwner()).map(u -> u.getRole()).orElse(null);
-        boolean internal = role == Role.CODER || role == Role.ADMIN;
+        boolean internal = p.getOwnerId() != null && p.isOwnerTrusted();
         return internal ? props.namespace() : props.namespacePublic();
     }
 
@@ -446,7 +444,7 @@ public class DeploymentService {
         if (p == null) return;
         p.setStatus(ProgramStatus.PUBLIC);
         p.setUpdatedAt(LocalDate.now());
-        notifications.push(p.getOwner(), NotiKind.APPROVE,
+        notifications.push(p.getOwnerId(), p.getOwner(), NotiKind.APPROVE,
                 "「" + p.getName() + "」 이(가) 배포되어 공개되었습니다.",
                 "운영 관리자 " + (actor != null && !actor.isBlank() ? actor : "정우성") + " · " + url,
                 deploymentId);

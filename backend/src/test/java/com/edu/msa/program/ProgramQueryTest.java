@@ -8,6 +8,7 @@ import com.edu.msa.common.ProgramStatus;
 import com.edu.msa.common.Scope;
 import com.edu.msa.notification.NotificationService;
 import com.edu.msa.common.NotiKind;
+import com.edu.msa.common.Role;
 import com.edu.msa.program.domain.Program;
 import com.edu.msa.program.dto.ProgramDtos.ProgramSummaryResponse;
 import com.edu.msa.program.repository.ProgramRepository;
@@ -145,19 +146,21 @@ class ProgramQueryTest {
 
     @Test
     void 알림_미읽음_카운트는_행을_가져오지_않고_DB_COUNT로_계산한다() {
-        notifications.push("사용자A", NotiKind.SUBMIT, "제목1", "부제", null);
-        notifications.push("사용자A", NotiKind.SUBMIT, "제목2", "부제", null);
-        notifications.push("사용자B", NotiKind.SUBMIT, "제목3", "부제", null);
+        long uidA = 8801L;
+        long uidB = 8802L;
+        notifications.push(uidA, "사용자A", NotiKind.SUBMIT, "제목1", "부제", null);
+        notifications.push(uidA, "사용자A", NotiKind.SUBMIT, "제목2", "부제", null);
+        notifications.push(uidB, "사용자B", NotiKind.SUBMIT, "제목3", "부제", null);
         em.flush();
         em.clear();
 
         Statistics stats = em.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
         stats.clear();
-        assertEquals(2, notifications.unreadCount("사용자A"));
+        assertEquals(2, notifications.unreadCount(uidA, Role.USER));
         assertEquals(1, stats.getPrepareStatementCount(), "COUNT 쿼리 1개로 처리되어야 한다");
 
-        notifications.markAllRead("사용자A");
-        assertEquals(0, notifications.unreadCount("사용자A"));
-        assertEquals(1, notifications.unreadCount("사용자B"));
+        notifications.markAllRead(uidA, Role.USER);
+        assertEquals(0, notifications.unreadCount(uidA, Role.USER));
+        assertEquals(1, notifications.unreadCount(uidB, Role.USER));
     }
 }

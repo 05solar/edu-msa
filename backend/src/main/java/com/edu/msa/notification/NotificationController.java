@@ -28,21 +28,21 @@ public class NotificationController {
 
     @GetMapping
     public List<NotificationResponse> list(@AuthenticationPrincipal AuthPrincipal who) {
-        return service.listFor(who.name());
+        return service.listFor(who.id(), who.role());
     }
 
     @GetMapping("/unread-count")
     public Map<String, Long> unreadCount(@AuthenticationPrincipal AuthPrincipal who) {
-        return Map.of("count", service.unreadCount(who.name()));
+        return Map.of("count", service.unreadCount(who.id(), who.role()));
     }
 
     @PostMapping("/{id}/read")
     public void read(@PathVariable Long id, @AuthenticationPrincipal AuthPrincipal who) {
-        service.markRead(id, who.name());
+        service.markRead(id, who.id(), who.role());
     }
 
     @PostMapping("/read-all")
     public void readAll(@AuthenticationPrincipal AuthPrincipal who) {
-        service.markAllRead(who.name());
+        service.markAllRead(who.id(), who.role());
     }
 }

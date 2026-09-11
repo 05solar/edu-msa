@@ -76,8 +76,10 @@ public class ProgramController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ProgramDetailResponse create(@Valid @RequestBody CreateProgramRequest req) {
-        return service.create(req);
+    public ProgramDetailResponse create(@Valid @RequestBody CreateProgramRequest req,
+                                        @AuthenticationPrincipal AuthPrincipal who) {
+        // 소유자는 서버가 JWT 로 결정한다 — 요청 본문의 owner 는 무시된다(P1-5)
+        return service.create(req, who);
     }
 
     @PostMapping("/{id}/comments")
@@ -94,7 +96,7 @@ public class ProgramController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable Long id, @AuthenticationPrincipal AuthPrincipal who) {
-        service.requireDeletable(id, who.name(), who.role() == Role.ADMIN);
+        service.requireDeletable(id, who.id(), who.role() == Role.ADMIN);
         deployService.removeFor(id);
         service.delete(id);
     }

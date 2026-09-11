@@ -18,7 +18,7 @@ public final class ProgramDtos {
     public record CommentResponse(Long id, String user, String dept, String time, String body, ReplyResponse reply) {}
 
     public record ProgramSummaryResponse(
-            Long id, String name, String slug, String cat, String owner, String dept,
+            Long id, String name, String slug, String cat, String owner, Long ownerId, String dept,
             String ver, String updated, String created, String branch,
             String repo, String repoName, String summary,
             List<String> tags, List<String> purposes, List<String> tech, List<String> run,
@@ -27,7 +27,7 @@ public final class ProgramDtos {
     ) {}
 
     public record ProgramDetailResponse(
-            Long id, String name, String slug, String cat, String owner, String dept,
+            Long id, String name, String slug, String cat, String owner, Long ownerId, String dept,
             String ver, String updated, String created, String branch,
             String repo, String repoName, String summary, String desc,
             List<String> tags, List<String> purposes, List<String> tech, List<String> run,

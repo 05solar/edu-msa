@@ -82,8 +82,20 @@
 
 ## 4. 데이터 모델 (초안)
 
+**Identity 원칙(P1-5)** — 권한·소유권·알림 수신 판정은 auth 계정의 **불변 UID**
+(JWT `uid` = `accounts.id`)로만 한다. 표시 이름(`name`)은 변경·중복이 가능하므로
+화면 표시 전용이며 어떤 authorization 에도 쓰지 않는다.
+
+- `programs.owner_id` = 소유자 UID(판정 근거) · `owner` = 표시 스냅샷
+- `programs.owner_trusted` = 생성 시점 JWT role 이 내부(CODER/ADMIN)였는지 —
+  배포 네임스페이스 신뢰 판정(이름 문자열 신뢰 금지)
+- `notifications.recipient_id`(UID) / `recipient_role`(역할 공지 — 예: 등록 요청 →
+  ADMIN 전원) = 수신 판정 · `to_user` = 표시 스냅샷
+- legacy(owner_id/recipient null) 행은 자동 추정으로 backfill 하지 않는다(동명이인
+  오매핑 금지) — 소유자 액션은 ADMIN 경로만, 알림은 비노출(fail-closed)
+
 - `program(id, name, slug, category, summary, description, repo_url, branch,
-  owner_id, status, scope, version, created_at, updated_at)`
+  owner_id, owner, owner_trusted, status, scope, version, created_at, updated_at)`
 - `program_purpose(program_id, purpose)` · `program_tech(program_id, tech)`
 - `program_version(id, program_id, version, changelog, image_tag, created_at)`
 - `review(id, program_id, reviewer_id, action, memo, created_at)`

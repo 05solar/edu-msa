@@ -10,6 +10,11 @@
   N+1 제거(Hibernate statistics 로 페이지당 쿼리 수 고정 계측), 알림 미읽음 DB COUNT 검증.
 - `DeploymentCleanupTest` — 배포 성공/실패/validate 모두 임시 clone 디렉터리가 finally 로
   정리되고, local:// 예제 경로(비-ephemeral)는 삭제되지 않는지 검증.
+- `OwnershipIdentityTest` — P1-5 소유권 UID 판정: 클라이언트 owner/ownerId 위조 무시,
+  동명이인(이름 동일·uid 상이) 삭제/재배포 403, 개명(같은 uid·새 이름) 후 소유권 유지,
+  legacy(owner_id null)는 이름 일치로도 불가(ADMIN remediation 만), 응답 ownerId+표시 owner.
+- `NotificationOwnershipTest` — P1-1+P1-5 알림 수신 uid 판정: 동명이인 간 목록/카운트/
+  read/read-all 완전 격리, 역할 공지(ADMIN)만 해당 역할 수신, 개명 후 접근 유지, 미인증 401.
 - `CommandRunnerTest` — P1-4 외부 명령 타임아웃 견고성(플레인 JUnit·Linux 컨테이너):
   무출력/부분출력 hung 프로세스가 지정 timeout(1s)에 종료·출력 확보, 자식 프로세스
   트리 정리(/proc 상태로 좀비 구분), 손자의 파이프 보유에도 결과 반환 지연 없음(부분
@@ -21,9 +26,6 @@
   정상값 통과, 정상 렌더 결과 5문서/kind/image/probe/requests 무결성 + 예상 외 필드 부재.
 - `MaliciousSpecPipelineTest` — P1-2 파이프라인 차단: 악성 YAML 이 빌드/적용 전(파싱·검증)
   에서 FAILED(영구)로 끝나고 kubectl 이 한 번도 호출되지 않으며 작업 큐는 terminal(재시도 0).
-- `NotificationOwnershipTest` — P1-1 알림 IDOR 차단: 실제 JWT 필터 체인(MockMvc)으로
-  목록/unread-count 가 `?to=` 무시하고 principal 기준, 타인 알림 read 404(상태 불변·존재
-  비노출), 본인 read 성공, read-all 은 본인만, 미인증 4종 401.
 - `SlugClaimConcurrencyTest` — P0-2 slug TOCTOU 재현(동시 exists 검사 둘 다 통과) +
   원자 예약 검증: 8스레드 동시 claim 은 정확히 1승, 같은 프로그램 재예약 멱등,
   다른 프로그램 거부, validator 사전검사 연동.

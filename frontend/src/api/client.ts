@@ -46,7 +46,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 
 /* ---- 백엔드 응답 → 프론트엔드 Program 매핑 ---- */
 interface SummaryDto {
-  id: number; name: string; cat: string; owner: string; dept: string; ver: string
+  id: number; name: string; cat: string; owner: string; ownerId: number | null; dept: string; ver: string
   updated: string; created: string; branch: string; repo: string; summary: string
   tags: string[]; purposes: string[]; tech: string[]; run: string[]
   views: number; likes: number; downloads: number; status: string; scope: string
@@ -61,7 +61,7 @@ interface DetailDto extends SummaryDto {
 
 function fromSummary(d: SummaryDto): Program {
   return {
-    id: d.id, name: d.name, cat: d.cat as Program['cat'], owner: d.owner, dept: d.dept,
+    id: d.id, name: d.name, cat: d.cat as Program['cat'], owner: d.owner, ownerId: d.ownerId, dept: d.dept,
     ver: d.ver, updated: d.updated, created: d.created, branch: d.branch,
     tags: d.tags, purposes: d.purposes as PurposeId[], tech: d.tech, run: d.run as RunTypeId[],
     history: [], summary: d.summary, desc: d.summary, repo: d.repo,
@@ -117,8 +117,9 @@ export const api = {
   listAll: (page = 0, size = 100) =>
     req<PageDto<SummaryDto>>(`/programs/all?page=${page}&size=${size}`).then(fromPage),
   detail: (id: number) => req<DetailDto>(`/programs/${id}`).then(fromDetail),
+  // 소유자는 서버가 JWT 로 결정한다 — owner 를 보내지 않는다(P1-5, 보내도 무시됨)
   create: (body: {
-    name: string; summary: string; desc?: string; cat: string; owner: string; dept: string
+    name: string; summary: string; desc?: string; cat: string; dept?: string
     ver?: string; repo: string; branch?: string; tags: string[]; purposes: PurposeId[]
     run: RunTypeId[]; scope: Scope; readme?: string
   }) => req<DetailDto>('/programs', { method: 'POST', body: JSON.stringify(body) }).then(fromDetail),

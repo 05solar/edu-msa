@@ -28,6 +28,7 @@ import java.util.List;
         @Index(name = "idx_programs_status_downloads", columnList = "status, downloads"),
         @Index(name = "idx_programs_status_cat", columnList = "status, cat"),
         @Index(name = "idx_programs_owner", columnList = "owner"),
+        @Index(name = "idx_programs_owner_id", columnList = "owner_id"),
 })
 public class Program {
 
@@ -39,7 +40,14 @@ public class Program {
     @Column(unique = true)
     private String slug;
     private String cat;
+    /** 표시용 스냅샷 — 권한 판정에 사용 금지(P1-5). 판정은 ownerId 로만 한다. */
     private String owner;
+    /** 소유자의 불변 UID(auth accounts.id = JWT uid). null = 소유자 불명(legacy) — 소유자 액션은 ADMIN 만. */
+    @Column(name = "owner_id")
+    private Long ownerId;
+    /** 생성 시점 JWT role 이 내부(CODER/ADMIN)였는지 — 배포 네임스페이스 신뢰 판정용. */
+    @Column(name = "owner_trusted", nullable = false)
+    private boolean ownerTrusted;
     private String dept;
     @Column(name = "app_version")
     private String version;
@@ -125,6 +133,10 @@ public class Program {
     public void setCat(String cat) { this.cat = cat; }
     public String getOwner() { return owner; }
     public void setOwner(String owner) { this.owner = owner; }
+    public Long getOwnerId() { return ownerId; }
+    public void setOwnerId(Long ownerId) { this.ownerId = ownerId; }
+    public boolean isOwnerTrusted() { return ownerTrusted; }
+    public void setOwnerTrusted(boolean ownerTrusted) { this.ownerTrusted = ownerTrusted; }
     public String getDept() { return dept; }
     public void setDept(String dept) { this.dept = dept; }
     public String getVersion() { return version; }

@@ -24,7 +24,7 @@ import com.edu.msa.program.dto.ProgramDtos.ProgramSummaryResponse;
 import com.edu.msa.program.dto.ProgramDtos.ReplyResponse;
 import com.edu.msa.program.repository.CommentRepository;
 import com.edu.msa.program.repository.ProgramRepository;
-import com.edu.msa.user.repository.AppUserRepository;
+import com.edu.msa.security.AuthPrincipal;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -43,21 +43,17 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ProgramService {
 
-    private static final String DEFAULT_ADMIN = "정우성";
-
     private final ProgramRepository programs;
     private final CommentRepository comments;
     private final NotificationService notifications;
-    private final AppUserRepository users;
     private final CatalogCacheEvictor cacheEvictor;
 
     public ProgramService(ProgramRepository programs, CommentRepository comments,
-                          NotificationService notifications, AppUserRepository users,
+                          NotificationService notifications,
                           CatalogCacheEvictor cacheEvictor) {
         this.programs = programs;
         this.comments = comments;
         this.notifications = notifications;
-        this.users = users;
         this.cacheEvictor = cacheEvictor;
     }
 
@@ -112,10 +108,10 @@ public class ProgramService {
      * 값만 사용한다. 버전이 바뀌면 업데이트 내역(history)에 기록을 남긴다.
      */
     @Transactional
-    public Program requestRedeploy(Long id, String requester, boolean admin, String version, String note) {
+    public Program requestRedeploy(Long id, Long requesterUid, boolean admin, String version, String note) {
         Program p = programs.findById(id)
                 .orElseThrow(() -> new NotFoundException("프로그램을 찾을 수 없습니다: " + id));
-        if (!admin && !p.getOwner().equals(requester)) {
+        if (!admin && !isOwner(p, requesterUid)) {
             throw new org.springframework.security.access.AccessDeniedException(
                     "본인이 등록한 프로그램만 재배포할 수 있습니다.");
         }
@@ -139,14 +135,23 @@ public class ProgramService {
      * 배포 흔적 정리(DeploymentService.removeFor)보다 먼저 호출해 권한 없는 삭제 시도를 차단한다.
      */
     @Transactional(readOnly = true)
-    public Program requireDeletable(Long id, String requester, boolean admin) {
+    public Program requireDeletable(Long id, Long requesterUid, boolean admin) {
         Program p = programs.findById(id)
                 .orElseThrow(() -> new NotFoundException("프로그램을 찾을 수 없습니다: " + id));
-        if (!admin && !p.getOwner().equals(requester)) {
+        if (!admin && !isOwner(p, requesterUid)) {
             throw new org.springframework.security.access.AccessDeniedException(
                     "본인이 등록한 프로그램만 삭제할 수 있습니다.");
         }
         return p;
+    }
+
+    /**
+     * 소유 판정은 불변 UID(owner_id = JWT uid)로만 한다(P1-5) — 표시 이름은 변경·중복이
+     * 가능해 권한 근거가 될 수 없다. owner_id 가 null(legacy·소유자 불명)이면 소유자
+     * 자격을 아무에게도 주지 않는다(ADMIN 경로만 유효 — fail-closed).
+     */
+    private static boolean isOwner(Program p, Long requesterUid) {
+        return p.getOwnerId() != null && requesterUid != null && p.getOwnerId().equals(requesterUid);
     }
 
     /** 프로그램과 부속 데이터(의견·알림)를 삭제한다. 권한 검증과 배포 정리는 호출부가 선행한다. */
@@ -177,15 +182,26 @@ public class ProgramService {
         return toDetail(p);
     }
 
+    /**
+     * 프로그램 등록 — 소유자는 항상 인증된 JWT principal 에서 결정한다(P1-5).
+     * 클라이언트가 보낸 owner 값은 무시된다(위조 불가). ownerTrusted 는 생성 시점
+     * role 스냅샷으로, 배포 네임스페이스 신뢰 판정(이름 문자열 신뢰 제거)에 쓰인다.
+     */
     @Transactional
-    public ProgramDetailResponse create(CreateProgramRequest req) {
+    public ProgramDetailResponse create(CreateProgramRequest req, AuthPrincipal who) {
+        if (who == null || who.id() == null) {
+            throw new org.springframework.security.access.AccessDeniedException("로그인이 필요합니다.");
+        }
         Program p = new Program();
         p.setName(req.name());
         p.setSummary(req.summary());
         p.setDescription(req.desc() != null ? req.desc() : req.summary());
         p.setCat(req.cat());
-        p.setOwner(req.owner() != null && !req.owner().isBlank() ? req.owner() : "김도현");
-        p.setDept(req.dept() != null && !req.dept().isBlank() ? req.dept() : "행정지원과");
+        p.setOwner(who.name());                       // 표시 스냅샷 — 판정에 미사용
+        p.setOwnerId(who.id());                       // 권한 판정의 유일한 근거
+        p.setOwnerTrusted(who.role() == Role.CODER || who.role() == Role.ADMIN);
+        p.setDept(who.dept() != null && !who.dept().isBlank() ? who.dept()
+                : (req.dept() != null && !req.dept().isBlank() ? req.dept() : ""));
         p.setVersion(req.ver() != null && !req.ver().isBlank() ? req.ver() : "1.0.0");
         p.setRepoUrl(req.repo());
         p.setBranch(req.branch() != null && !req.branch().isBlank() ? req.branch() : "main");
@@ -205,7 +221,8 @@ public class ProgramService {
         }
         Program saved = programs.save(p);
 
-        notifications.push(adminName(), NotiKind.SUBMIT,
+        // 관리자 전원 대상 역할 공지 — 특정 관리자 이름에 의존하지 않는다(P1-5)
+        notifications.pushToRole(Role.ADMIN, "운영 관리자", NotiKind.SUBMIT,
                 "「" + saved.getName() + "」 등록 요청이 접수되었습니다.",
                 saved.getOwner() + " · " + saved.getDept() + " · " + today,
                 saved.getId());
@@ -220,13 +237,6 @@ public class ProgramService {
         Comment c = new Comment(p.getId(), req.user(), req.dept() != null ? req.dept() : "", LocalDate.now().toString(), req.body());
         Comment saved = comments.save(c);
         return toCommentResponse(saved);
-    }
-
-    private String adminName() {
-        return users.findAll().stream()
-                .filter(u -> u.getRole() == Role.ADMIN)
-                .map(u -> u.getName())
-                .findFirst().orElse(DEFAULT_ADMIN);
     }
 
     /** 정렬 화이트리스트 — 요청값을 엔티티 정렬로 직접 쓰지 않는다(동점은 id 로 안정 정렬). */
@@ -249,7 +259,7 @@ public class ProgramService {
 
     private ProgramSummaryResponse toSummary(Program p) {
         return new ProgramSummaryResponse(
-                p.getId(), p.getName(), p.getSlug(), p.getCat(), p.getOwner(), p.getDept(),
+                p.getId(), p.getName(), p.getSlug(), p.getCat(), p.getOwner(), p.getOwnerId(), p.getDept(),
                 p.getVersion(), str(p.getUpdatedAt()), str(p.getCreatedAt()), p.getBranch(),
                 p.getRepoUrl(), repoName(p.getRepoUrl()), p.getSummary(),
                 List.copyOf(p.getTags()), List.copyOf(p.getPurposes()), List.copyOf(p.getTech()), List.copyOf(p.getRun()),
@@ -264,7 +274,7 @@ public class ProgramService {
         List<FileResponse> files = p.getFiles().stream()
                 .map(f -> new FileResponse(f.getName(), f.getSize(), f.getType())).toList();
         return new ProgramDetailResponse(
-                p.getId(), p.getName(), p.getSlug(), p.getCat(), p.getOwner(), p.getDept(),
+                p.getId(), p.getName(), p.getSlug(), p.getCat(), p.getOwner(), p.getOwnerId(), p.getDept(),
                 p.getVersion(), str(p.getUpdatedAt()), str(p.getCreatedAt()), p.getBranch(),
                 p.getRepoUrl(), repoName(p.getRepoUrl()), p.getSummary(), p.getDescription(),
                 List.copyOf(p.getTags()), List.copyOf(p.getPurposes()), List.copyOf(p.getTech()), List.copyOf(p.getRun()),

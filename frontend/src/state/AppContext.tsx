@@ -405,8 +405,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const publicPrograms = useMemo(() => programs.filter(canSee), [programs, canSee])
   const myPrograms = useMemo(
-    () => programs.filter((p) => p.owner === me.name || p.mine),
-    [programs, me.name],
+    () => programs.filter((p) =>
+      (p.ownerId != null && account ? p.ownerId === account.id : p.owner === me.name) || p.mine),
+    [programs, me.name, account],
   )
   const pendingPrograms = useMemo(
     () => programs.filter((p) => p.status === 'pending'),
@@ -503,7 +504,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (USE_API) {
       api.create({
         name: input.name, summary: input.summary, desc: input.desc, cat: input.cat || 'doc',
-        owner: me.name, dept: input.dept || me.dept, ver: input.ver, repo: input.repo,
+        dept: input.dept || me.dept, ver: input.ver, repo: input.repo,
         branch: input.branch, tags: input.tags, purposes: input.purposes, run: input.run,
         scope: input.scope, readme: input.readme,
       })

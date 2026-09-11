@@ -67,7 +67,7 @@ public class DeploymentController {
     public DeployJobResponse redeploy(@PathVariable Long id,
                                       @RequestBody(required = false) RedeployRequest req,
                                       @AuthenticationPrincipal AuthPrincipal who) {
-        Program p = programService.requestRedeploy(id, who.name(), who.role() == Role.ADMIN,
+        Program p = programService.requestRedeploy(id, who.id(), who.role() == Role.ADMIN,
                 req == null ? null : req.version(), req == null ? null : req.note());
         return jobService.enqueue(p.getId(), p.getRepoUrl(), p.getBranch(), who.name());
     }

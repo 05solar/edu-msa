@@ -15,6 +15,7 @@
 
 ## 진행 이력 (Change Log)
 
+- 2026-09-11 — **P1-5 불변 UID identity 전환(CLOSED · Remaining P1: 0)**: 소유권(programs.owner_id)·배포 신뢰(owner_trusted 스냅샷)·알림 수신(recipient_id/role)을 표시 이름에서 JWT uid 로 전환 — 동명이인 계정의 타인 프로그램 삭제(재현: 204)·알림 열람(11건) 차단, 클라이언트 owner 위조 무시, "김도현" 하드코딩 제거. Flyway V4 는 backfill 없이 안전 전환(오매핑 0, legacy 는 fail-closed+ADMIN remediation). staging 실HTTP·테넌트 E2E·Flyway 2경로 실측. 상세 backend/PROCESS.md.
 - 2026-09-11 — GitHub 언어 통계 보정: .gitattributes 신설 — frontend/public/guides/*.html(다운로드용 가이드 2개, 이미지 인라인으로 약 3.9MB — 저장소 바이트의 80%+)을 linguist-documentation 으로 분류해 언어 비율이 HTML 로 표시되던 문제 해결. 파일 추적·배포는 불변, push 후 Linguist 재계산 시 반영.
 - 2026-09-11 — **P1-4 CommandRunner 타임아웃 견고성(CLOSED)**: readAllBytes 의 EOF 대기가 waitFor(timeout)를 막던 구조(재현: timeout 1s 에 8~30s 블로킹·자식 잔존·출력 무제한)를 리더 스레드 분리+프로세스 트리 kill(grace 후 forcibly)+출력 상한(1MiB·truncated 표시)+stdin 차단+인터럽트 정리로 수정. 반환 계약·재시도 정책·argv 실행 방식 불변. CommandRunnerTest 11건 + gradle 전체 + staging E2E 실측. 상세 backend/PROCESS.md.
 - 2026-09-11 — **P1-3 refresh token 회전 동시성(CLOSED)**: auth-service 회전을 DB 조건부 UPDATE 로 원자화(동일 토큰 동시 N요청 → 정확히 1 성공·신규 토큰 1개, replica 무관). 폐기 재제출은 revoked_at(V2) 기준 grace 창(30s)으로 "동시 경쟁 패배(정상)"와 "오래된 재사용(탈취 — 전 세션 폐기)" 구분, 만료 쿠키 제출로는 전 세션을 끊지 않게 정련. 수정 전 staging 실측 10/10 성공(불변식 붕괴) → 수정 후 1/10·active 1 실측, 20 병렬 452ms·deadlock 0. 상세 auth-service/PROCESS.md.

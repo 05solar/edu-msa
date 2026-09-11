@@ -10,6 +10,9 @@
   N+1 제거(Hibernate statistics 로 페이지당 쿼리 수 고정 계측), 알림 미읽음 DB COUNT 검증.
 - `DeploymentCleanupTest` — 배포 성공/실패/validate 모두 임시 clone 디렉터리가 finally 로
   정리되고, local:// 예제 경로(비-ephemeral)는 삭제되지 않는지 검증.
+- `ResourceLimitOverrideTest` — P2-2 리소스 검증-limit 단일 출처: 플랫폼 limit 설정 변경 시
+  validator 허용 상한과 렌더 limits 가 함께 변경, quantity 등가(1==1000m·1Gi==1024Mi) 비교,
+  경계(정확히 limit 허용·1단위 초과 거부), 파서 단위 변환 검증.
 - `NotificationPaginationTest` — P2-1 알림 페이지네이션·보존: 기본 20건 최신순(전건 미반환),
   동일 시각 tie 포함 페이지 간 중복/누락 없음, size 1~100 강제·음수 방어, 역할 공지는 역할
   수신자 페이지에 개인 알림과 병합, 타인은 파라미터 조작으로도 0건(IDOR), 보존 정책

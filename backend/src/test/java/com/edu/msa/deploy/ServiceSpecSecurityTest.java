@@ -143,11 +143,12 @@ class ServiceSpecSecurityTest {
                 "100m\", privileged: \"true",
                 "100m\nhostNetwork: true",
                 "{cpu: 1}",
-                "-1", "999", "5000m", "3", "2.5",          // 음수·상한(2) 초과
+                "-1", "999", "5000m", "3", "2.5",          // 형식 위반·상한 초과
+                "1", "2", "1500m", "501m",                 // 컨테이너 limit(500m) 초과 — P2-2
                 "1e3", "abc")) {
             assertFalse(validate(spec("이름", "/h", bad, null)).isEmpty(), "거부돼야 하는 cpu: " + bad);
         }
-        for (String ok : List.of("100m", "500m", "1", "2", "0.5", "1500m")) {
+        for (String ok : List.of("100m", "250m", "499m", "500m", "0.5")) {   // 0.5 == 500m 등가
             assertTrue(validate(spec("이름", "/h", ok, null)).isEmpty(), "정상 cpu 가 거부됨: " + ok);
         }
     }
@@ -157,11 +158,12 @@ class ServiceSpecSecurityTest {
         for (String bad : List.of(
                 "256Mi\", x: \"y",
                 "1Gi\nprivileged: true",
-                "-256Mi", "3Gi", "4096Mi",                  // 음수·상한(2Gi) 초과
+                "-256Mi", "3Gi", "4096Mi",                  // 형식 위반·상한 초과
+                "1Gi", "2Gi", "2048Mi", "513Mi",            // 컨테이너 limit(512Mi) 초과 — P2-2
                 "256", "256mb", "1G i", "{a: 1}")) {
             assertFalse(validate(spec("이름", "/h", null, bad)).isEmpty(), "거부돼야 하는 memory: " + bad);
         }
-        for (String ok : List.of("128Mi", "256Mi", "1Gi", "2Gi", "2048Mi")) {
+        for (String ok : List.of("128Mi", "256Mi", "511Mi", "512Mi")) {
             assertTrue(validate(spec("이름", "/h", null, ok)).isEmpty(), "정상 memory 가 거부됨: " + ok);
         }
     }

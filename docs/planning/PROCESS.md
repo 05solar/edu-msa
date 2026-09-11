@@ -15,6 +15,8 @@
 
 ## 진행 이력 (Change Log)
 
+- 2026-09-11 — **P2-2 service.yaml 리소스 검증-실제 limit 정합(CLOSED)**: 검증 상한을 고정값이 아닌 렌더 limits 와 동일한 플랫폼 설정(단일 출처)으로 전환 — request>limit 스펙이 kubectl 단계 대신 검증 단계에서 명확한 메시지로 조기 차단(빌드 자원 낭비 제거). quantity 등가 비교·env override 동시 반영·기동 시 설정 오류 fail-fast/WARN. staging 재현→차단 실측·E2E 완주. 상세 backend/PROCESS.md.
+
 - 2026-09-11 — **P2-1 알림 페이지네이션·보존 정책(CLOSED)**: 목록 전건 로드 제거(서버 페이지 20/최대 100·created_at+id 결정적 최신순·V5), 읽은 알림 90일 보존 후 배치 삭제 스케줄러(미읽음 자동 삭제 없음), 실 PG 101k EXPLAIN(BitmapOr·0.6ms) 검증, 프론트 더보기+서버 unread 배지(역할 공지 표시 회귀 수정). uid 소유권·IDOR 차단 불변. 상세 backend/PROCESS.md.
 
 - 2026-09-11 — **P1-5 불변 UID identity 전환(CLOSED · Remaining P1: 0)**: 소유권(programs.owner_id)·배포 신뢰(owner_trusted 스냅샷)·알림 수신(recipient_id/role)을 표시 이름에서 JWT uid 로 전환 — 동명이인 계정의 타인 프로그램 삭제(재현: 204)·알림 열람(11건) 차단, 클라이언트 owner 위조 무시, "김도현" 하드코딩 제거. Flyway V4 는 backfill 없이 안전 전환(오매핑 0, legacy 는 fail-closed+ADMIN remediation). staging 실HTTP·테넌트 E2E·Flyway 2경로 실측. 상세 backend/PROCESS.md.

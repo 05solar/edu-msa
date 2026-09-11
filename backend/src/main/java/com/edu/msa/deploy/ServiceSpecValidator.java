@@ -27,14 +27,60 @@ public class ServiceSpecValidator {
     private static final Pattern CPU = Pattern.compile("^([0-9]{1,5}m|[0-9](\\.[0-9]{1,3})?)$");
     /** memory: K8s quantity 부분집합 — Mi/Gi 만. */
     private static final Pattern MEMORY = Pattern.compile("^[0-9]{1,5}(Mi|Gi)$");
-    /** 상한: 테넌트 LimitRange max(cpu 2 / memory 2Gi — hardening/10)와 일치시킨다. */
-    private static final long CPU_MAX_MILLIS = 2000;
-    private static final long MEMORY_MAX_MI = 2048;
+    /**
+     * 안전 상한: 테넌트 네임스페이스 LimitRange max(cpu 2 / memory 2Gi — hardening/10).
+     * 실제 검증 상한은 이보다 낮은 "컨테이너 limit"(DeployProperties — 렌더 템플릿의
+     * limits 와 동일 출처)이다. 유효 상한 = min(컨테이너 limit, LimitRange max).
+     */
+    private static final long LIMITRANGE_CPU_MAX_MILLIS = 2000;
+    private static final long LIMITRANGE_MEMORY_MAX_MI = 2048;
+
+    private static final org.slf4j.Logger log =
+            org.slf4j.LoggerFactory.getLogger(ServiceSpecValidator.class);
 
     private final SlugClaimRepository slugClaims;
+    /** 요청 상한의 단일 출처 — ManifestRenderer 가 limits 로 쓰는 값과 같은 프로퍼티(P2-2). */
+    private final long cpuLimitMillis;
+    private final long memoryLimitMi;
+    private final String cpuLimitRaw;
+    private final String memoryLimitRaw;
 
-    public ServiceSpecValidator(SlugClaimRepository slugClaims) {
+    public ServiceSpecValidator(SlugClaimRepository slugClaims, DeployProperties props) {
         this.slugClaims = slugClaims;
+        // 플랫폼 설정이 파싱 불가능하면 배포 검증 전체가 무의미하다 — 기동 시 fail-fast.
+        this.cpuLimitRaw = props.cpuLimit();
+        this.memoryLimitRaw = props.memoryLimit();
+        this.cpuLimitMillis = parseCpuMillis(cpuLimitRaw)
+                .orElseThrow(() -> new IllegalStateException(
+                        "edu.deploy.cpu-limit 형식이 올바르지 않습니다: " + cpuLimitRaw));
+        this.memoryLimitMi = parseMemoryMi(memoryLimitRaw)
+                .orElseThrow(() -> new IllegalStateException(
+                        "edu.deploy.memory-limit 형식이 올바르지 않습니다: " + memoryLimitRaw));
+        // 플랫폼 설정 자체가 네임스페이스 LimitRange max 를 넘으면 배포가 LimitRange 에서
+        // 거부된다 — 사용자 잘못이 아니므로 기동 시 경고로 드러낸다(동적 K8s 조회는 하지 않음).
+        if (cpuLimitMillis > LIMITRANGE_CPU_MAX_MILLIS || memoryLimitMi > LIMITRANGE_MEMORY_MAX_MI) {
+            log.warn("배포 컨테이너 limit({} / {})이 테넌트 LimitRange max(2 / 2Gi)를 초과합니다 — "
+                    + "hardening/10-resourcequota-limits.yaml 과 EDU_DEPLOY_*_LIMIT 을 맞추세요.",
+                    cpuLimitRaw, memoryLimitRaw);
+        }
+    }
+
+    /** "500m"·"1"·"0.5" → 밀리코어. 형식 위반이면 empty. */
+    static java.util.Optional<Long> parseCpuMillis(String v) {
+        if (v == null || !CPU.matcher(v).matches()) return java.util.Optional.empty();
+        long millis = v.endsWith("m")
+                ? Long.parseLong(v.substring(0, v.length() - 1))
+                : Math.round(Double.parseDouble(v) * 1000);
+        return java.util.Optional.of(millis);
+    }
+
+    /** "512Mi"·"1Gi" → Mi. 형식 위반이면 empty. */
+    static java.util.Optional<Long> parseMemoryMi(String v) {
+        if (v == null || !MEMORY.matcher(v).matches()) return java.util.Optional.empty();
+        long mi = v.endsWith("Gi")
+                ? Long.parseLong(v.substring(0, v.length() - 2)) * 1024
+                : Long.parseLong(v.substring(0, v.length() - 2));
+        return java.util.Optional.of(mi);
     }
 
     /** 오류 목록을 반환한다(빈 목록이면 통과). currentProgramId 는 재배포 허용용(없으면 null). */
@@ -79,31 +125,40 @@ public class ServiceSpecValidator {
         return errors;
     }
 
-    private static void validateCpu(String cpu, List<String> errors) {
-        if (cpu == null || cpu.isBlank()) return;   // 미지정 → 기본값(cpuOrDefault)
-        if (!CPU.matcher(cpu).matches()) {
-            errors.add("service.yaml: resources.cpu 형식이 올바르지 않습니다. (예: 100m, 500m, 1, 2)");
+    /**
+     * 불변식(P2-2): 요청(request) <= 컨테이너 limit. 렌더 템플릿은 requests 에 사용자 값,
+     * limits 에 플랫폼 설정을 넣으므로, 여기서 걸러지지 않으면 K8s apply 단계에서야
+     * "requests must be <= limits" 로 실패한다(늦은 실패·빌드 자원 낭비).
+     */
+    private void validateCpu(String cpu, List<String> errors) {
+        if (cpu == null || cpu.isBlank()) return;   // 미지정 → 기본값(cpuOrDefault ≤ limit)
+        var millis = parseCpuMillis(cpu);
+        if (millis.isEmpty()) {
+            errors.add("service.yaml: resources.cpu 형식이 올바르지 않습니다. (예: 100m, 250m, 0.5)");
             return;
         }
-        long millis = cpu.endsWith("m")
-                ? Long.parseLong(cpu.substring(0, cpu.length() - 1))
-                : Math.round(Double.parseDouble(cpu) * 1000);
-        if (millis <= 0 || millis > CPU_MAX_MILLIS) {
-            errors.add("service.yaml: resources.cpu 는 0 초과 ~ 최대 2 (2000m) 까지 허용됩니다.");
+        long effectiveMax = Math.min(cpuLimitMillis, LIMITRANGE_CPU_MAX_MILLIS);
+        if (millis.get() <= 0) {
+            errors.add("service.yaml: resources.cpu 는 0 보다 커야 합니다.");
+        } else if (millis.get() > effectiveMax) {
+            errors.add("service.yaml: CPU 요청값 " + cpu + " 은(는) 현재 서비스 최대 CPU 제한 "
+                    + cpuLimitRaw + " 을(를) 초과합니다.");
         }
     }
 
-    private static void validateMemory(String memory, List<String> errors) {
-        if (memory == null || memory.isBlank()) return;   // 미지정 → 기본값(memoryOrDefault)
-        if (!MEMORY.matcher(memory).matches()) {
-            errors.add("service.yaml: resources.memory 형식이 올바르지 않습니다. (예: 256Mi, 1Gi)");
+    private void validateMemory(String memory, List<String> errors) {
+        if (memory == null || memory.isBlank()) return;   // 미지정 → 기본값(memoryOrDefault ≤ limit)
+        var mi = parseMemoryMi(memory);
+        if (mi.isEmpty()) {
+            errors.add("service.yaml: resources.memory 형식이 올바르지 않습니다. (예: 256Mi, 512Mi)");
             return;
         }
-        long mi = memory.endsWith("Gi")
-                ? Long.parseLong(memory.substring(0, memory.length() - 2)) * 1024
-                : Long.parseLong(memory.substring(0, memory.length() - 2));
-        if (mi <= 0 || mi > MEMORY_MAX_MI) {
-            errors.add("service.yaml: resources.memory 는 0 초과 ~ 최대 2Gi (2048Mi) 까지 허용됩니다.");
+        long effectiveMax = Math.min(memoryLimitMi, LIMITRANGE_MEMORY_MAX_MI);
+        if (mi.get() <= 0) {
+            errors.add("service.yaml: resources.memory 는 0 보다 커야 합니다.");
+        } else if (mi.get() > effectiveMax) {
+            errors.add("service.yaml: Memory 요청값 " + memory + " 은(는) 현재 서비스 최대 메모리 제한 "
+                    + memoryLimitRaw + " 을(를) 초과합니다.");
         }
     }
 }

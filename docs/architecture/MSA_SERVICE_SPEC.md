@@ -48,8 +48,10 @@ port: int             # 필수. 컨테이너가 listen 하는 포트 (1024-65535
 health: string        # 선택. 기본 "/healthz" — '/'로 시작하는 URI 경로(영숫자·._/-)만
 env: {KEY: value}     # (예약) 현재 미적용 — 값이 있어도 배포에 반영되지 않는다
 resources:            # 선택. 미지정 시 기본값 적용
-  cpu: "250m"         # K8s quantity — 100m 형식 또는 코어 수(예: 0.5, 1). 최대 2 (2000m)
-  memory: "256Mi"     # Mi/Gi 만(예: 256Mi, 1Gi). 최대 2Gi
+  cpu: "250m"         # K8s quantity — 100m 형식 또는 소수 코어(예: 0.5). 플랫폼 컨테이너
+                      # limit 이하만 허용(기본 500m — 운영 설정 EDU_DEPLOY_CPU_LIMIT)
+  memory: "256Mi"     # Mi/Gi 만(예: 256Mi). 플랫폼 컨테이너 limit 이하만 허용
+                      # (기본 512Mi — 운영 설정 EDU_DEPLOY_MEMORY_LIMIT)
   gpu: 0              # 선택. 0=GPU 미사용(기본). 1 이상이면 nvidia.com/gpu 요청(0~8).
 ```
 

@@ -33,10 +33,15 @@ public class NotificationService {
         return repo.countByToUserAndReadFalse(name);
     }
 
+    /**
+     * 단일 읽음 처리 — id 와 소유자(toUser)가 함께 일치할 때만 변경한다(P1-1).
+     * 남의 알림 id 든 존재하지 않는 id 든 같은 404 라서 존재 여부가 노출되지 않는다.
+     */
     @Transactional
-    public void markRead(Long id) {
-        Notification n = repo.findById(id).orElseThrow(() -> new NotFoundException("알림을 찾을 수 없습니다: " + id));
-        n.setRead(true);
+    public void markRead(Long id, String toUser) {
+        if (repo.markReadOwned(id, toUser) == 0) {
+            throw new NotFoundException("알림을 찾을 수 없습니다: " + id);
+        }
     }
 
     /** 프로그램 삭제 시 해당 프로그램을 가리키는 알림을 함께 정리한다(클릭 시 404 방지). */

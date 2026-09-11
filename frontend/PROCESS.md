@@ -9,6 +9,7 @@
 
 ## 진행 이력 (Change Log)
 
+- 2026-09-11 — P1-1(알림 IDOR) API 계약 반영: `api.notifications()`·`api.readAllNotis()` 에서 `?to=` 사용자 식별자 전달 제거 — 서버가 JWT 로 현재 사용자를 판단한다(경로 불변). AppContext 의 두 호출부만 수정, 기능(목록·unread 배지·단일/전체 읽음·권한 전환 시 재조회) 불변. 검증: tsc + vite build 통과, staging API 로 본인 조회·읽음 정상 확인.
 - 2026-09-09 — 정적 서빙 최적화(12단계): nginx.conf 에 gzip(vary·min 1k·level 5)과 자산별 Cache-Control — 해시 자산(/assets/*) 1년 immutable, HTML no-cache(항상 재검증 — CDN 앞단 전제), 비해시 정적(svg/png 등) 1일, guides 1시간. SPA fallback(try_files → index.html) 유지. brotli 는 nginx:alpine 모듈 부재로 미적용(ngx_brotli 이미지 또는 CDN 엣지 압축 권장 주석). 검증: nginx:1.27-alpine 실컨테이너로 nginx -t + 경로별 헤더·gzip·SPA 폴백(200/no-cache) 전수 확인.
 - 2026-09-09 — 카탈로그 서버 페이지네이션 연동: 목록 API 가 페이지 응답(items/totalElements/totalPages)으로 바뀜에 따라 api.list 가 필터·검색·정렬·page/size 파라미터를 서버로 전달(ListParams·ProgramPage 타입), api.programCounts(분야별 개수) 추가, api.listAll 페이지 인자화. List 페이지는 서버 주도 조회(검색어 300ms 디바운스, 20건/페이지, 이전/다음 페이저)로 전환하고 오프라인 목업 모드는 기존 클라이언트 필터링 유지. AppContext 는 최근 100건 작업셋만 보관(Home/My/Admin 용). 검증: tsc·vite build 통과.
 - 2026-09-03 — Gitea 3단계: 등록 화면 안내를 "내부 Gitea 주소(권장) 또는 GitHub 주소"로 갱신(placeholder·설명·오류 문구). 타입체크 통과.

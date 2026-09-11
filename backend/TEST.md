@@ -10,6 +10,9 @@
   N+1 제거(Hibernate statistics 로 페이지당 쿼리 수 고정 계측), 알림 미읽음 DB COUNT 검증.
 - `DeploymentCleanupTest` — 배포 성공/실패/validate 모두 임시 clone 디렉터리가 finally 로
   정리되고, local:// 예제 경로(비-ephemeral)는 삭제되지 않는지 검증.
+- `NotificationOwnershipTest` — P1-1 알림 IDOR 차단: 실제 JWT 필터 체인(MockMvc)으로
+  목록/unread-count 가 `?to=` 무시하고 principal 기준, 타인 알림 read 404(상태 불변·존재
+  비노출), 본인 read 성공, read-all 은 본인만, 미인증 4종 401.
 - `SlugClaimConcurrencyTest` — P0-2 slug TOCTOU 재현(동시 exists 검사 둘 다 통과) +
   원자 예약 검증: 8스레드 동시 claim 은 정확히 1승, 같은 프로그램 재예약 멱등,
   다른 프로그램 거부, validator 사전검사 연동.

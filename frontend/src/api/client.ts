@@ -127,9 +127,10 @@ export const api = {
   addComment: (id: number, body: { user: string; dept: string; body: string }) =>
     req<Comment>(`/programs/${id}/comments`, { method: 'POST', body: JSON.stringify(body) }),
 
-  notifications: (to: string) => req<Notification[]>(`/notifications?to=${encodeURIComponent(to)}`),
+  // 대상 사용자는 서버가 JWT 로 판단한다 — 사용자 식별자를 보내지 않는다(P1-1 IDOR 수정).
+  notifications: () => req<Notification[]>('/notifications'),
   readNoti: (id: number) => req<void>(`/notifications/${id}/read`, { method: 'POST' }),
-  readAllNotis: (to: string) => req<void>(`/notifications/read-all?to=${encodeURIComponent(to)}`, { method: 'POST' }),
+  readAllNotis: () => req<void>('/notifications/read-all', { method: 'POST' }),
 
   reviewLogs: () => req<AdminLogEntry[]>('/review/logs'),
 

@@ -18,4 +18,12 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     @Modifying(clearAutomatically = true)
     @Query("update Notification n set n.read = true where n.toUser = :toUser and n.read = false")
     int markAllReadFor(@Param("toUser") String toUser);
+
+    /**
+     * 단일 읽음 — 소유자 조건을 UPDATE WHERE 에 포함해 조회·검사·수정 분리 없이
+     * 원자적으로 처리한다(P1-1). 반환 0 = 미존재 또는 남의 알림(구분 불가가 의도).
+     */
+    @Modifying(clearAutomatically = true)
+    @Query("update Notification n set n.read = true where n.id = :id and n.toUser = :toUser")
+    int markReadOwned(@Param("id") Long id, @Param("toUser") String toUser);
 }

@@ -366,8 +366,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const refreshLogs = useCallback(async () => {
     try { setAdminLog(await api.reviewLogs()) } catch { /* noop */ }
   }, [])
-  const refreshNotisFor = useCallback(async (name: string) => {
-    try { setNotis(await api.notifications(name)) } catch { /* noop */ }
+  const refreshNotisFor = useCallback(async (_name: string) => {
+    // 서버가 JWT 로 현재 사용자를 판단하므로 이름을 보내지 않는다(권한 전환 시 토큰이 바뀌어 있음)
+    try { setNotis(await api.notifications()) } catch { /* noop */ }
   }, [])
   const mergeProgram = useCallback((p: Program) => {
     setPrograms((prev) => prev.some((x) => x.id === p.id) ? prev.map((x) => x.id === p.id ? p : x) : [p, ...prev])
@@ -435,7 +436,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [])
   const readAllNotis = useCallback(() => {
     setNotis((prev) => prev.map((n) => (n.to === me.name ? { ...n, read: true } : n)))
-    if (USE_API) api.readAllNotis(me.name).catch(() => { /* noop */ })
+    if (USE_API) api.readAllNotis().catch(() => { /* noop */ })
     toast('모든 알림을 읽음 처리했습니다.', 'info')
   }, [me.name, toast])
 

@@ -208,7 +208,13 @@ public class DeploymentService {
             saveState(d);
             mat = resolver.resolve(req.repoUrl(), req.branch());
             line(log, "소스 수집: " + mat.resolvedFrom());
-            ServiceSpec spec = parser.parse(mat.serviceYaml());
+            ServiceSpec spec;
+            try {
+                spec = parser.parse(mat.serviceYaml());
+            } catch (IllegalArgumentException e) {
+                // YAML 문법/스키마 오류는 재시도해도 같은 결과 — 영구 오류(P1-2)
+                throw DeployException.permanent(e.getMessage());
+            }
             List<String> errors = validator.validate(spec, mat.hasDockerfile(), req.programId());
             if (!errors.isEmpty()) {
                 errors.forEach(e -> line(log, "검증 오류: " + e));

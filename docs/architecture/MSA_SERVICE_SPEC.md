@@ -38,20 +38,23 @@ GitHub 레포 주소 등록 (CODER 이상)
 ### 2.1 `service.yaml` (필수)
 
 ```yaml
-name: string          # 필수. 표시 이름
+name: string          # 필수. 표시 이름 — 글자/숫자로 시작, 글자·숫자·공백·._()- 만 60자 이내
 slug: string          # 필수. ^[a-z][a-z0-9-]{1,38}$ (K8s/URL 식별자)
 category: enum        # 필수. doc|student|curri|budget|facil|data|civil
 purposes: [enum]      # 선택. auto|gen|verify|analyze|summary|search|dash
 tech: [string]        # 선택. 자유 표기
 summary: string       # 선택. 한 줄 소개 (<= 120자)
 port: int             # 필수. 컨테이너가 listen 하는 포트 (1024-65535)
-health: string        # 선택. 기본 "/healthz"
-env: {KEY: value}     # 선택. 추가 환경변수 (민감정보 금지)
+health: string        # 선택. 기본 "/healthz" — '/'로 시작하는 URI 경로(영숫자·._/-)만
+env: {KEY: value}     # (예약) 현재 미적용 — 값이 있어도 배포에 반영되지 않는다
 resources:            # 선택. 미지정 시 기본값 적용
-  cpu: "250m"
-  memory: "256Mi"
+  cpu: "250m"         # K8s quantity — 100m 형식 또는 코어 수(예: 0.5, 1). 최대 2 (2000m)
+  memory: "256Mi"     # Mi/Gi 만(예: 256Mi, 1Gi). 최대 2Gi
   gpu: 0              # 선택. 0=GPU 미사용(기본). 1 이상이면 nvidia.com/gpu 요청(0~8).
 ```
+
+> 위에 없는 필드가 있으면 **등록이 거부된다**(정의 외 필드 금지 — P1-2 하드닝).
+> service.yaml 은 단일 YAML 문서·앵커/중첩 제한(64KB 이하) 안에서 작성해야 한다.
 
 > **GPU 사용(`resources.gpu >= 1`)**: 배포 매니페스트의 `limits` 에 `nvidia.com/gpu` 가
 > 추가된다. 클러스터에 **NVIDIA GPU Operator(device-plugin)** 가 설치되어 있고 GPU 노드가

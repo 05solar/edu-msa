@@ -10,6 +10,12 @@
   N+1 제거(Hibernate statistics 로 페이지당 쿼리 수 고정 계측), 알림 미읽음 DB COUNT 검증.
 - `DeploymentCleanupTest` — 배포 성공/실패/validate 모두 임시 clone 디렉터리가 finally 로
   정리되고, local:// 예제 경로(비-ephemeral)는 삭제되지 않는지 검증.
+- `ServiceSpecSecurityTest` — P1-2 비신뢰 service.yaml 안전성: raw 치환 주입 재현(렌더러
+  단독으론 annotation 주입 성립 → 검증이 거부해야 함을 계약으로 고정), 전역 !!태그·alias
+  폭탄·과중첩·중복 키·멀티 문서·정의 외 필드 거부, name/health/cpu/memory 주입 문자 거부·
+  정상값 통과, 정상 렌더 결과 5문서/kind/image/probe/requests 무결성 + 예상 외 필드 부재.
+- `MaliciousSpecPipelineTest` — P1-2 파이프라인 차단: 악성 YAML 이 빌드/적용 전(파싱·검증)
+  에서 FAILED(영구)로 끝나고 kubectl 이 한 번도 호출되지 않으며 작업 큐는 terminal(재시도 0).
 - `NotificationOwnershipTest` — P1-1 알림 IDOR 차단: 실제 JWT 필터 체인(MockMvc)으로
   목록/unread-count 가 `?to=` 무시하고 principal 기준, 타인 알림 read 404(상태 불변·존재
   비노출), 본인 read 성공, read-all 은 본인만, 미인증 4종 401.

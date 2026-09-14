@@ -65,7 +65,9 @@ spec:
       ports:
         - { protocol: TCP, port: 3306 }
 ---
-# backend 수집기·Kaniko(edu-platform)의 인클러스터 직접 clone 허용 (EDU_GITEA_CLONE_BASE)
+# backend 수집기(edu-platform)와 Kaniko 빌드 Job(edu-build)의 인클러스터 직접 clone 허용
+# (EDU_GITEA_CLONE_BASE). edu-build 쪽 egress 허용(build.yaml allow-gitea-clone)과 쌍 —
+# 한쪽만 있으면 kindnet/Calico 강제 환경에서 clone 이 타임아웃된다(전환 검증에서 실측).
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata: { name: allow-clone-from-platform, namespace: gitea }
@@ -75,5 +77,6 @@ spec:
   ingress:
     - from:
         - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: edu-platform } }
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: edu-build } }
       ports:
         - { protocol: TCP, port: 3000 }

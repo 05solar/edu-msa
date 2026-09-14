@@ -36,10 +36,12 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
      * 만료 후 보존 기간까지 지난 행을 배치 단위로 삭제한다(RefreshTokenCleaner 가 반복 호출).
      * LIMIT 서브쿼리로 한 번에 지우는 양을 제한해 대량 백로그에서도 긴 잠금이 없고,
      * 삭제는 멱등이라 여러 replica 가 동시에 돌아도 서로 0건을 지울 뿐 충돌하지 않는다.
+     * 파생 테이블(x)로 한 번 감싼 이유: MariaDB 는 삭제 대상 테이블을 서브쿼리에서
+     * 직접 참조하지 못한다(Error 1093) — 이 형태는 H2 에서도 동일하게 동작한다.
      */
     @Modifying(flushAutomatically = true, clearAutomatically = true)
-    @Query(value = "DELETE FROM refresh_tokens WHERE id IN "
-            + "(SELECT id FROM refresh_tokens WHERE expires_at < :cutoff LIMIT :batch)",
+    @Query(value = "DELETE FROM refresh_tokens WHERE id IN (SELECT id FROM "
+            + "(SELECT id FROM refresh_tokens WHERE expires_at < :cutoff LIMIT :batch) x)",
             nativeQuery = true)
     int deleteExpiredBatch(@Param("cutoff") OffsetDateTime cutoff, @Param("batch") int batch);
 }

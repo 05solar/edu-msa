@@ -1,4 +1,4 @@
--- V5 · P2-1 알림 페이지네이션 + 장기 보존 정책.
+-- V5 · P2-1 알림 페이지네이션 + 장기 보존 정책 (H2 테스트 동판 — 운영 MariaDB 용은 db/vendor/mariadb/V5).
 --
 -- created_at: 최신순 페이지 정렬(created_at DESC, id DESC — id 가 tie-breaker)과
 -- 보존 정책(읽은 알림만 retention 경과 후 삭제)의 기준. 기존 행은 마이그레이션

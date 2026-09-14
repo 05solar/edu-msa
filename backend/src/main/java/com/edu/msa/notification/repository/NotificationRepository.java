@@ -31,10 +31,12 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
      * 보존 정책(P2-1) — "읽은" 알림만 retention 경과 후 배치 삭제한다(미읽음은 절대 자동
      * 삭제하지 않는다). LIMIT 서브쿼리로 한 번에 지우는 양을 제한해 긴 잠금이 없고,
      * 삭제는 멱등이라 여러 replica 가 동시에 돌아도 충돌하지 않는다(auth cleaner 패턴).
+     * 파생 테이블(x)로 한 번 감싼 이유: MariaDB 는 삭제 대상 테이블을 서브쿼리에서
+     * 직접 참조하지 못한다(Error 1093) — 이 형태는 H2 에서도 동일하게 동작한다.
      */
     @Modifying(flushAutomatically = true, clearAutomatically = true)
-    @Query(value = "DELETE FROM notifications WHERE id IN "
-            + "(SELECT id FROM notifications WHERE is_read = true AND created_at < :cutoff LIMIT :batch)",
+    @Query(value = "DELETE FROM notifications WHERE id IN (SELECT id FROM "
+            + "(SELECT id FROM notifications WHERE is_read = true AND created_at < :cutoff LIMIT :batch) x)",
             nativeQuery = true)
     int deleteOldReadBatch(@Param("cutoff") java.time.Instant cutoff, @Param("batch") int batch);
 

@@ -23,8 +23,8 @@ import org.springframework.test.context.ActiveProfiles;
  * - 쓰기(save) → primary (이후 all 로 확인)
  */
 @SpringBootTest(properties = {
-        "spring.datasource.url=jdbc:h2:mem:routedb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE",
-        "edu.datasource.read-url=jdbc:h2:mem:routero;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE",
+        "spring.datasource.url=jdbc:h2:mem:routedb;DB_CLOSE_DELAY=-1;MODE=MariaDB;DATABASE_TO_LOWER=TRUE",
+        "edu.datasource.read-url=jdbc:h2:mem:routero;DB_CLOSE_DELAY=-1;MODE=MariaDB;DATABASE_TO_LOWER=TRUE",
         "spring.flyway.enabled=true",
         "spring.jpa.hibernate.ddl-auto=validate",
         "edu.seed=false",
@@ -38,8 +38,10 @@ class ReadReplicaRoutingTest {
     @BeforeAll
     static void migrateReplicaSchema() {
         // replica H2 에도 동일 스키마(V1)를 만든다 — 데이터는 넣지 않는다(라우팅 구분용)
+        // 애플리케이션과 동일한 벤더 분리 위치를 명시한다(H2 → db/vendor/h2 동판)
         Flyway.configure()
-                .dataSource("jdbc:h2:mem:routero;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE", "sa", "")
+                .dataSource("jdbc:h2:mem:routero;DB_CLOSE_DELAY=-1;MODE=MariaDB;DATABASE_TO_LOWER=TRUE", "sa", "")
+                .locations("classpath:db/migration", "classpath:db/vendor/h2")
                 .load().migrate();
     }
 

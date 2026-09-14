@@ -2,7 +2,8 @@ spring:
   application:
     name: edu-auth-service
   datasource:
-    url: ${AUTH_DB_URL:jdbc:postgresql://localhost:5433/eduauth}
+    # MariaDB — 세션 타임존 UTC 고정(토큰 만료·폐기 시각 판정의 기준 시계 일원화)
+    url: ${AUTH_DB_URL:jdbc:mariadb://localhost:3307/eduauth?timezone=UTC}
     username: ${AUTH_DB_USER:eduauth}
     password: ${AUTH_DB_PASSWORD:eduauth}
     hikari:
@@ -18,6 +19,9 @@ spring:
     enabled: ${EDU_FLYWAY_ENABLED:true}
     baseline-on-migrate: true
     baseline-version: "1"
+    # 공통 + 벤더별({vendor}=mariadb|h2) 분리 — identity/AUTO_INCREMENT·타임스탬프 타입이
+    # 방언 의존이라 벤더 동판으로 나눈다(backend 와 동일 구조).
+    locations: classpath:db/migration,classpath:db/vendor/{vendor}
   jpa:
     hibernate:
       # 운영 기본 validate — 스키마 변경은 Flyway 로만. (개발 편의로 재정의 가능)

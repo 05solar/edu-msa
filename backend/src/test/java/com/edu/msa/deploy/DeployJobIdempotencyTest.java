@@ -18,8 +18,8 @@ import org.springframework.test.context.ActiveProfiles;
  * 더블클릭·승인 API 중복 호출·webhook replay·network retry 가 반복돼도
  * 같은 프로그램의 active(QUEUED/RUNNING) 작업은 1개만 존재해야 한다.
  * 빠른 경로는 기존 active 작업 반환(멱등), 동시 경쟁의 최종 심판은
- * PostgreSQL partial unique index(uq_deploy_jobs_active_program)가 담당한다
- * (H2 는 partial index 미지원 — DB 경쟁 경로는 PostgreSQL/staging 에서 실측).
+ * MariaDB 생성 컬럼 유니크(uq_deploy_jobs_active_program)가 담당한다
+ * (H2 는 생성 컬럼 유니크 미지원 — DB 경쟁 경로는 MariaDbDeployConcurrencyIT 가 실측).
  */
 @SpringBootTest
 @ActiveProfiles("test")

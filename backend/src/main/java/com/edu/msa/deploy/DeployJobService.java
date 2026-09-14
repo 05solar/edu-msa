@@ -49,8 +49,9 @@ public class DeployJobService {
      * 배포 작업 적재 — 같은 프로그램의 active(QUEUED/RUNNING) 작업이 있으면 새로 만들지
      * 않고 그 작업을 반환한다(더블클릭·승인 중복·webhook replay·network retry 멱등 흡수).
      *
-     * 아래 조회는 빠른 경로(UX)일 뿐이며, 동시 INSERT 경쟁의 최종 심판은 PostgreSQL 의
-     * 부분 유니크 인덱스(uq_deploy_jobs_active_program, V3)다 — 경쟁에서 진 트랜잭션은
+     * 아래 조회는 빠른 경로(UX)일 뿐이며, 동시 INSERT 경쟁의 최종 심판은 MariaDB 의
+     * 생성 컬럼 유니크 인덱스(uq_deploy_jobs_active_program — active 상태에서만
+     * program_id 가 계산되는 active_program_id, V3)다 — 경쟁에서 진 트랜잭션은
      * 제약 위반으로 롤백되고 GlobalExceptionHandler 가 409 로 변환한다.
      * JVM 락을 쓰지 않으므로 replica 몇 개에서든 동일하게 동작한다.
      */

@@ -11,7 +11,8 @@ public interface DeployJobRepository extends JpaRepository<DeployJob, Long> {
 
     /**
      * 다음 대기(QUEUED) 작업 하나를 원자적으로 선점한다.
-     * FOR UPDATE SKIP LOCKED 로 다른 인스턴스가 잠근 행은 건너뛰어 중복 처리를 막는다. (PostgreSQL)
+     * FOR UPDATE SKIP LOCKED 로 다른 인스턴스가 잠근 행은 건너뛰어 중복 처리를 막는다.
+     * (MariaDB 10.6+ 필수 — 실측 검증은 MariaDbDeployConcurrencyIT)
      * 재시도 백오프(next_attempt_at 미래)에 걸린 작업은 시각이 될 때까지 제외한다.
      */
     @Query(value = "SELECT id FROM deploy_jobs WHERE status = 'QUEUED' "

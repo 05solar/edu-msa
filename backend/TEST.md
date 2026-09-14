@@ -38,8 +38,9 @@
   다른 프로그램 거부, validator 사전검사 연동.
 - `DeployJobIdempotencyTest` — P0-2 중복 배포 흡수: 반복 enqueue(더블클릭·webhook replay)가
   기존 active 작업을 반환, RUNNING 중 흡수, 종료 후 신규 허용, completeTerminal 은
-  재시도 없이 FAILED. (동시 INSERT 경쟁은 PostgreSQL 부분 유니크가 심판 — H2 미지원이라
-  실 PostgreSQL/staging 에서 별도 실측)
+  재시도 없이 FAILED. (동시 INSERT 경쟁은 MariaDB 의 STORED 생성 컬럼
+  `active_program_id` + 유니크 인덱스가 심판 — H2 로는 재현이 어려워
+  `MariaDbDeployConcurrencyIT`(Testcontainers)에서 실측)
 - `DeploymentOwnershipCleanupTest` — P0-2 cleanup 소유권 보호: 다른 프로그램 소유
   (edu.msa/program-id 라벨) 리소스는 삭제하지 않고 경고, 본인 소유는 삭제+slug 예약 반납,
   라벨 없는 구버전 리소스는 기존대로 정리.
@@ -47,7 +48,7 @@
   렌더링된 Kaniko Job 의 전용 SA(edu-kaniko)/토큰 미마운트/명시적 securityContext
   (caps drop ALL·seccomp·no-priv-esc)/리소스 상한(cpu·mem·ephemeral-storage)/
   activeDeadline, 미치환 플레이스홀더 부재, repoUrl·branch 주입 방지(형식 위반 거부).
-- `SchemaMigrationTest` — 빈 H2(PostgreSQL 모드)에 Flyway V1 실적용 →
+- `SchemaMigrationTest` — 빈 H2(MariaDB 모드, `db/vendor/h2` 판)에 Flyway V1 실적용 →
   Hibernate `validate` 로 엔티티-스키마 일치 확인 → 시드 INSERT 까지 검증.
 - `CatalogCacheTest` — 카탈로그 캐시(simple 캐시로 로직 검증): 같은 키 재조회는
   DB 쿼리 0, 변경 지점(evictor)이 캐시를 즉시 무효화해 최신을 반환.
@@ -60,6 +61,18 @@
 - 로컬(Windows) 주의: 사용자 경로에 한글이 있으면 Gradle 테스트 워커가 클래스패스를
   읽지 못한다. ASCII 정션 경로(`C:\edu-msa-build` → 본 저장소)에서
   `GRADLE_USER_HOME`을 ASCII 경로로 두고 `gradle build`를 실행하면 통과한다.
+
+## Testcontainers 통합 테스트 (실 MariaDB)
+
+- `MariaDbDeployConcurrencyIT` — 실 MariaDB 11.4 컨테이너(Testcontainers)로 8건 검증:
+  동시 INSERT 경쟁(STORED 생성 컬럼 `active_program_id` + 유니크 인덱스가 active 작업
+  1건만 허용 — PostgreSQL 부분 유니크 인덱스의 대체물)과 워커 큐의
+  `FOR UPDATE SKIP LOCKED` 동작(MariaDB 10.6+)을 실측한다. H2 로는 재현할 수 없는
+  DBMS 고유 동작만 이 계층에서 다룬다.
+- 실행 조건: 로컬 Docker 데몬 필요(없으면 스킵). CI(Linux)는 그대로 동작한다.
+- 로컬(Windows) 주의: Docker Engine 29 에서는 docker-java 가 구식 API 버전(1.32)으로
+  협상하면 400 오류가 난다. `~/.docker-java.properties` 에 `api.version=1.44` 한 줄을
+  넣으면 해결된다(CI Linux 환경에서는 불필요).
 
 ## 수동 검증 (compose 기동 후)
 

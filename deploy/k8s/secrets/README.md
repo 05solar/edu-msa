@@ -23,12 +23,12 @@ helm upgrade --install sealed-secrets sealed-secrets/sealed-secrets -n kube-syst
 
 | Secret | 키 | 용도 |
 |---|---|---|
-| `edu-db` | POSTGRES_DB=edumsa · POSTGRES_USER=edumsa · POSTGRES_PASSWORD | 플랫폼 DB(개발용 단일 postgres 경로) |
-| `edu-auth-db` | POSTGRES_DB=eduauth · POSTGRES_USER=eduauth · POSTGRES_PASSWORD | 인증 DB(개발용 단일 auth-db 경로) |
+| `edu-db` | MARIADB_DATABASE=edumsa · MARIADB_USER=edumsa · MARIADB_PASSWORD · MARIADB_ROOT_PASSWORD | 플랫폼 DB(MariaDB) |
+| `edu-auth-db` | MARIADB_DATABASE=eduauth · MARIADB_USER=eduauth · MARIADB_PASSWORD · MARIADB_ROOT_PASSWORD | 인증 DB(MariaDB) |
+| `edu-gitea-db` | password | Gitea 외부 DB(`gitea`) 계정 비밀번호 — MariaDB 최초 초기화 시 init 스크립트가 이 값으로 DB/계정을 만든다 |
 | `edu-auth-jwt` | EDU_JWT_SECRET(≥32B) · EDU_SEED_PASSWORD | JWT 서명 키(auth 발급/backend 검증 공유) |
 | `edu-redis-auth` | password | Redis 캐시·rate-limit 카운터 |
-| `edu-db-backup-creds` | ACCESS_KEY_ID · ACCESS_SECRET_KEY | CNPG 백업 오브젝트 스토리지(HA 사용 시) |
-| (CNPG 자동 생성) `edu-db-app` · `edu-auth-db-app` | username · password | HA DB 앱 계정 — 직접 만들지 않는다 |
+| `edu-db-backup-creds` | ACCESS_KEY_ID · ACCESS_SECRET_KEY | 백업 오브젝트 스토리지 오프사이트 복제 — 후속 트랙용(현재 미사용) |
 | (bootstrap 자동) `gitea-admin` · `edu-gitea-token` · `edu-gitea-webhook` | — | Gitea 연동 |
 
 ## 운영 반영 절차

@@ -1,6 +1,6 @@
 # 백엔드 · 교육청 코드 공유 플랫폼 API
 
-Spring Boot 3 (Gradle Kotlin DSL, Java 21) + PostgreSQL. 프로그램 등록/조회/검토,
+Spring Boot 3 (Gradle Kotlin DSL, Java 21) + MariaDB 11.4. 프로그램 등록/조회/검토,
 알림, 사용자 권한, 분류 체계, 배포 파이프라인 API를 제공한다. 인증은 별도의
 [auth-service](../auth-service/README.md)가 담당하고, 이 서비스는 auth-service가 발급한
 JWT를 **동일한 `EDU_JWT_SECRET`으로 자체 검증**해 인가만 판단한다(요청마다 auth-service 호출 없음).
@@ -14,7 +14,7 @@ JWT를 **동일한 `EDU_JWT_SECRET`으로 자체 검증**해 인가만 판단한
 # 저장소 루트에서 — deploy/.env 먼저 준비(EDU_JWT_SECRET≥32B, EDU_SEED_PASSWORD 등)
 cd deploy && cp .env.example .env
 docker compose -f docker-compose.yml up --build
-# API: http://localhost:8088/api,  Postgres: localhost:5432
+# API: http://localhost:8088/api,  MariaDB: localhost:3306 (auth-db 는 호스트 3307)
 ```
 
 프론트 Vite(:5173) 개발 서버는 `/api/auth`→8089, `/api`→8088로 프록시한다.
@@ -25,10 +25,11 @@ docker compose -f docker-compose.yml up --build
 
 ```bash
 cd backend
-gradle bootRun          # PostgreSQL이 localhost:5432 에 떠 있어야 함
+gradle bootRun          # MariaDB가 localhost:3306 에 떠 있어야 함
 ```
 
-환경변수: `DB_URL`, `DB_USER`, `DB_PASSWORD`, `PORT`(기본 8080),
+환경변수: `DB_URL`(기본 `jdbc:mariadb://localhost:3306/edumsa?timezone=UTC` — 세션
+타임존 UTC 고정), `DB_USER`, `DB_PASSWORD`, `PORT`(기본 8080),
 `CORS_ORIGINS`(기본 http://localhost:5173), `EDU_SEED`(기본 true),
 **`EDU_JWT_SECRET`**(auth-service와 동일해야 함, 소스에 두지 않음).
 
@@ -40,7 +41,8 @@ gradle bootRun          # PostgreSQL이 localhost:5432 에 떠 있어야 함
 - 카탈로그 캐시(Redis, 장애 시 DB 폴백): `EDU_CACHE_TYPE`(redis|none) · `REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD` ·
   `EDU_CACHE_LIST_TTL`(30s) · `EDU_CACHE_COUNTS_TTL`(60s)
 
-스키마: **Flyway 마이그레이션**(`src/main/resources/db/migration`)으로만 변경한다.
+스키마: **Flyway 마이그레이션**으로만 변경한다. 공통 판은 `db/migration`, DBMS 별 판은
+`db/vendor/{mariadb,h2}` 로 벤더 분리되어 있다(운영 MariaDB, 테스트 H2 MODE=MariaDB).
 앱은 `EDU_DDL_AUTO`(기본 `validate`)로 검증만 수행. `EDU_FLYWAY_ENABLED`(기본 true).
 ddl-auto:update 로 만들어진 기존 DB 는 `baseline-on-migrate`(baseline 1)가 V1 을 건너뛴다.
 

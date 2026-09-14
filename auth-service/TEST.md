@@ -24,8 +24,13 @@ cd deploy && cp .env.example .env && docker compose up --build -d
   토큰 401(500 없음·새 토큰 없음).
 - `RefreshTokenCleanupTest` — 만료+보존기간 경과 행만 배치 삭제되고, 보존기간 내 만료·
   폐기(미만료)·활성 행은 남는지 검증(batch-size=2 로 배치 반복 포함).
-- `SchemaMigrationTest` — 빈 H2(PostgreSQL 모드)에 Flyway V1 실적용 →
+- `SchemaMigrationTest` — 빈 H2(MariaDB 모드, `db/vendor/h2` 판)에 Flyway V1 실적용 →
   Hibernate `validate` 로 엔티티-스키마 일치 확인 → 시드 INSERT 까지 검증.
+- `MariaDbSchemaMigrationIT` — 실 MariaDB 11.4 컨테이너(Testcontainers)로 2건 검증:
+  `db/vendor/mariadb` 판 마이그레이션 실적용 + Hibernate `validate` 정합.
+  로컬 Docker 데몬 필요(없으면 스킵). 로컬 Windows + Docker Engine 29 는
+  `~/.docker-java.properties` 에 `api.version=1.44` 한 줄이 필요하다
+  (docker-java 가 구식 API 1.32 로 협상하면 400 — CI Linux 는 불필요).
 - `RedisAttemptStoreTest` — Redis 원자 연산 매핑(INCR+최초 EXPIRE/SET EX/TTL/DEL) 검증.
 - `FailoverAttemptStoreTest` — Redis 전면 장애 시 인메모리 폴백으로 카운트·차단이
   유지되고(fail-open 금지) 폴백 횟수가 메트릭으로 집계되는지 검증.

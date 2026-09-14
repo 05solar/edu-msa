@@ -1,5 +1,9 @@
 # PRODUCTION_INFRA_REQUIREMENTS.md · Production 인프라 요구사항 (담당자 전달용)
 
+> 이 문서의 DB 관련 서술(PostgreSQL/CNPG/PgBouncer 등)은 작성 시점 기준이다.
+> 2026-09-14 MariaDB 전환([MARIADB_PLAN.md](../planning/MARIADB_PLAN.md)) 이후 DB 스택은
+> MariaDB 11.4 단일 인스턴스 + mariadb-dump 백업이며, HA·풀러·replica 는 후속 트랙이다.
+
 > 작성일: 2026-09-10 · 갱신: 2026-09-11 · 기준 커밋: `27b1c50` (배포 후보 `git-27b1c50`)
 > 목적: **인프라/운영 담당자가 이 문서만으로 Production 환경을 준비**할 수 있게 한다.
 > 배경: 코드·설정·staging(kind 멀티노드) 검증은 완료(CONDITIONAL GO,
@@ -119,7 +123,7 @@ TLS(cert-manager) — repo 의 두 가지 경로 중 담당자가 결정:
 
 | Component | 목적 | 필수 시점 | repo 자동 설치 | 확인 방법 |
 |---|---|---|---|---|
-| CloudNativePG | DB HA·백업·PITR | **A. 앱 배포 전** | 아니오(수동 helm/manifest — PRODUCTION.md §4) | `kubectl get crd clusters.postgresql.cnpg.io` |
+| (불필요 — MariaDB 전환) ~~CloudNativePG~~ | DB 는 plain manifest(`platform/mariadb.yaml`·`auth/auth-db.yaml`)로 배포, 백업은 `mariadb-backup.yaml` CronJob — 오퍼레이터 설치 없음 | — | 예(매니페스트 apply) | `kubectl -n edu-platform get deploy mariadb` |
 | Sealed Secrets 컨트롤러 | Secret 반입 표준 | **A** | 아니오(수동 — secrets/README.md) | `kubeseal --fetch-cert` 성공 |
 | ingress-nginx(+WAF values) | 엣지·rate-limit | **A** | `bootstrap.sh stack` 포함 | 컨트롤러 Ready + LB external IP |
 | cert-manager(+발급자) | TLS 자동화 | **A** | stack 포함(발급자 apply 포함) | ClusterIssuer Ready |
@@ -130,7 +134,11 @@ TLS(cert-manager) — repo 의 두 가지 경로 중 담당자가 결정:
 | metrics-server | HPA | **A** | 매니지드는 보통 내장 | `kubectl top nodes` |
 | Gitea(선택) | 내부 코드 저장소 | 선택 | stack 포함 | 내부망 정책에 따라 |
 
-## 9. Object Storage (DB 백업/PITR — 필수)
+## 9. Object Storage (백업 오프사이트 복제 — 후속 트랙)
+
+MariaDB 전환 후 1차 백업은 **mariadb-dump CronJob**(`deploy/k8s/platform/mariadb-backup.yaml`,
+매일 03:00 UTC · 30일 보존 · PVC `edu-db-backups`)이다. 오브젝트 스토리지는 백업의
+**오프사이트 복제 후속 트랙**에서 사용한다. 아래 표는 CNPG/PITR 작성 시점 기준 기록이다.
 
 S3 API 호환이면 됨(S3·MinIO 운영 인스턴스·기타 호환 스토리지).
 **staging 의 `minio.minio.svc:9000` 은 검증용 대체물 — 운영 반입 금지.**
@@ -160,18 +168,18 @@ S3 API 호환이면 됨(S3·MinIO 운영 인스턴스·기타 호환 스토리�
 
 | # | Secret (namespace) | Key | 사용 서비스 | 필수 |
 |---|---|---|---|---|
-| ① | `edu-db` (edu-platform) | POSTGRES_DB / POSTGRES_USER / POSTGRES_PASSWORD | bootstrap 게이트(단일 DB 경로) | 필수 |
-| ② | `edu-auth-db` (edu-platform) | 동일 3키 | 동일 | 필수 |
+| ① | `edu-db` (edu-platform) | MARIADB_DATABASE / MARIADB_USER / MARIADB_PASSWORD / MARIADB_ROOT_PASSWORD | bootstrap 게이트(플랫폼 MariaDB) | 필수 |
+| ② | `edu-auth-db` (edu-platform) | 동일 4키 | 동일(인증 MariaDB) | 필수 |
 | ③ | `edu-auth-jwt` (edu-platform) | EDU_JWT_SECRET(≥32B) / EDU_SEED_PASSWORD | auth·backend·worker 공유 | 필수 |
 | ④ | `edu-redis-auth` (edu-platform) | password | redis·auth·backend·worker | 필수 |
-| ⑤ | `edu-db-backup-creds` (edu-platform) | ACCESS_KEY_ID / ACCESS_SECRET_KEY | CNPG 백업(§9) | 필수(HA) |
+| ⑤ | `edu-db-backup-creds` (edu-platform) | ACCESS_KEY_ID / ACCESS_SECRET_KEY | 백업 오프사이트 복제(§9) — 후속 트랙용, 현재 미사용 | 후속 트랙 |
 | ⑥ | `edu-alert-receiver` (**monitoring**) | `webhook-url` | Alertmanager(§12) | 필수 |
 | ⑦ | `edu-gitea-token` (edu-platform **+ edu-build**) | username / token | backend·worker (optional 참조) · Kaniko 빌드 Job(edu-build) — bootstrap 이 edu-build 로 자동 동기화 | Gitea 사용 시 |
 | ⑧ | `edu-gitea-webhook` (edu-platform) | secret | backend (optional) | Gitea 사용 시 |
 | ⑨ | `edu-registry-auth` (**edu-build**) | docker-registry 형식 | Kaniko push 자격(`make prod-registry-secret`) — **레포지토리 push 전용(단기) 계정** 필수: 사용자 Dockerfile RUN 이 이 값을 읽을 수 있음(Kaniko 구조 한계) | 사설 레지스트리 인증 시 |
+| ⑩ | `edu-gitea-db` (edu-platform) | password | Gitea 외부 DB(`gitea`) 계정 — MariaDB 최초 초기화 시 init 스크립트가 사용 | Gitea 사용 시 |
 
-참고: HA(CNPG) 경로의 앱 계정 Secret(`edu-db-app`/`edu-auth-db-app`)은 **오퍼레이터가 자동
-생성** — 담당자가 만들지 않는다.
+참고: CNPG 자동 생성 Secret(`edu-db-app`/`edu-auth-db-app`)은 MariaDB 전환으로 해당 없음.
 
 ## 12. Alertmanager 운영 수신처 (BLOCKER ②)
 
@@ -230,8 +238,8 @@ kubectl -n monitoring delete prometheusrule edu-receiver-check
 - [ ] L4 LoadBalancer + external IP(§6) — externalTrafficPolicy Local 헬스체크 구성
 - [ ] DNS 레코드(§7) — 플랫폼 호스트(+Gitea 선택)
 - [ ] TLS 경로 결정·준비(§7) — ACME 또는 사설 CA, 종단 지점 결정
-- [ ] Operator 설치(§8 A 그룹): CNPG · Sealed Secrets · ingress-nginx · cert-manager · KEDA · metrics-server
-- [ ] Object Storage(§9) — bucket·credential·retention
+- [ ] Operator 설치(§8 A 그룹): Sealed Secrets · ingress-nginx · cert-manager · KEDA · metrics-server (CNPG 는 MariaDB 전환으로 불필요)
+- [ ] Object Storage(§9) — 백업 오프사이트 복제 후속 트랙(현재 필수 아님)
 - [ ] Registry pull 경로(§10) — GHCR egress 또는 내부 미러
 - [ ] Production Secret 봉인 반입(§11 ①~⑥, Gitea 사용 시 ⑦⑧)
 - [ ] **운영 Alertmanager 수신처**(§12) 반입 + §13 검증 1회 완료

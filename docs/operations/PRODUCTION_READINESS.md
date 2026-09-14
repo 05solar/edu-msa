@@ -1,5 +1,9 @@
 # PRODUCTION_READINESS.md · Production 배포 전 최종 점검
 
+> 이 문서의 DB 관련 서술(PostgreSQL/CNPG/PgBouncer 등)은 작성 시점 기준이다.
+> 2026-09-14 MariaDB 전환([MARIADB_PLAN.md](../planning/MARIADB_PLAN.md)) 이후 DB 스택은
+> MariaDB 11.4 단일 인스턴스 + mariadb-dump 백업이며, HA·풀러·replica 는 후속 트랙이다.
+
 > 1차 점검: 2026-09-10 (기준 `d85ce9b` → 수정 `85dd3d2`) · 2차(Condition Closure): §11 · 3차(최종 GO 게이트 리허설): §12
 > 대상: v0.8.0 확장성 개조 완료본 · staging = kind 멀티노드(cp1+worker3, Calico)
 > **판정: CONDITIONAL GO 유지** (§12-8 — 실서버·운영 수신처가 이 환경에 물리적으로 부재(BLOCKER).

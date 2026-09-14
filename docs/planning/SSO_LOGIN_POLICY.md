@@ -1,5 +1,9 @@
 # 로그인 정책 설계 — 대규모·정부기관 전제의 Gitea 연계 SSO
 
+> 이 문서의 DB 관련 서술(PostgreSQL/CNPG/PgBouncer 등)은 작성 시점 기준이다.
+> 2026-09-14 MariaDB 전환([MARIADB_PLAN.md](MARIADB_PLAN.md)) 이후 DB 스택은
+> MariaDB 11.4 단일 인스턴스 + mariadb-dump 백업이며, HA·풀러·replica 는 후속 트랙이다.
+
 > 전제: 이용자 수십만 명 · 동시접속 수만 명 · 정부기관 보안 정책 준수.
 > 목표: **한 번의 로그인으로 플랫폼(포털·API)과 Gitea 를 매끄럽게 오가는** 인증 체계.
 > 관련 문서: [GITEA_PLAN.md](GITEA_PLAN.md) §7(2차 SSO), [ARCHITECTURE.md](../architecture/ARCHITECTURE.md)

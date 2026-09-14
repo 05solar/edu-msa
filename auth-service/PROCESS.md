@@ -36,3 +36,4 @@
 - 2026-08-25 — 보안: BCrypt 인코더, HS256 JWT 발급·검증(JwtTokenProvider), Refresh HttpOnly 쿠키(RefreshCookies), 시큐리티 필터 체인과 Role 기반 인가.
 - 2026-08-25 — 데모 계정 이관: 플랫폼 USERS_SEED 7명을 seed/accounts.json 기준으로 auth-db 에 시드(이름·부서·역할 유지, 임시 비밀번호 BCrypt 해시, mustChangePassword=true). 재기동 시 중복 생성하지 않음.
 - 2026-08-25 — 상향 권한 신청·승인: 회원가입은 항상 USER 로 고정하고 CODER/ADMIN 은 신청으로만 접수. 가입 시 `requestRole`/`requestReason`, 로그인 후 `POST /api/auth/role-request`(취소 `DELETE`)로 신청하며 계정 권한은 USER 유지(승인 대기만 보관). 운영 관리자용 `GET /api/auth/role-requests`, 승인 `POST .../{username}/role-request/approve`, 반려 `POST .../reject` 추가. 자가 신청만으로 권한 상승 불가. `/me` 응답에 신청 상태 포함.
+- 2026-09-14 — MariaDB 전환: mariadb-java-client/flyway-mysql, Flyway 벤더 분리(db/vendor/{mariadb,h2}), refresh 토큰 배치 삭제 쿼리 파생 테이블 래핑(Error 1093), H2 MODE=MariaDB, MariaDbSchemaMigrationIT(Testcontainers)로 clean migration+validate+시드+배치 삭제 실측.

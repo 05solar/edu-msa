@@ -1,6 +1,6 @@
 # GPU · 테넌트 서비스가 GPU를 쓰게 하기
 
-이 플랫폼의 **코어(frontend·backend·auth·PostgreSQL)는 GPU가 필요 없다. CPU만으로 동작**한다.
+이 플랫폼의 **코어(frontend·backend·auth·MariaDB)는 GPU가 필요 없다. CPU만으로 동작**한다.
 GPU는 **배포되는 테넌트 서비스**(예: OCR·데이터요약을 실제 ML 모델로 돌리는 도구)가 요청할 때만
 의미가 있다.
 

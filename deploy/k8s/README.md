@@ -6,13 +6,14 @@
 deploy/k8s/
 ├── namespaces.yaml          # edu-platform, edu-services
 ├── platform/
-│   ├── postgres.yaml        # 플랫폼 DB (Secret/PVC/Deployment/Service)
+│   ├── mariadb.yaml         # 플랫폼 DB — MariaDB 11.4 (PVC/init ConfigMap/Deployment+mysqld_exporter/Service)
+│   ├── mariadb-backup.yaml  # mariadb-dump CronJob (매일 03:00 UTC · 30일 보존 · PVC edu-db-backups)
 │   ├── backend.yaml         # 플랫폼 API
 │   ├── frontend.yaml        # 정적 프론트(nginx)
 │   ├── ingress.yaml         # edu.internal → /api/auth=auth-service, /api=backend, /=frontend
 │   └── rbac.yaml            # edu-deployer SA + edu-services 배포 권한
 ├── auth/
-│   ├── auth-db.yaml         # 인증 DB (Secret/PVC/Deployment/Service)
+│   ├── auth-db.yaml         # 인증 DB — MariaDB 11.4 단일 인스턴스 + mysqld_exporter 사이드카
 │   └── auth-service.yaml    # 인증 API (Secret/Deployment/Service)
 └── service-template.yaml    # 서비스 1개당 렌더링되는 템플릿(백엔드가 채움)
 ```
@@ -24,13 +25,19 @@ kubectl apply -f namespaces.yaml
 kubectl apply -f platform/build.yaml           # 빌드 격리 ns(edu-build) — rbac 이 참조하므로 먼저
 kubectl -n edu-build patch serviceaccount default -p '{"automountServiceAccountToken":false}'
 kubectl apply -f platform/rbac.yaml
-kubectl apply -f platform/postgres.yaml
+kubectl apply -f platform/mariadb.yaml
+kubectl apply -f platform/mariadb-backup.yaml
 kubectl apply -f auth/auth-db.yaml
 kubectl apply -f auth/auth-service.yaml     # backend 보다 먼저 — edu-auth-jwt Secret 을 만든다
 kubectl apply -f platform/backend.yaml
 kubectl apply -f platform/frontend.yaml
 kubectl apply -f platform/ingress.yaml
 ```
+
+DB 는 **MariaDB 11.4 단일 인스턴스 + mariadb-dump 백업**이 1차 구성이다.
+HA(replication/Galera 등 CNPG 상당)와 read replica 라우팅 재배선은 후속 트랙
+([docs/planning/MARIADB_PLAN.md](../../docs/planning/MARIADB_PLAN.md)) 참고. 복원 절차는
+[docs/operations/MARIADB_MIGRATION_RUNBOOK.md](../../docs/operations/MARIADB_MIGRATION_RUNBOOK.md).
 
 이미지는 `registry.edu.internal/edu-msa-backend`,
 `registry.edu.internal/edu-msa-auth-service`,
@@ -47,10 +54,15 @@ kubectl -n edu-platform create secret generic edu-auth-jwt \
   --from-literal=EDU_SEED_PASSWORD="$(openssl rand -base64 12)"
 
 kubectl -n edu-platform create secret generic edu-auth-db \
-  --from-literal=POSTGRES_DB=eduauth \
-  --from-literal=POSTGRES_USER=eduauth \
-  --from-literal=POSTGRES_PASSWORD="$(openssl rand -base64 24)"
+  --from-literal=MARIADB_DATABASE=eduauth \
+  --from-literal=MARIADB_USER=eduauth \
+  --from-literal=MARIADB_PASSWORD="$(openssl rand -base64 24)" \
+  --from-literal=MARIADB_ROOT_PASSWORD="$(openssl rand -base64 24)"
 ```
+
+플랫폼 DB(`edu-db`)도 같은 키 구성(`MARIADB_DATABASE=edumsa` 등)이며, Gitea 외부 DB 를
+쓰면 `edu-gitea-db`(키: `password`)를 추가한다 — 전체 목록은
+[secrets/README.md](secrets/README.md).
 
 `EDU_JWT_SECRET` 은 auth-service(발급)와 backend(검증)가 **같은 값**을 참조해야 한다.
 두 Deployment 모두 `edu-auth-jwt` Secret 을 바라보므로 값은 한 곳에서만 관리된다.

@@ -80,9 +80,9 @@ k3s 기본 `local-path` 는 **볼륨이 특정 노드에 묶여** 그 노드가 
 | 매니지드 | 기본 제공 CSI (`gp3`/`pd-balanced`/`managed-csi` 등) |
 | 자체 구축 | Longhorn(간단, replica 스토리지) · Rook-Ceph · 외부 NFS/SAN CSI |
 
-준비한 클래스 이름을 `STORAGE_CLASS` 로 넘기면 bootstrap 이 코어 PVC(postgres·auth-db)와
+준비한 클래스 이름을 `STORAGE_CLASS` 로 넘기면 bootstrap 이 코어 PVC(mariadb·auth-db·백업)와
 운영스택(Loki·Gitea) 볼륨에 일괄 적용한다. 미지정 시 클러스터 기본 클래스를 쓴다.
-DB 자체의 다중화(CNPG HA·백업)는 §4에서 별도로 다룬다.
+DB 백업·HA 트랙은 §4에서 별도로 다룬다.
 
 ---
 
@@ -115,88 +115,42 @@ DB 자체의 다중화(CNPG HA·백업)는 §4에서 별도로 다룬다.
 
 ---
 
-## 4. 데이터베이스 (코어 → HA 업그레이드)
+## 4. 데이터베이스 (MariaDB — 단일 인스턴스 + 백업, HA 는 후속 트랙)
 
-`bootstrap.sh` 코어는 **단일 postgres/auth-db**(개발·리허설용)로 뜬다. 운영은 두 DB 모두
-**CloudNativePG(CNPG)** 로 승격한다 — primary 1 + replica 2 자동 failover, PgBouncer 풀러,
-오브젝트 스토리지 백업 + PITR.
+`bootstrap.sh` 코어가 **MariaDB 11.4 단일 인스턴스 2개**(플랫폼 `mariadb`/edumsa,
+인증 `auth-db`/eduauth — utf8mb4·UTC·mysqld_exporter 사이드카)와 **일일 백업 CronJob** 을
+함께 배포한다. 1차 운영 구성은 "단일 인스턴스 + 네트워크 스토리지 + 일일 백업 + 복원
+리허설"이며, 다중화(HA)는 후속 트랙이다(§4-3).
 
-### 4-1. HA 전환
+### 4-1. 백업·복원
 
-```bash
-# ① CNPG 오퍼레이터
-kubectl apply --server-side -f \
-  https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/release-1.24/releases/cnpg-1.24.0.yaml
+- `platform/mariadb-backup.yaml` — CronJob `edu-db-backup` 이 매일 03:00(UTC) 두 DB 를
+  `mariadb-dump --single-transaction`(무중단 논리 백업)으로 백업 PVC(`edu-db-backups`)에
+  gzip 저장, 30일 보존. `STORAGE_CLASS` 를 백업 PVC 에도 반드시 네트워크 스토리지로 지정할 것.
+- 수동 즉시 백업 / 복원 절차·리허설:
+  **[docs/operations/MARIADB_MIGRATION_RUNBOOK.md](../docs/operations/MARIADB_MIGRATION_RUNBOOK.md)** §4.
+  복구 리허설(백업에서 실제로 복원되는지)을 분기 1회 이상 수행할 것.
+- 오브젝트 스토리지 오프사이트 복제(기존 `edu-db-backup-creds` 활용)는 후속 트랙 —
+  백업 PVC 유실이 곧 백업 유실이므로 운영 개시 전 도입을 권장한다.
 
-# ② 백업 자격 증명(오브젝트 스토리지) — 평문을 매니페스트에 두지 않는다
-kubectl -n edu-platform create secret generic edu-db-backup-creds \
-  --from-literal=ACCESS_KEY_ID=<key> --from-literal=ACCESS_SECRET_KEY=<secret>
+### 4-2. 기존 데이터 마이그레이션 (PostgreSQL → MariaDB)
 
-# ③ HA 클러스터 2종 + 풀러 + ScheduledBackup
-#    (apply 전에 각 파일의 endpointURL/destinationPath 를 실제 오브젝트 스토리지로,
-#     storageClass 를 §1-1 의 네트워크 스토리지 클래스로 교체)
-kubectl apply -f deploy/k8s/platform/postgres-ha.yaml     # edu-db      (edumsa)
-kubectl apply -f deploy/k8s/auth/auth-db-ha.yaml          # edu-auth-db (eduauth)
+전환 이전(PostgreSQL) 운영 데이터가 있는 경우의 테이블별 CSV 이관 절차·검증 기준·롤백
+경로는 **[docs/operations/MARIADB_MIGRATION_RUNBOOK.md](../docs/operations/MARIADB_MIGRATION_RUNBOOK.md)**
+§1~§3 을 따른다. 신규 설치는 이관이 필요 없다(Flyway 가 빈 DB 에 스키마 생성).
 
-# ④ 애플리케이션 전환 — 원본 매니페스트가 이미 풀러(edu-db-pooler-rw / edu-auth-db-pooler-rw)와
-#    오퍼레이터 생성 시크릿(edu-db-app / edu-auth-db-app)을 바라본다.
-#    직접 kubectl apply 하면 매니페스트의 기본 semver 태그가 적용되므로,
-#    현재 배포 중인 이미지 태그를 유지하려면 bootstrap 으로 재렌더링해 적용한다(§5-1).
-MODE=server DOMAIN=<도메인> REGISTRY=<레지스트리> IMAGE_TAG=<현재 태그> ./deploy/bootstrap.sh core
-```
+### 4-3. HA 후속 트랙 (규모 확장 시)
 
-접속 경로: 앱 → `*-pooler-rw`(PgBouncer transaction 모드, DB 실커넥션 상한) → primary.
-읽기 전용 워크로드는 `edu-db-pooler-ro` / `edu-auth-db-pooler-ro`(replica 라우팅)가 준비되어 있다.
-직결 서비스(`*-rw`/`*-ro`/`*-r`)는 마이그레이션·관리 용도로 사용한다.
+수십만 사용자·수만 동시접속 규모로 가면 다음 순서로 승격한다(코드 준비는 되어 있다 —
+`DB_RO_URL` 미설정 시 read 라우팅이 꺼지는 현행 구조 유지):
 
-### 4-2. 기존 데이터 마이그레이션 (단일 postgres → CNPG)
+1. **복제 구성**: mariadb-operator(비동기 replication 또는 Galera) 로 primary 1 + replica N.
+2. **프록시/풀러**: MaxScale(read-write split) 또는 ProxySQL — 앱 커넥션 총량 상한 관리.
+3. **read 라우팅 재배선**: backend `DB_RO_URL` 을 replica(또는 MaxScale ro 리스너)로 지정 —
+   카탈로그 목록/집계(캐시 미스분)가 replica 로 분산된다(ReadRoutingDataSourceConfig).
+4. **백업 승격**: 논리(mariadb-dump) → 물리(mariabackup) + binlog 보존으로 PITR 확보.
 
-**방법 A — CNPG import(권장, 오퍼레이터가 수행):** HA 클러스터를 만들 때 기존 DB 에서
-가져오도록 `bootstrap.initdb` 에 import 를 추가해 apply 한다.
-
-```yaml
-  bootstrap:
-    initdb:
-      import:
-        type: microservice
-        databases: [ edumsa ]        # auth 는 [ eduauth ]
-        source:
-          externalCluster: legacy
-  externalClusters:
-    - name: legacy
-      connectionParameters:
-        host: postgres.edu-platform.svc   # auth 는 auth-db.edu-platform.svc
-        user: edumsa
-        dbname: edumsa
-      password:
-        name: edu-db                      # 기존 시크릿 (auth 는 edu-auth-db)
-        key: POSTGRES_PASSWORD
-```
-
-**방법 B — pg_dump/psql(수동, 소규모):**
-```bash
-kubectl -n edu-platform exec deploy/postgres -- pg_dump -U edumsa -d edumsa \
-  | kubectl -n edu-platform exec -i edu-db-1 -- psql -U postgres -d edumsa
-```
-
-공통 절차: 쓰기 중단(backend/auth 스케일 0 또는 점검 창) → 이전 → 앱 재적용(④) →
-검증 후 단일 DB Deployment/PVC 제거. Flyway 는 이전된 스키마를 baseline 으로 인식한다.
-
-### 4-3. 백업·PITR
-
-- `ScheduledBackup`(매일 03:00/03:30) + WAL 연속 아카이브(barmanObjectStore) → **임의 시점 복구(PITR)** 가능.
-- 시점 복구는 **새 Cluster** 를 백업에서 부트스트랩한다:
-  ```yaml
-  bootstrap:
-    recovery:
-      source: edu-db
-      recoveryTarget:
-        targetTime: "2026-09-09 10:00:00+09"
-  externalClusters:
-    - name: edu-db
-      barmanObjectStore: { …postgres-ha.yaml 과 동일 설정… }
-  ```
-- 복구 리허설(백업에서 실제로 복원되는지)을 분기 1회 이상 수행할 것.
+주의: MariaDB 10.6 미만은 지원하지 않는다(`FOR UPDATE SKIP LOCKED` — 배포 큐 선점 경로).
 
 ---
 
@@ -205,7 +159,8 @@ kubectl -n edu-platform exec deploy/postgres -- pg_dump -U edumsa -d edumsa \
 매니페스트에는 **자리표시자 Secret 이 없다.** 운영 반영 경로는 하나뿐이다:
 
 1. [deploy/k8s/secrets/README.md](k8s/secrets/README.md) 절차대로 **Sealed Secrets** 로
-   `edu-db` · `edu-auth-db` · `edu-auth-jwt` · `edu-redis-auth`(HA DB 백업 시 `edu-db-backup-creds`)를
+   `edu-db` · `edu-auth-db` · `edu-auth-jwt` · `edu-redis-auth` · `edu-gitea-db`
+   (오프사이트 백업 복제 도입 시 `edu-db-backup-creds`)를
    먼저 반영한다. 평문 Secret 파일은 `.gitignore` 로 커밋이 차단되고, 봉인본(`*.sealed.yaml`)만 커밋한다.
 2. `bootstrap.sh` server 모드는 필수 Secret 이 없으면 **안내와 함께 중단**한다(fail-closed) —
    자리표시자 값이 운영에 올라갈 경로가 존재하지 않는다.

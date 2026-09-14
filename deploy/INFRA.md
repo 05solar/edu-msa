@@ -21,7 +21,7 @@
 
 ```
 deploy/
-├─ docker-compose.yml            # 로컬 개발: postgres·auth-db·auth-service·traefik·backend (docker 배포 모드)
+├─ docker-compose.yml            # 로컬 개발: mariadb·auth-db·auth-service·traefik·backend (docker 배포 모드)
 ├─ .env.example                  # 시크릿 주입 예시(EDU_JWT_SECRET·EDU_SEED_PASSWORD 등, .env 는 커밋 안 함)
 ├─ INFRA.md · PROCESS.md · AGENT.md
 └─ k8s/
@@ -39,7 +39,7 @@ deploy/
    │  └─ 40-kaniko-build-job.template.yaml
    └─ platform/
       ├─ backend.yaml, frontend.yaml, ingress.yaml
-      ├─ postgres.yaml(개발) / postgres-ha.yaml(CloudNativePG)
+      ├─ mariadb.yaml(단일 MariaDB) / mariadb-backup.yaml(백업 CronJob)
       ├─ rbac.yaml               # edu-deployer(최소권한)
       ├─ autoscale.yaml          # HPA + PDB(플랫폼)
       ├─ registry/               # (P3-4) kind-local-registry
@@ -55,11 +55,12 @@ deploy/
 ## 2. 플랫폼 코어
 
 - **backend**(`platform/backend.yaml`): 2복제, `serviceAccountName: edu-deployer`(최소권한 RBAC),
-  `EDU_DEPLOY_MODE=real`. DB는 `edu-db-pooler-rw`(CNPG PgBouncer 풀러 → primary) + `edu-db-app` 시크릿.
+  `EDU_DEPLOY_MODE=real`. DB는 `mariadb` Service(단일 MariaDB 11.4) + `edu-db` 시크릿(MARIADB_*).
   메트릭 `/actuator/prometheus` 노출.
 - **frontend**(`platform/frontend.yaml`): React 정적 서빙.
-- **DB**: `postgres-ha.yaml`·`auth/auth-db-ha.yaml`(CloudNativePG 3-인스턴스 HA + PgBouncer 풀러
-  rw/ro + 오브젝트 스토리지 백업·PITR) / 개발은 `postgres.yaml`·`auth/auth-db.yaml`(단일).
+- **DB**: `platform/mariadb.yaml`·`auth/auth-db.yaml` — MariaDB 11.4 단일 인스턴스(utf8mb4/UTC,
+  mysqld_exporter 사이드카) + `mariadb-backup.yaml`(mariadb-dump 일일 백업 CronJob).
+  HA(다중 인스턴스·풀러·replica 라우팅)는 후속 트랙 — PRODUCTION.md §4.
 - **ingress**(`platform/ingress.yaml`): 플랫폼 UI/API 진입.
 - **RBAC**(`platform/rbac.yaml`): `edu-deployer` SA가 `edu-services`에 Deploy/Svc/Ingress만 CRUD(파드는 read).
 
@@ -199,7 +200,7 @@ MODE=server DOMAIN=edu.example.go.kr REGISTRY=<레지스트리> ./deploy/bootstr
 WITH_GPU=1 ./deploy/bootstrap.sh gpu
 ```
 서브커맨드: `up | core | stack | gpu | images | status | down`. 실서버 상세(k3s·Calico·레지스트리·
-도메인/TLS·CNPG·시크릿·GPU)는 **[PRODUCTION.md](PRODUCTION.md)**.
+도메인/TLS·DB 백업·시크릿·GPU)는 **[PRODUCTION.md](PRODUCTION.md)**.
 
 ### 로컬(docker-compose · docker 배포 모드)
 ```bash
@@ -215,7 +216,7 @@ cd frontend && npm install && npm run dev                   # 프론트(:5173)
 
 1. 클러스터 + CNI(Calico) + (kind는 `registry/setup-local-registry.sh`).
 2. `k8s/namespaces.yaml`, `hardening/*` 적용(신뢰등급/PSA/쿼터/NetworkPolicy).
-3. `platform/rbac.yaml`, `postgres-ha.yaml`(CNPG), `auth/auth-db.yaml` → `auth/auth-service.yaml`
+3. `platform/rbac.yaml`, `platform/mariadb.yaml`(+`mariadb-backup.yaml`), `auth/auth-db.yaml` → `auth/auth-service.yaml`
    (backend 보다 먼저 — `edu-auth-jwt` Secret 생성) → `backend.yaml`/`frontend.yaml`/`ingress.yaml`.
 4. 운영 스택(helm): metrics-server → kube-prometheus-stack → KEDA → ingress-nginx →
    cert-manager → Loki → Tempo (각 README의 helm 명령).
@@ -231,4 +232,5 @@ cd frontend && npm install && npm run dev                   # 프론트(:5173)
 
 P0(오토스케일·배포큐·DB HA) · P1(Kaniko·네임스페이스·NetworkPolicy·가용성) ·
 P2(scale-to-zero·관측성·엣지WAF) · P3(자동TLS·로그·트레이스·알림·레지스트리 pull) — **전부 완료**.
-대표 근거: CNPG 자동 승격, 무중단 롤링(220/219), WAF 403, scale-to-zero 0→1, Kaniko digest 일치 pull.
+대표 근거(작성 시점·PostgreSQL 기준): CNPG 자동 승격, 무중단 롤링(220/219), WAF 403, scale-to-zero 0→1,
+Kaniko digest 일치 pull. DB 는 이후 MariaDB 로 전환됐다(HA 재검증은 후속 트랙 — MARIADB_PLAN.md).

@@ -1,5 +1,9 @@
 # SCALABILITY_REVIEW.md · 수십만 사용자 규모 적합성 검토
 
+> 이 문서의 DB 관련 서술(PostgreSQL/CNPG/PgBouncer 등)은 작성 시점 기준이다.
+> 2026-09-14 MariaDB 전환([MARIADB_PLAN.md](../planning/MARIADB_PLAN.md)) 이후 DB 스택은
+> MariaDB 11.4 단일 인스턴스 + mariadb-dump 백업이며, HA·풀러·replica 는 후속 트랙이다.
+
 > 검토일: 2026-09-09 · 대상: `deploy/`(K8s·compose 전체), `backend/`, `auth-service/`, `frontend/`(서빙 구성)
 > 기준: **수십만 명(예: 20만~50만 계정, 피크 동시접속 1만~5만, 피크 수천 RPS)** 을 감당할 수 있는가.
 >

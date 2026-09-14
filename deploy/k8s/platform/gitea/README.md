@@ -60,8 +60,8 @@ kubectl -n gitea port-forward svc/gitea-http 3000:3000
 
 - 네임스페이스 PodSecurity 라벨: `enforce=baseline`, `warn/audit=restricted` (bootstrap 적용).
 - [networkpolicy.yaml](networkpolicy.yaml): 기본 전체 차단 후
-  ingress-nginx → 3000 수신과 DNS(53) 송신만 허용. SQLite 내장이라 DB egress 불필요.
-  webhook(→ backend) egress 는 4단계에서 별도 정책으로 연다.
+  ingress-nginx → 3000 수신과 DNS(53)·플랫폼 MariaDB(edu-platform:3306, 외부 DB) 송신만
+  허용. webhook(→ backend) egress 는 4단계에서 별도 정책으로 연다.
 - NetworkPolicy 강제: 실서버 Calico는 물론, **최신 kind(kindnet)도 강제한다**
   (4단계 검증 중 egress 차단으로 실증 — 허용 규칙 누락 시 webhook 전송이 막힌다).
 
@@ -161,20 +161,37 @@ kubectl -n gitea cp "$(kubectl -n gitea get pod -l app=gitea -o jsonpath='{.item
 # 2) PVC(gitea-shared-storage) 스냅샷 (StorageClass 가 지원할 때)
 ```
 
+DB 가 플랫폼 MariaDB(외부 DB)이므로 `gitea` DB 는 플랫폼의 mariadb-dump CronJob
+(`deploy/k8s/platform/mariadb-backup.yaml`) 백업 대상에 포함시킬 수 있다 —
+CronJob 의 덤프 대상 databases 목록에 `gitea` 를 추가하면 레포(PVC)와 DB 백업이
+같은 보존 정책(30일)으로 일원화된다.
+
 복원 리허설은 6단계 통합 검증 항목이다.
 
-## 운영 DB 전환 (권장, 선택)
+## 데이터베이스 (플랫폼 MariaDB 외부 DB — 기본)
 
-1단계는 내장 SQLite 다. 운영 전환 시 플랫폼 CNPG PostgreSQL 에 `gitea` DB 를 만들고
-`values.yaml` 의 `gitea.config.database` 를 다음으로 교체 후 `helm upgrade`:
+Gitea 는 내장 SQLite 가 아니라 **플랫폼 MariaDB(`platform/mariadb.yaml`)의 `gitea`
+데이터베이스**를 외부 DB 로 사용한다. `values.yaml` 의 `gitea.config.database` 기준:
 
 ```yaml
 database:
-  DB_TYPE: postgres
-  HOST: edu-db-rw.edu-platform.svc:5432
+  DB_TYPE: mysql            # MariaDB 는 mysql 드라이버 계열로 접속
+  HOST: mariadb.edu-platform.svc.cluster.local:3306
   NAME: gitea
   USER: gitea
-  PASSWD: <secret 참조 권장>
+  # PASSWD 는 bootstrap 이 edu-gitea-db Secret(키: password)에서 읽어 --set-string 으로 주입
+```
+
+- **DB/계정 생성**: MariaDB **최초 초기화**(빈 datadir) 시 init 스크립트
+  (`edu-mariadb-init` ConfigMap)가 `edu-gitea-db` Secret 의 비밀번호로 `gitea` DB 와
+  계정을 자동 생성한다. Secret 미반입 시 gitea DB 생성은 건너뛴다(코어만 쓰는 설치 허용).
+- **이미 초기화된 MariaDB 에 수동 추가**: init 스크립트는 최초 초기화에만 실행되므로,
+  기존 DB 에는 root 로 아래 SQL 을 직접 실행한다:
+
+```sql
+CREATE DATABASE gitea CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'gitea'@'%' IDENTIFIED BY '<edu-gitea-db secret password>';
+GRANT ALL PRIVILEGES ON gitea.* TO 'gitea'@'%';
 ```
 
 ## 검증 기록

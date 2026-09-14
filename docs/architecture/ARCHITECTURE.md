@@ -25,7 +25,7 @@
                                            └───┬────────────────┬─────┘
                                                │                │
                                      ┌─────────▼──────┐  ┌──────▼───────────────┐
-                                     │ PostgreSQL     │  │  배포 파이프라인       │
+                                     │ MariaDB        │  │  배포 파이프라인       │
                                      │ 프로그램·배포   │  │  clone→검증→build→push │
                                      └────────────────┘  └──────┬───────────────┘
                                                                  │ docker / kubectl
@@ -66,7 +66,7 @@
   `/api/health`·`/api/catalog/**`는 공개, `/api/programs`(로그인 사용자 → PUBLIC 목록),
   `POST /api/programs`는 CODER 이상, `/api/programs/all`·`/api/programs/*/deploy`·`/api/users`는
   ADMIN, 그 외는 로그인 필요. 검증은 auth-service와 공유하는 `EDU_JWT_SECRET`으로 로컬 수행.
-- 기능별 패키지 분리. PostgreSQL 영속화.
+- 기능별 패키지 분리. MariaDB 영속화.
 
 ### 배포 파이프라인 (`backend/deploy` + `deploy/`)
 - GitHub clone → `service.yaml`/`Dockerfile` 정적 검증 → 이미지 빌드 → (docker) eduproxy 합류
@@ -123,7 +123,7 @@ draft ─(제출)→ pending ─(승인+배포성공)→ public
 - 안전 빌드는 Kaniko + 로컬 레지스트리, 유휴 시 KEDA scale-to-zero.
 - 관측성: Prometheus / Loki / Tempo. 게이트웨이는 ingress-nginx(WAF), 인증서는 cert-manager.
 - 인증 계층: `deploy/k8s/auth/`(auth-db.yaml, auth-service.yaml, `edu-auth-jwt` Secret).
-- apply 순서: `namespaces → hardening → rbac → postgres → auth-db → auth-service →
+- apply 순서: `namespaces → hardening → rbac → mariadb → auth-db → auth-service →
   backend → frontend → ingress`.
 
 ## 7. 기술 결정 (ADR 요약)
@@ -133,6 +133,6 @@ draft ─(제출)→ pending ─(승인+배포성공)→ public
 - 백엔드: Spring Boot 3, Java 21, Gradle Kotlin DSL.
 - 인증: auth-service를 독립 서비스로 분리하고 auth-db를 플랫폼 DB와 별도로 둔다.
   JWT(HS256)를 각 서비스가 공유 시크릿으로 자체 검증(무상태 인증).
-- DB: PostgreSQL(플랫폼 `edu` · 인증 `eduauth` 분리).
+- DB: MariaDB(플랫폼 `edumsa` · 인증 `eduauth` 분리).
 - 오케스트레이션: 로컬은 docker-compose + Traefik(eduproxy), 실서버는 Kubernetes.
 - 아이콘: 인라인 SVG 세트(이모지 금지). 알림/토스트에 좌측 색상 바 금지(아이콘+텍스트만).

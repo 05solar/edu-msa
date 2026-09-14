@@ -6,7 +6,7 @@
 #   - ingress: ingress-nginx → 3000 (웹/clone) · edu-platform → 3000 (backend 수집기·Kaniko 의
 #     인클러스터 직접 clone — EDU_GITEA_CLONE_BASE 경로, 3단계)
 #   - egress:  DNS(kube-system:53) + webhook(→ edu-platform backend:8080, 4단계)
-#     — SQLite 내장이라 DB egress 불필요.
+#     + DB(→ edu-platform MariaDB:3306 — 외부 DB 전환)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata: { name: default-deny-all, namespace: gitea }
@@ -51,6 +51,19 @@ spec:
         - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: edu-platform } }
       ports:
         - { protocol: TCP, port: 8080 }
+---
+# 외부 DB 접속 허용 — gitea → 플랫폼 MariaDB(edu-platform:3306)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: allow-db-to-mariadb, namespace: gitea }
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: edu-platform } }
+      ports:
+        - { protocol: TCP, port: 3306 }
 ---
 # backend 수집기·Kaniko(edu-platform)의 인클러스터 직접 clone 허용 (EDU_GITEA_CLONE_BASE)
 apiVersion: networking.k8s.io/v1

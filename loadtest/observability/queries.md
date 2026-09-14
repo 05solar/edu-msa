@@ -19,12 +19,14 @@ capture.sh 의 CSV 와 교차 확인한다.
 | rate-limit Redis 폴백 | `edu_auth_ratelimit_failover_total` |
 | 배포 임시파일 정리 실패 | `edu_deploy_cleanup_failures_total` |
 
-## PostgreSQL
+## MariaDB
 
-- 커넥션 총량/상태: capture.sh `pg.csv` (`pg_stat_activity`) — `max_connections`(기본 100) 대비
-  `total_conn` 이 90% 를 넘거나 `waiting`>0 이 지속되면 **커넥션 고갈**로 판정.
-- CNPG(HA) 사용 시 PodMonitor 지표: `cnpg_backends_total`, `cnpg_pg_stat_database_xact_commit` 등.
-- CPU/IO: `container_cpu_usage_seconds_total{pod=~"postgres.*|edu-db.*"}`,
+- 커넥션 총량/상태: capture.sh `db.csv` (`information_schema.processlist`) —
+  `max_connections`(기본 151) 대비 `total_conn` 이 90% 를 넘으면 **커넥션 고갈**로 판정.
+- mysqld_exporter(ServiceMonitor) 지표: `mysql_up`,
+  `mysql_global_status_threads_connected`, `mysql_global_variables_max_connections`,
+  `mysql_global_status_slow_queries` 등 (prometheus-rules 의 EduDb* 경보와 동일 축).
+- CPU/IO: `container_cpu_usage_seconds_total{pod=~"mariadb.*|auth-db.*"}`,
   `container_fs_reads_bytes_total` / `container_fs_writes_bytes_total`.
 
 ## Redis

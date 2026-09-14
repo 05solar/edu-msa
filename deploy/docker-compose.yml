@@ -7,34 +7,45 @@ name: edu-msa
 
 services:
   db:
-    image: postgres:16-alpine
+    image: mariadb:11.4
+    # utf8mb4(한글) + UTC 고정 — 앱(Instant)과 커넥터(timezone=UTC)의 기준 시계와 일치시킨다.
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
     environment:
-      POSTGRES_DB: edumsa
-      POSTGRES_USER: edumsa
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-edumsa}
+      MARIADB_DATABASE: edumsa
+      MARIADB_USER: edumsa
+      MARIADB_PASSWORD: ${DB_PASSWORD:-edumsa}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-edumsa-root}
+      TZ: UTC
     ports:
-      - "5432:5432"
+      - "3306:3306"
     volumes:
-      - edu_pgdata:/var/lib/postgresql/data
+      - edu_mariadb:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U edumsa -d edumsa"]
+      test: ["CMD-SHELL", "mariadb-admin ping -h 127.0.0.1 -uroot -p\"$$MARIADB_ROOT_PASSWORD\" --silent"]
       interval: 5s
       timeout: 3s
       retries: 20
 
   # 인증 전용 DB — 플랫폼 DB 와 분리한다. 계정 정보의 단일 소스.
   auth-db:
-    image: postgres:16-alpine
+    image: mariadb:11.4
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
     environment:
-      POSTGRES_DB: eduauth
-      POSTGRES_USER: eduauth
-      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:-eduauth}
+      MARIADB_DATABASE: eduauth
+      MARIADB_USER: eduauth
+      MARIADB_PASSWORD: ${AUTH_DB_PASSWORD:-eduauth}
+      MARIADB_ROOT_PASSWORD: ${AUTH_DB_ROOT_PASSWORD:-eduauth-root}
+      TZ: UTC
     ports:
-      - "5433:5432"
+      - "3307:3306"
     volumes:
-      - edu_auth_pgdata:/var/lib/postgresql/data
+      - edu_auth_mariadb:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U eduauth -d eduauth"]
+      test: ["CMD-SHELL", "mariadb-admin ping -h 127.0.0.1 -uroot -p\"$$MARIADB_ROOT_PASSWORD\" --silent"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -57,7 +68,7 @@ services:
     build:
       context: ../auth-service
     environment:
-      AUTH_DB_URL: jdbc:postgresql://auth-db:5432/eduauth
+      AUTH_DB_URL: jdbc:mariadb://auth-db:3306/eduauth?timezone=UTC
       AUTH_DB_USER: eduauth
       AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:-eduauth}
       PORT: "8080"
@@ -108,7 +119,7 @@ services:
     # 로컬 Docker 실배포 모드에서 호스트 docker.sock 접근을 위해 root 실행(개발용)
     user: root
     environment:
-      DB_URL: jdbc:postgresql://db:5432/edumsa
+      DB_URL: jdbc:mariadb://db:3306/edumsa?timezone=UTC
       DB_USER: edumsa
       DB_PASSWORD: ${DB_PASSWORD:-edumsa}
       PORT: "8080"
@@ -153,8 +164,11 @@ services:
         condition: service_healthy
 
 volumes:
-  edu_pgdata:
-  edu_auth_pgdata:
+  # MariaDB 전환으로 볼륨을 신규로 판다(edu_pgdata 등 기존 PostgreSQL 볼륨을 재사용하면
+  # mariadb 가 낯선 datadir 로 인식해 기동 실패한다). 기존 데이터 이관은
+  # docs/operations/MARIADB_MIGRATION_RUNBOOK.md 참고.
+  edu_mariadb:
+  edu_auth_mariadb:
   edu_dynamic:
 
 networks:

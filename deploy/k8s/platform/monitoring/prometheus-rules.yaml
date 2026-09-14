@@ -53,20 +53,36 @@ spec:
           labels: { severity: critical }
           annotations:
             summary: "{{ $labels.job }}/{{ $labels.pool }} DB 커넥션 대기 지속 — 풀 고갈 임박"
-        # CNPG 복제 지연(초). PodMonitor 수집 전제(bootstrap podMonitorSelectorNilUsesHelmValues=false).
-        - alert: EduDbReplicationLagHigh
-          expr: max by (cluster) (cnpg_pg_replication_lag) > 30
-          for: 5m
-          labels: { severity: warning }
-          annotations:
-            summary: "CNPG {{ $labels.cluster }} 복제 지연 30s 초과 — ro 라우팅 응답 낙후·failover 데이터 손실 위험"
-        # CNPG 인스턴스 수집 중단(파드 다운 포함)
+        # MariaDB 다운 — mysqld_exporter 사이드카(mariadb·auth-db)의 mysql_up 기준.
+        # ServiceMonitor: monitoring/mariadb-servicemonitor.yaml (job 라벨 = Service 이름)
         - alert: EduDbInstanceDown
-          expr: count by (cluster) (cnpg_pg_postmaster_start_time) < 3
+          expr: mysql_up == 0
+          for: 3m
+          labels: { severity: critical }
+          annotations:
+            summary: "MariaDB {{ $labels.job }} 다운(익스포터 접속 실패 3분 지속)"
+        # 익스포터 수집 자체가 끊긴 경우(파드 다운 포함) — mysql_up 이 아예 사라진다
+        - alert: EduDbScrapeMissing
+          expr: absent(mysql_up{job="mariadb"}) or absent(mysql_up{job="auth-db"})
           for: 10m
           labels: { severity: warning }
           annotations:
-            summary: "CNPG {{ $labels.cluster }} 가용 인스턴스 3 미만(10분 지속) — 복제본 이탈"
+            summary: "MariaDB 메트릭 수집 중단(10분) — 익스포터/ServiceMonitor 확인"
+        # 커넥션 포화 — max_connections 대비 80% 초과 지속
+        - alert: EduDbConnectionsHigh
+          expr: >
+            max by (job) (mysql_global_status_threads_connected)
+            / max by (job) (mysql_global_variables_max_connections) > 0.8
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "MariaDB {{ $labels.job }} 커넥션 80% 초과(10분) — 풀 산정/max_connections 확인"
+        # 슬로우 쿼리 급증 — 인덱스 누락·플랜 변화의 조기 신호
+        - alert: EduDbSlowQueriesHigh
+          expr: increase(mysql_global_status_slow_queries[15m]) > 30
+          labels: { severity: warning }
+          annotations:
+            summary: "MariaDB {{ $labels.job }} 슬로우 쿼리 15분 내 30건 초과"
         # 배포 큐 적체 — KEDA max(5 워커) 로도 소진 못하는 수준
         - alert: EduDeployQueueBacklog
           expr: max(edu_deploy_queue_depth) > 30

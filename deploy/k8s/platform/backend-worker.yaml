@@ -43,13 +43,13 @@ spec:
             - name: EDU_DEPLOY_WORKER_ENABLED
               value: "true"
             - name: DB_URL
-              value: jdbc:postgresql://edu-db-pooler-rw.edu-platform.svc.cluster.local:5432/edumsa
+              value: jdbc:mariadb://mariadb.edu-platform.svc.cluster.local:3306/edumsa?timezone=UTC
             - name: DB_USER
               valueFrom:
-                secretKeyRef: { name: edu-db-app, key: username }
+                secretKeyRef: { name: edu-db, key: MARIADB_USER }
             - name: DB_PASSWORD
               valueFrom:
-                secretKeyRef: { name: edu-db-app, key: password }
+                secretKeyRef: { name: edu-db, key: MARIADB_PASSWORD }
             # 워커는 트래픽이 없어 풀이 작아도 된다(배포 트랜잭션은 짧은 체크포인트뿐)
             - name: DB_POOL_MAX_SIZE
               value: "5"

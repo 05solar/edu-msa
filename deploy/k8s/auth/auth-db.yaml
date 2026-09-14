@@ -1,14 +1,13 @@
-# 인증 전용 PostgreSQL — 개발/리허설용 단일 인스턴스.
-# 운영은 auth-db-ha.yaml(CloudNativePG: HA·풀러·백업·PITR)로 승격한다 — PRODUCTION.md §4.
-# 플랫폼 DB(platform/postgres.yaml)와 완전히 분리된 인스턴스다.
+# 인증 전용 MariaDB — 단일 인스턴스. 플랫폼 DB(platform/mariadb.yaml)와 완전히 분리된
+# 인스턴스다(계정 정보의 단일 소스). HA 는 후속 트랙 — deploy/PRODUCTION.md §4 참고.
 #
-# 접속정보 Secret(edu-auth-db: POSTGRES_DB/USER/PASSWORD)은 이 파일에 두지 않는다.
+# 접속정보 Secret(edu-auth-db: MARIADB_DATABASE/USER/PASSWORD/ROOT_PASSWORD)은 이 파일에 두지 않는다.
 #  - 로컬/리허설: bootstrap.sh 가 무작위 비밀번호로 자동 생성한다.
 #  - 운영: Sealed Secrets 로 반영한다 — deploy/k8s/secrets/README.md 참고.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: edu-auth-pgdata
+  name: edu-auth-mariadb-data
   namespace: edu-platform
 spec:
   # 운영: 노드 종속 스토리지(local-path 등) 금지 — 네트워크 스토리지 클래스를 지정해야
@@ -29,6 +28,8 @@ metadata:
     app: auth-db
 spec:
   replicas: 1
+  strategy:
+    type: Recreate            # RWO PVC + 단일 인스턴스 — 동시 마운트 방지
   selector:
     matchLabels:
       app: auth-db
@@ -38,37 +39,62 @@ spec:
         app: auth-db
     spec:
       containers:
-        - name: postgres
-          image: postgres:16-alpine
+        - name: mariadb
+          image: mariadb:11.4
+          args:
+            - --character-set-server=utf8mb4
+            - --collation-server=utf8mb4_unicode_ci
           envFrom:
             - secretRef:
                 name: edu-auth-db
+          env:
+            - name: TZ
+              value: UTC
           ports:
-            - containerPort: 5432
+            - containerPort: 3306
           volumeMounts:
-            - name: pgdata
-              mountPath: /var/lib/postgresql/data
+            - name: data
+              mountPath: /var/lib/mysql
           readinessProbe:
             exec:
-              command: ["pg_isready", "-U", "eduauth", "-d", "eduauth"]
-            initialDelaySeconds: 5
+              command: ["sh", "-c", "mariadb-admin ping -h 127.0.0.1 -uroot -p\"$MARIADB_ROOT_PASSWORD\" --silent"]
+            initialDelaySeconds: 10
             periodSeconds: 5
           resources:
             requests: { cpu: "100m", memory: "256Mi" }
             limits: { cpu: "500m", memory: "512Mi" }
+        - name: exporter
+          image: prom/mysqld-exporter:v0.15.1
+          args: ["--mysqld.username=root", "--mysqld.address=127.0.0.1:3306"]
+          env:
+            - name: MYSQLD_EXPORTER_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: edu-auth-db, key: MARIADB_ROOT_PASSWORD }
+          ports:
+            - name: metrics
+              containerPort: 9104
+          resources:
+            requests: { cpu: "10m", memory: "32Mi" }
+            limits: { cpu: "100m", memory: "64Mi" }
       volumes:
-        - name: pgdata
+        - name: data
           persistentVolumeClaim:
-            claimName: edu-auth-pgdata
+            claimName: edu-auth-mariadb-data
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: auth-db
   namespace: edu-platform
+  labels:
+    app: auth-db          # ServiceMonitor(monitoring/mariadb-servicemonitor.yaml) selector 매칭용
 spec:
   selector:
     app: auth-db
   ports:
-    - port: 5432
-      targetPort: 5432
+    - name: mysql
+      port: 3306
+      targetPort: 3306
+    - name: metrics
+      port: 9104
+      targetPort: 9104

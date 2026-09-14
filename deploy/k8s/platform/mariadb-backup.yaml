@@ -1,0 +1,72 @@
+# MariaDB 백업 — 매일 03:00(UTC) mariadb-dump(논리 백업)를 백업 PVC 에 저장, 30일 보존.
+# 플랫폼 DB(mariadb)·인증 DB(auth-db)를 한 Job 에서 순차로 덤프한다(PVC RWO 충돌 방지).
+#
+# - 논리 백업(mariadb-dump --single-transaction): InnoDB 무중단 스냅샷. 이 프로젝트
+#   데이터 규모(수 GiB 미만)에 적합하다. 대용량 전환 시 mariabackup(물리)로 승격 검토.
+# - 복원 절차·리허설: docs/operations/MARIADB_MIGRATION_RUNBOOK.md §백업/복원 참고.
+# - 오브젝트 스토리지 오프사이트 복제(edu-db-backup-creds)는 후속 트랙 — PVC 유실이
+#   곧 백업 유실이므로 운영에서는 백업 PVC 를 네트워크 스토리지에 둘 것.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: edu-db-backups
+  namespace: edu-platform
+spec:
+  #EDU_STORAGE_CLASS
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: edu-db-backup
+  namespace: edu-platform
+spec:
+  schedule: "0 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: backup
+              image: mariadb:11.4
+              command: ["sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  ts="$(date -u +%Y%m%d-%H%M%S)"
+                  echo "[backup] platform db (edumsa)"
+                  mariadb-dump -h mariadb.edu-platform.svc.cluster.local -uroot \
+                    -p"$PLATFORM_ROOT_PASSWORD" --single-transaction --routines --triggers \
+                    --databases edumsa | gzip > "/backup/edumsa-${ts}.sql.gz"
+                  echo "[backup] auth db (eduauth)"
+                  mariadb-dump -h auth-db.edu-platform.svc.cluster.local -uroot \
+                    -p"$AUTH_ROOT_PASSWORD" --single-transaction --routines --triggers \
+                    --databases eduauth | gzip > "/backup/eduauth-${ts}.sql.gz"
+                  echo "[backup] retention 30d"
+                  find /backup -name '*.sql.gz' -mtime +30 -delete
+                  ls -lh /backup | tail -5
+              env:
+                - name: PLATFORM_ROOT_PASSWORD
+                  valueFrom:
+                    secretKeyRef: { name: edu-db, key: MARIADB_ROOT_PASSWORD }
+                - name: AUTH_ROOT_PASSWORD
+                  valueFrom:
+                    secretKeyRef: { name: edu-auth-db, key: MARIADB_ROOT_PASSWORD }
+              volumeMounts:
+                - name: backup
+                  mountPath: /backup
+              resources:
+                requests: { cpu: "100m", memory: "128Mi" }
+                limits: { cpu: "500m", memory: "256Mi" }
+          volumes:
+            - name: backup
+              persistentVolumeClaim:
+                claimName: edu-db-backups

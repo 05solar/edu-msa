@@ -9,11 +9,11 @@ mkdir -p "$OUT"
 
 echo "ts,pod,cpu_m,mem_Mi" > "$OUT/pods.csv"
 echo "ts,hpa,current_replicas,desired_replicas,cpu_pct" > "$OUT/hpa.csv"
-echo "ts,db,total_conn,active_conn,idle_conn,waiting" > "$OUT/pg.csv"
+echo "ts,db,total_conn,active_conn,idle_conn" > "$OUT/db.csv"
 echo "ts,hits,misses,hit_ratio_pct,used_memory_mb" > "$OUT/redis.csv"
 
-# platform-db 접속 정보(개발용 단일 postgres 기준 — HA 는 edu-db-rw 파드로 바꿔 쓴다)
-PG_POD="${PG_POD:-deploy/postgres}"
+# platform-db 접속 정보(단일 MariaDB 기준)
+DB_POD="${DB_POD:-deploy/mariadb}"
 REDIS_POD="${REDIS_POD:-deploy/edu-redis}"
 REDIS_PW="$(kubectl -n $NS get secret edu-redis-auth -o jsonpath='{.data.password}' | base64 -d)"
 
@@ -30,12 +30,11 @@ while true; do
   kubectl -n $NS get hpa --no-headers 2>/dev/null | awk -v ts="$ts" \
     '{gsub("%","",$3); split($3,a,"/"); print ts","$1","$6","$7","a[1]}' >> "$OUT/hpa.csv" || true
 
-  # PostgreSQL 커넥션 (총/활성/유휴/대기) — 커넥션 고갈 판정용
-  kubectl -n $NS exec "$PG_POD" -- psql -U edumsa -d edumsa -At -F',' -c \
-    "SELECT '$ts','edumsa',count(*),count(*) FILTER (WHERE state='active'),
-            count(*) FILTER (WHERE state='idle'),
-            count(*) FILTER (WHERE wait_event_type='Client' AND state<>'idle')
-     FROM pg_stat_activity WHERE datname='edumsa';" >> "$OUT/pg.csv" 2>/dev/null || true
+  # MariaDB 커넥션 (총/활성/유휴) — 커넥션 고갈 판정용 (Sleep = 유휴)
+  kubectl -n $NS exec "$DB_POD" -c mariadb -- sh -c \
+    "mariadb -u\"\$MARIADB_USER\" -p\"\$MARIADB_PASSWORD\" -N -B -e \
+     \"SELECT CONCAT('$ts',',edumsa,',COUNT(*),',',SUM(command<>'Sleep'),',',SUM(command='Sleep'))
+       FROM information_schema.processlist WHERE db='edumsa';\"" >> "$OUT/db.csv" 2>/dev/null || true
 
   # Redis 적중률·메모리
   kubectl -n $NS exec "$REDIS_POD" -- redis-cli -a "$REDIS_PW" --no-auth-warning INFO stats 2>/dev/null \

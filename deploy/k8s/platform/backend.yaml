@@ -60,23 +60,18 @@ spec:
             # 큐 길이 기반 KEDA 스케일)이 전담해 HTTP 스케일 축과 분리된다.
             - name: EDU_DEPLOY_WORKER_ENABLED
               value: "false"
-            # HA DB(CloudNativePG, postgres-ha.yaml) 사용: PgBouncer 풀러(edu-db-pooler-rw)를
-            # 경유해 primary 로 라우팅 — 앱 replica 가 늘어도 DB 실커넥션을 풀러가 상한으로 묶는다.
-            # 읽기 전용 워크로드 분리 시: edu-db-pooler-ro (replica 라우팅) 사용.
-            # 앱 계정 시크릿(edu-db-app)은 오퍼레이터가 생성한다.
-            # (개발용 단일 postgres.yaml 사용 시 bootstrap.sh 가 host=postgres, secret=edu-db 로 치환)
+            # MariaDB 단일 인스턴스(platform/mariadb.yaml) 직결 — 커넥션 총량은
+            # replica 수 × DB_POOL_MAX_SIZE 로 관리한다(MariaDB max_connections 이내).
+            # read replica 라우팅(DB_RO_URL)은 HA 트랙 도입 시 다시 배선한다 —
+            # 미설정이면 앱이 라우팅 자체를 끈다(ReadRoutingDataSourceConfig).
             - name: DB_URL
-              value: jdbc:postgresql://edu-db-pooler-rw.edu-platform.svc.cluster.local:5432/edumsa
-            # read replica 라우팅 — 카탈로그 목록/집계(캐시 미스분)가 replica(ro 풀러)로 간다.
-            # 개발(단일 postgres)은 bootstrap.sh 가 값을 비워 라우팅을 끈다.
-            - name: DB_RO_URL
-              value: jdbc:postgresql://edu-db-pooler-ro.edu-platform.svc.cluster.local:5432/edumsa
+              value: jdbc:mariadb://mariadb.edu-platform.svc.cluster.local:3306/edumsa?timezone=UTC
             - name: DB_USER
               valueFrom:
-                secretKeyRef: { name: edu-db-app, key: username }
+                secretKeyRef: { name: edu-db, key: MARIADB_USER }
             - name: DB_PASSWORD
               valueFrom:
-                secretKeyRef: { name: edu-db-app, key: password }
+                secretKeyRef: { name: edu-db, key: MARIADB_PASSWORD }
             - name: PORT
               value: "8080"
             # [부하 실측 2026-09-09] 2,000 RPS 혼합 조회에서 Hikari active ≤3(캐시 적중 91%) —

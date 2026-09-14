@@ -3,8 +3,10 @@
 # Ingress 는 모드별 호스트·TLS 분기 때문에 bootstrap 이 렌더링).
 #
 # 설계 결정:
-# - DB: 1단계는 내장 SQLite(단일 replica). 운영 전환 시 플랫폼 CNPG PostgreSQL 에
-#   gitea DB 를 만들어 외부 DB 로 붙인다(README 참고) — 백업 일원화.
+# - DB: 플랫폼 MariaDB(platform/mariadb.yaml)의 gitea 데이터베이스를 외부 DB 로 쓴다 —
+#   백업 일원화(mariadb-backup CronJob 에 --all 포함하려면 databases 목록에 추가).
+#   비밀번호(PASSWD)는 bootstrap 이 edu-gitea-db Secret 에서 읽어 --set-string 으로 주입한다.
+#   DB/계정 생성: MariaDB 최초 초기화 시 init 스크립트가 수행(기존 DB 는 README §외부 DB 참고).
 # - 캐시/큐: 차트 기본(valkey-cluster)을 끄고 메모리/level 사용 — 소규모 기관 규모 충분.
 # - SSH: 내부망 HTTP(S) clone 만 쓰므로 비활성(22 포트 배선 없음).
 # - 관리자: 값 하드코딩 금지 — bootstrap.sh 가 만드는 gitea-admin Secret 참조.
@@ -44,7 +46,11 @@ gitea:
     existingSecret: gitea-admin   # bootstrap.sh 가 생성(username/password)
   config:
     database:
-      DB_TYPE: sqlite3
+      # MariaDB 는 mysql 드라이버 계열로 접속한다. PASSWD 는 bootstrap 이 Secret 에서 주입.
+      DB_TYPE: mysql
+      HOST: mariadb.edu-platform.svc.cluster.local:3306
+      NAME: gitea
+      USER: gitea
     session:
       PROVIDER: memory
     cache:

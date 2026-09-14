@@ -1,0 +1,19 @@
+# MariaDB 메트릭 스크레이프 (kube-prometheus-stack) — mariadb·auth-db 파드의
+# mysqld_exporter 사이드카(:9104)를 Service 포트(metrics)로 수집한다.
+# prometheus-rules.yaml 의 EduDb* 경보가 이 수집(mysql_*)을 전제로 한다.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: mariadb
+  namespace: edu-platform
+  labels:
+    # kube-prometheus-stack Prometheus 는 "release=<helm 릴리스명>" 라벨로 ServiceMonitor 를
+    # 선택한다. bootstrap 이 릴리스명 monitoring 으로 설치하므로 반드시 일치해야 한다.
+    release: monitoring
+spec:
+  selector:
+    matchExpressions:
+      - { key: app, operator: In, values: [mariadb, auth-db] }
+  endpoints:
+    - port: metrics       # Service 포트 이름(9104)
+      interval: 30s

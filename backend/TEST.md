@@ -73,6 +73,10 @@
 - 로컬(Windows) 주의: Docker Engine 29 에서는 docker-java 가 구식 API 버전(1.32)으로
   협상하면 400 오류가 난다. `~/.docker-java.properties` 에 `api.version=1.44` 한 줄을
   넣으면 해결된다(CI Linux 환경에서는 불필요).
+- 로컬(Windows) 주의 2: 사용자 홈 경로에 한글이 포함되면 Gradle 테스트 워커의
+  classpath 인자파일(UTF-8)을 java 런처가 시스템 코드페이지(CP949)로 읽어 워커가
+  기동 실패한다. 우회: `subst X: <프로젝트 경로>` 로 ASCII 드라이브를 만들어 X:\backend
+  에서 실행하고, `GRADLE_USER_HOME` 도 ASCII 경로(예: C:\Users\Public\edu-gradle)로 둔다.
 
 ## 수동 검증 (compose 기동 후)
 

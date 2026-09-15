@@ -20,6 +20,9 @@
 #   WITH_EXAMPLES=1|0        예제 서브 프로그램 7종(examples/)을 edu-services 에 배포 (기본 0)
 #   STORAGE_CLASS=<name>     PVC 스토리지 클래스(server 권장 — 네트워크 스토리지 지정.
 #                            미지정 시 클러스터 기본. local-path 같은 노드 종속 클래스는 운영 금지)
+#   ACME_EMAIL=<이메일>       server 모드 TLS 를 Let's Encrypt(ACME·HTTP-01) 공인 인증서로 발급.
+#                            미설정 시 자체 CA(edu-ca 자체 서명 — 브라우저 경고). 80/443 개방 +
+#                            DOMAIN·*.DOMAIN DNS 가 LB 를 가리켜야 한다. (PRODUCTION.md §3)
 # =============================================================================
 set -euo pipefail
 
@@ -32,6 +35,7 @@ WITH_STACK="${WITH_STACK:-auto}"     # auto = up 서브커맨드에서 1
 WITH_GPU="${WITH_GPU:-0}"
 WITH_EXAMPLES="${WITH_EXAMPLES:-0}"
 STORAGE_CLASS="${STORAGE_CLASS:-}"
+ACME_EMAIL="${ACME_EMAIL:-}"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 K8S="$ROOT/deploy/k8s"
@@ -223,6 +227,20 @@ apply_core(){
     if [ -n "$STORAGE_CLASS" ]; then
       sed -i.bak "s/^  #EDU_STORAGE_CLASS/  storageClassName: ${STORAGE_CLASS}/" "$out" && rm -f "$out.bak"
     fi
+    # server(HTTPS): 플랫폼 Ingress 에 TLS 배선 — cert-manager(edu-ca)가 인증서를 자동 발급한다.
+    # (ACME_EMAIL 설정 시 운영스택이 edu-ca 를 Let's Encrypt 발급자로 전환 — install_stack)
+    if [ "$MODE" = server ] && [ "$base" = ingress.yaml ]; then
+      sed -i.bak \
+        -e "s|^    #EDU_TLS_ISSUER|    cert-manager.io/cluster-issuer: edu-ca|" \
+        -e "s|^  #EDU_TLS|  tls: [ { hosts: [ ${DOMAIN} ], secretName: edu-platform-tls } ]|" \
+        "$out" && rm -f "$out.bak"
+      # 공인 인증서(ACME) 구성은 TLS 를 ingress-nginx 가 종료하므로 http→https 리다이렉트를
+      # 켠다(Secure 쿠키가 http 접속에서 전송되지 않아 로그인이 깨지는 것 방지).
+      # 전면 프록시에서 TLS 종료하는 내부망 구성(ACME 미사용)은 기존대로 끔.
+      if [ -n "$ACME_EMAIL" ]; then
+        sed -i.bak 's|nginx.ingress.kubernetes.io/ssl-redirect: "false"|nginx.ingress.kubernetes.io/ssl-redirect: "true"|' "$out" && rm -f "$out.bak"
+      fi
+    fi
     # DB 접속은 매니페스트가 단일 MariaDB(mariadb/auth-db Service + edu-db/edu-auth-db Secret)를
     # 직접 가리킨다 — 과거 CNPG 풀러 치환은 MariaDB 전환으로 제거됐다(HA 는 후속 트랙).
     if [ "$base" = backend.yaml ] || [ "$base" = backend-worker.yaml ]; then
@@ -309,6 +327,17 @@ install_stack(){
       -n cert-manager --create-namespace --set crds.enabled=true --wait --timeout 5m
   kubectl apply -f "$K8S/platform/edge/cert-manager/clusterissuers.yaml" 2>/dev/null || \
       warn "clusterissuers 적용 실패 — cert-manager CRD 준비 후 재적용하세요."
+  # 공인 도메인(server + ACME_EMAIL): edu-ca 를 Let's Encrypt(ACME) 발급자로 전환.
+  # 같은 이름을 덮어써서 모든 Ingress(플랫폼·Gitea·테넌트)가 수정 없이 공인 인증서를 받는다.
+  # 이미 내부 CA 로 발급된 <name>-tls Secret 이 있으면 삭제해야 재발급된다(README 참고).
+  if [ "$MODE" = server ] && [ -n "$ACME_EMAIL" ]; then
+    log "· ACME(Let's Encrypt) 발급자 전환 — edu-ca → 공인 인증서 (email: $ACME_EMAIL)"
+    sed "s|\${ACME_EMAIL}|${ACME_EMAIL}|g" "$K8S/platform/edge/cert-manager/clusterissuer-acme.yaml" \
+      | kubectl apply -f - 2>/dev/null \
+      || warn "ACME 발급자 적용 실패 — cert-manager CRD 준비 후 재적용하세요."
+  elif [ "$MODE" = server ]; then
+    warn "ACME_EMAIL 미설정 — TLS 가 자체 CA(edu-ca)로 발급된다(브라우저 경고). 공인 도메인은 ACME_EMAIL=<주소> 로 stack 을 재실행하세요."
+  fi
 
   # alertmanager.enabled 명시: 과거 수동 설치(README 초기 명령)가 false 로 남긴 릴리스를
   # 업그레이드해도 켜지도록 고정. DB 메트릭(mysql_*)은 mariadb/auth-db 파드의 mysqld_exporter
@@ -386,7 +415,8 @@ install_stack(){
       --overwrite >/dev/null 2>&1 || warn "gitea PodSecurity 라벨 적용 실패"
   kubectl apply -f "$K8S/platform/gitea/networkpolicy.yaml" 2>/dev/null || warn "gitea NetworkPolicy 적용 실패"
 
-  # Ingress: 대용량 push 대비 body-size 512m. server 모드는 cert-manager(edu-ca) TLS 자동 발급.
+  # Ingress: 대용량 push 대비 body-size 512m. server 모드는 cert-manager(edu-ca) TLS 자동 발급
+  # (ACME_EMAIL 설정 시 edu-ca 가 Let's Encrypt 발급자로 전환돼 공인 인증서가 나온다).
   local gtmp; gtmp="$(mktemp)"
   cat > "$gtmp" <<EOF
 apiVersion: networking.k8s.io/v1

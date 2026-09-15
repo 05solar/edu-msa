@@ -23,15 +23,17 @@ server 모드로 돌린다"** 이다.
 # ③ (테넌트 GPU 쓸 때만) GPU Operator
 WITH_GPU=1 ./deploy/bootstrap.sh gpu
 
-# ④ 코어 + 운영스택 한 번에 (STORAGE_CLASS 로 PVC 스토리지 클래스 주입)
+# ④ 코어 + 운영스택 한 번에 (STORAGE_CLASS 로 PVC 스토리지 클래스 주입,
+#    공인 도메인이면 ACME_EMAIL 로 Let's Encrypt 공인 인증서 발급 — §3)
 MODE=server DOMAIN=edu.example.go.kr REGISTRY=<레지스트리 접두어> \
-  STORAGE_CLASS=<네트워크 스토리지 클래스> WITH_STACK=1 ./deploy/bootstrap.sh up
+  STORAGE_CLASS=<네트워크 스토리지 클래스> ACME_EMAIL=<관리자 이메일> \
+  WITH_STACK=1 ./deploy/bootstrap.sh up
 
-# ⑤ DNS: edu.example.go.kr → L4 LB(ingress-nginx Service EXTERNAL-IP)
+# ⑤ DNS: edu.example.go.kr(+ *.edu.example.go.kr) → L4 LB(ingress-nginx Service EXTERNAL-IP)
 kubectl -n ingress-nginx get svc ingress-nginx-controller
 ```
 
-kind(로컬)과 **똑같은 스크립트**다. 차이는 `MODE=server`, 실제 `DOMAIN`·`REGISTRY`·`STORAGE_CLASS` 뿐.
+kind(로컬)과 **똑같은 스크립트**다. 차이는 `MODE=server`, 실제 `DOMAIN`·`REGISTRY`·`STORAGE_CLASS`·`ACME_EMAIL` 뿐.
 server 모드는 노드가 3개 미만이거나 `STORAGE_CLASS` 미지정이면 경고를 출력한다.
 
 ---
@@ -109,9 +111,18 @@ DB 백업·HA 트랙은 §4에서 별도로 다룬다.
   ```bash
   kubectl -n ingress-nginx get svc ingress-nginx-controller   # EXTERNAL-IP 확인
   ```
-- TLS: 운영스택이 **cert-manager** 를 깔고 `ClusterIssuer` 를 만든다. 사내망은 내부 CA(`edu-ca`),
-  공인 도메인은 `clusterissuers.yaml` 의 `edu-ca` 를 **Let's Encrypt(ACME)** 발급자로 교체하면
-  Ingress 주석만으로 공인 인증서가 자동 발급된다. (edge/cert-manager/README.md)
+- TLS: 운영스택이 **cert-manager** 를 깔고 `ClusterIssuer` 를 만든다.
+  - **사내망/오프라인(기본)**: 내부 CA(`edu-ca` 자체 서명 루트) — 클라이언트 신뢰 저장소 등록 필요.
+  - **공인 도메인**: `ACME_EMAIL` 을 주면 bootstrap 이 `edu-ca` 를 **Let's Encrypt(ACME·HTTP-01)**
+    발급자로 전환한다(`clusterissuer-acme.yaml` — 같은 이름을 덮어써 플랫폼·Gitea·테넌트
+    Ingress 전부 수정 없이 공인 인증서 자동 발급·갱신).
+    ```bash
+    MODE=server DOMAIN=jbe-ismp.poclive.com ACME_EMAIL=<관리자 이메일> ./deploy/bootstrap.sh up
+    ```
+    전제: 80/443 이 인터넷에 개방되고 `DOMAIN`·`*.DOMAIN` DNS 가 L4 LB 를 가리켜야 한다
+    (HTTP-01 검증이 80 포트로 들어온다). 발급 경로 사전 검증은 `letsencrypt-staging` 발급자
+    사용 — 운영 발급자는 요율 제한(도메인당 주 50건)이 있다. 이미 내부 CA 로 발급된
+    `*-tls` Secret 은 삭제해야 재발급된다. (edge/cert-manager/README.md)
 
 ---
 

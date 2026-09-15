@@ -44,8 +44,8 @@ capture.sh 의 CSV 와 교차 확인한다.
 
 | 신호 | 판정 |
 |---|---|
-| `hikaricp_connections_pending` 지속 > 0 | 앱 풀 부족 → `DB_POOL_MAX_SIZE` 상향 검토(총합 ≤ pg max_connections) |
-| pg `total_conn` ≈ max_connections | DB 커넥션 고갈 → 풀러(PgBouncer) 경유 확인·풀 재산정 |
+| `hikaricp_connections_pending` 지속 > 0 | 앱 풀 부족 → `DB_POOL_MAX_SIZE` 상향 검토(replica 총합 ≤ MariaDB max_connections) |
+| db.csv `total_conn` ≈ max_connections | DB 커넥션 고갈 → max_connections·풀 재산정(풀러 MaxScale/ProxySQL 은 후속 — deploy/PRODUCTION.md §4) |
 | auth CPU 포화 + login p95 급등 | bcrypt 한계 → auth replica/HPA max 상향 |
 | Redis hit < 50% | 캐시 키 폭발 → 검색 파라미터 캐시 제외 검토 |
 | HPA maxReplicas 도달 후 p95 유지 실패 | maxReplicas·노드 용량 상향 |

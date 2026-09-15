@@ -22,6 +22,9 @@ export interface ValidationResult {
 export interface GiteaAccountStatus {
   enabled: boolean; issued: boolean; username: string | null; host: string | null
 }
+export interface GiteaRepo {
+  name: string; url: string; isPrivate: boolean; updatedAt: string | null
+}
 export interface DeploymentResponse {
   id: number; programId: number | null; slug: string; name: string
   status: string; url: string | null; imageTag: string | null; mode: string
@@ -156,6 +159,8 @@ export const api = {
   giteaAccount: () => req<GiteaAccountStatus>('/gitea/account'),
   createGiteaAccount: (username: string, password: string) =>
     req<GiteaAccountStatus>('/gitea/account', { method: 'POST', body: JSON.stringify({ username, password }) }),
+  // 내 Gitea 레포 목록 — 등록 화면 "내 레포에서 선택"용(미발급이면 빈 배열)
+  giteaRepos: () => req<GiteaRepo[]>('/gitea/account/repos'),
 
   users: () => req<AppUser[]>('/users'),
   setRole: (name: string, role: Role) =>

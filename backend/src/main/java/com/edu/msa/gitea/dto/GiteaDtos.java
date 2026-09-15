@@ -24,4 +24,7 @@ public final class GiteaDtos {
      * host 는 스킴 없는 공개 접속 호스트 — UI 가 프로토콜 상대 링크(//host)로 연결한다.
      */
     public record StatusResponse(boolean enabled, boolean issued, String username, String host) {}
+
+    /** 내 Gitea 레포 — url 은 공개 웹 주소(html_url, 등록 화면에 그대로 사용 가능). */
+    public record RepoView(String name, String url, boolean isPrivate, String updatedAt) {}
 }

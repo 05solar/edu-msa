@@ -79,6 +79,52 @@ public class GiteaAccountService {
         return new StatusResponse(true, true, username, props.giteaHost());
     }
 
+    /**
+     * 내 Gitea 레포 목록 — 등록 화면의 "내 레포에서 선택" 용.
+     * 관리자 토큰으로 조회하므로 비공개 레포도 보인다(본인 것만 — username 은 발급 매핑에서).
+     * 미발급/미구성이면 빈 목록(오류가 아니라 상태).
+     */
+    @Transactional(readOnly = true)
+    public java.util.List<com.edu.msa.gitea.dto.GiteaDtos.RepoView> repos(AuthPrincipal principal) {
+        if (!enabled()) return java.util.List.of();
+        GiteaAccount account = repo.findByAccountId(principal.id()).orElse(null);
+        if (account == null) return java.util.List.of();
+        HttpResponse<String> resp;
+        try {
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(apiBase() + "/api/v1/users/" + account.getGiteaUsername() + "/repos?limit=50"))
+                    .timeout(Duration.ofSeconds(10))
+                    .header("Authorization", "token " + props.giteaAdminToken())
+                    .GET().build();
+            resp = http.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        } catch (java.io.IOException e) {
+            log.warn("Gitea 레포 목록 호출 실패: {}", e.toString());
+            throw new IllegalStateException("Gitea 서버에 연결할 수 없습니다. 잠시 후 다시 시도하세요.");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("요청이 중단되었습니다. 다시 시도하세요.");
+        }
+        if (resp.statusCode() != 200) {
+            log.warn("Gitea 레포 목록 조회 실패: status={} body={}", resp.statusCode(), resp.body());
+            throw new IllegalStateException("Gitea 레포 목록을 가져오지 못했습니다.");
+        }
+        try {
+            JsonNode arr = mapper.readTree(resp.body());
+            java.util.List<com.edu.msa.gitea.dto.GiteaDtos.RepoView> out = new java.util.ArrayList<>();
+            for (JsonNode r : arr) {
+                out.add(new com.edu.msa.gitea.dto.GiteaDtos.RepoView(
+                        r.path("name").asText(),
+                        r.path("html_url").asText(),
+                        r.path("private").asBoolean(false),
+                        r.hasNonNull("updated_at") ? r.get("updated_at").asText() : null));
+            }
+            return out;
+        } catch (Exception e) {
+            log.warn("Gitea 레포 목록 응답 파싱 실패: {}", e.toString());
+            throw new IllegalStateException("Gitea 레포 목록을 가져오지 못했습니다.");
+        }
+    }
+
     /** Gitea 관리자 API 로 실제 계정을 만든다. 실패 시 사용자에게 보여줄 메시지로 변환. */
     private void createOnGitea(AuthPrincipal principal, String username, String password) {
         // 이메일은 Gitea 필수 항목 — 포털은 이메일 클레임이 없으므로 내부용 주소를 만든다

@@ -32,6 +32,13 @@ public class GiteaAccountController {
         return service.status(principal);
     }
 
+    /** 내 Gitea 레포 목록 — 등록 화면 "내 레포에서 선택"용. 미발급이면 빈 목록. */
+    @GetMapping("/repos")
+    public java.util.List<com.edu.msa.gitea.dto.GiteaDtos.RepoView> repos(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return service.repos(principal);
+    }
+
     @PostMapping
     public ResponseEntity<StatusResponse> create(@AuthenticationPrincipal AuthPrincipal principal,
                                                  @Valid @RequestBody CreateRequest req) {

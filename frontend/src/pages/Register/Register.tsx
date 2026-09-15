@@ -1,9 +1,9 @@
 import './Register.css'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { CATEGORIES, PURPOSES, RUN_TYPES, SCOPES } from '../../data/catalog'
 import { useApp } from '../../state/AppContext'
 import { Icon } from '../../icons/Icon'
-import { USE_API, api, type ValidationResult } from '../../api/client'
+import { USE_API, api, type GiteaAccountStatus, type GiteaRepo, type ValidationResult } from '../../api/client'
 import { GuideModal } from '../../components/GuideModal/GuideModal'
 import type { NewProgramInput } from '../../state/AppContext'
 import type { PurposeId, RunTypeId, Scope } from '../../types'
@@ -32,6 +32,23 @@ export function Register() {
   const [validation, setValidation] = useState<ValidationResult | null>(null)
   const [validating, setValidating] = useState(false)
   const set = (patch: Partial<NewProgramInput>) => setF((prev) => ({ ...prev, ...patch }))
+
+  // 내부 Gitea 연동 — 내 계정 상태와 레포 목록(있으면 드롭다운으로 주소 자동 입력)
+  const [gitea, setGitea] = useState<GiteaAccountStatus | null>(null)
+  const [repos, setRepos] = useState<GiteaRepo[]>([])
+  const [reposLoading, setReposLoading] = useState(false)
+  const loadRepos = () => {
+    setReposLoading(true)
+    api.giteaRepos().then(setRepos).catch(() => setRepos([])).finally(() => setReposLoading(false))
+  }
+  useEffect(() => {
+    if (!USE_API) return
+    api.giteaAccount().then((s) => {
+      setGitea(s)
+      if (s.enabled && s.issued) loadRepos()
+    }).catch(() => { /* 미연동 환경 — 수동 입력만 제공 */ })
+  }, [])
+  const giteaHost = gitea?.host ?? 'gitea.edu.internal'
 
   const runValidate = () => {
     if (!USE_API) { toast('규격 검증은 백엔드 연동 모드(VITE_USE_API=true)에서 동작합니다.', 'warn'); return }
@@ -132,15 +149,49 @@ export function Register() {
 
           <div className="form-section">
             <div className="form-section-title"><span className="step-no">3</span> Gitea 저장소</div>
-            <div className="form-section-desc">표준 규격에 맞춘 공개 레포 주소를 입력합니다.</div>
+            <div className="form-section-desc">내부 Gitea 에 올린 레포 주소를 입력합니다. 비공개 레포는 <code>edu-deploy-bot</code> 을 협업자(읽기)로 초대해야 배포됩니다.</div>
             <div className="notice-inline">
               <Icon name="info" size={16} />
               <span>등록 전 <b>바이브 코딩 가이드</b>와 <b>표준 서비스 규격</b>을 확인하세요. service.yaml·Dockerfile·PORT·/healthz 규칙을 지켜야 배포됩니다.</span>
             </div>
+            {gitea?.enabled && !gitea.issued && (
+              <div className="notice-inline" style={{ borderColor: 'var(--warn, #d9a441)' }}>
+                <Icon name="warn" size={16} />
+                <span>아직 <b>Gitea 계정이 없습니다.</b> 마이페이지에서 계정을 발급받고 코드를 올린 뒤 등록하세요.{' '}
+                  <button className="btn btn-sm" style={{ marginLeft: 6 }} onClick={() => go('my')}>마이페이지로 이동</button>
+                </span>
+              </div>
+            )}
+            {gitea?.enabled && gitea.issued && (
+              <div className="field">
+                <label>내 Gitea 레포에서 선택</label>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <select
+                    className="input"
+                    style={{ flex: 1 }}
+                    value={repos.some((r) => r.url === f.repo) ? f.repo : ''}
+                    onChange={(e) => { if (e.target.value) set({ repo: e.target.value }) }}
+                  >
+                    <option value="">
+                      {reposLoading ? '레포 목록 불러오는 중…'
+                        : repos.length === 0 ? '레포가 없습니다 — Gitea 에 코드를 먼저 올리세요'
+                        : `— 레포 선택 (${repos.length}개) —`}
+                    </option>
+                    {repos.map((r) => (
+                      <option key={r.url} value={r.url}>{r.name}{r.isPrivate ? ' (비공개)' : ''}</option>
+                    ))}
+                  </select>
+                  <button className="btn btn-sm" disabled={reposLoading} onClick={loadRepos} title="Gitea 레포 목록 새로고침">
+                    <Icon name="verify" size={13} /> 새로고침
+                  </button>
+                </div>
+                <div className="hint">선택하면 아래 레포 주소가 자동 입력됩니다. 방금 push 한 레포가 안 보이면 새로고침을 누르세요.</div>
+              </div>
+            )}
             <div className="grid-2">
               <div className="field" style={{ gridColumn: '1 / span 1' }}>
                 <label>레포 주소<span className="req">*</span></label>
-                <input className="input" value={f.repo} onChange={(e) => set({ repo: e.target.value })} placeholder="https://gitea.edu.internal/내계정/my-tool" />
+                <input className="input" value={f.repo} onChange={(e) => set({ repo: e.target.value })} placeholder={`https://${giteaHost}/내계정/my-tool`} />
               </div>
               <div className="field">
                 <label>브랜치</label>

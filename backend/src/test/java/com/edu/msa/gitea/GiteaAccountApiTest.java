@@ -66,6 +66,16 @@ class GiteaAccountApiTest {
                 ex.sendResponseHeaders(code, resp.length);
                 try (OutputStream os = ex.getResponseBody()) { os.write(resp); }
             });
+            // 내 레포 목록 — /api/v1/users/<username>/repos (관리자 토큰 조회)
+            STUB.createContext("/api/v1/users", ex -> {
+                AUTH_HEADERS.add(ex.getRequestHeaders().getFirst("Authorization"));
+                byte[] resp = ("[{\"name\":\"my-tool\",\"html_url\":\"https://gitea.test.internal/repouser/my-tool\","
+                        + "\"private\":true,\"updated_at\":\"2026-09-15T00:00:00Z\"}]")
+                        .getBytes(StandardCharsets.UTF_8);
+                ex.getResponseHeaders().add("Content-Type", "application/json");
+                ex.sendResponseHeaders(200, resp.length);
+                try (OutputStream os = ex.getResponseBody()) { os.write(resp); }
+            });
             STUB.start();
         } catch (Exception e) {
             throw new ExceptionInInitializerError(e);
@@ -169,6 +179,30 @@ class GiteaAccountApiTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"1abc\",\"password\":\"secret-pass-1\"}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void 발급된_사용자는_내_레포_목록을_받는다() throws Exception {
+        mvc.perform(post("/api/gitea/account")
+                        .header("Authorization", "Bearer " + token(8105, "한레포"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"repouser\",\"password\":\"secret-pass-1\"}"))
+                .andExpect(status().isCreated());
+
+        mvc.perform(get("/api/gitea/account/repos")
+                        .header("Authorization", "Bearer " + token(8105, "한레포")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("my-tool"))
+                .andExpect(jsonPath("$[0].url").value("https://gitea.test.internal/repouser/my-tool"))
+                .andExpect(jsonPath("$[0].isPrivate").value(true));
+    }
+
+    @Test
+    void 미발급_사용자의_레포_목록은_빈_배열이다() throws Exception {
+        mvc.perform(get("/api/gitea/account/repos")
+                        .header("Authorization", "Bearer " + token(8106, "박빈손")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
     }
 
     @Test

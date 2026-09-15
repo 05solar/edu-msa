@@ -205,7 +205,7 @@ export function My() {
                                   className="btn btn-sm btn-primary"
                                   disabled={DEPLOYING.includes(watch[p.id] ?? '')}
                                   onClick={() => (redeployFor === p.id ? setRedeployFor(null) : openRedeploy(p.id, p.ver))}
-                                  title="GitHub 레포를 갱신했다면 새 버전으로 다시 배포합니다"
+                                  title="Gitea 레포를 갱신했다면 새 버전으로 다시 배포합니다"
                                 >
                                   <Icon name="upload" size={13} /> 재배포
                                 </button>

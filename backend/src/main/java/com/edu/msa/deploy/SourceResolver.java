@@ -37,6 +37,11 @@ public class SourceResolver {
         if (repoUrl.startsWith("local://")) {
             return fromLocal(repoUrl.substring("local://".length()));
         }
+        // gitea-only 정책: 검증·배포·재배포·webhook 전 경로가 여기를 지나므로
+        // 이 한 곳에서 외부(GitHub 등) 레포 수집을 차단한다.
+        if (!props.isAllowedRepo(repoUrl)) {
+            throw new DeployException(props.giteaOnlyMessage());
+        }
         return fromGit(repoUrl, branch != null && !branch.isBlank() ? branch : "main");
     }
 

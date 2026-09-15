@@ -43,6 +43,10 @@ public class DeployProperties {
     // Gitea 계정 셀프 발급용 관리자 토큰(write:admin) — 배포 봇 토큰(read 전용)과 별개.
     // 미설정 시 계정 발급 기능 비활성(GiteaAccountService.enabled).
     @Value("${edu.deploy.gitea-admin-token:}")          private String giteaAdminToken;
+    // 내부 Gitea 전용 정책 — true 면 등록/검증/수집이 내부 Gitea 호스트의 레포만 허용
+    // (교육청 내부망: 소스가 외부 GitHub 로 나가지도, 외부에서 들어오지도 않게).
+    // sample://·local:// (번들 예제·시드)는 예외. K8s 매니페스트는 true 로 배포된다.
+    @Value("${edu.deploy.gitea-only:false}")            private boolean giteaOnly;
 
     public boolean isReal() { return "real".equalsIgnoreCase(mode); }
     public boolean isDocker() { return "docker".equalsIgnoreCase(mode); }
@@ -58,6 +62,22 @@ public class DeployProperties {
     public String giteaWebhookSecret() { return giteaWebhookSecret; }
     public String giteaAdminToken() { return giteaAdminToken; }
     public String giteaCloneBase() { return giteaCloneBase; }
+    public boolean giteaOnly() { return giteaOnly; }
+
+    /** gitea-only 정책에서 등록·수집이 허용되는 주소인지 (sample/local 은 예제·시드 전용 예외). */
+    public boolean isAllowedRepo(String repoUrl) {
+        if (!giteaOnly) return true;
+        if (repoUrl == null || repoUrl.isBlank()) return false;
+        if (repoUrl.startsWith("sample://") || repoUrl.startsWith("local://")) return true;
+        return isGiteaRepo(repoUrl);
+    }
+
+    /** gitea-only 거부 안내 — 사용자가 다음에 뭘 해야 하는지 알 수 있게 한다. */
+    public String giteaOnlyMessage() {
+        String host = (giteaHost == null || giteaHost.isBlank()) ? "(미구성)" : giteaHost;
+        return "내부 Gitea 저장소(" + host + ") 주소만 등록할 수 있습니다. "
+                + "마이페이지에서 Gitea 계정을 발급받아 코드를 올린 뒤 그 레포 주소로 등록하세요.";
+    }
 
     /** repoUrl 이 설정된 내부 Gitea 호스트의 레포인지 판단한다(자격 증명 주입 대상 선별). */
     public boolean isGiteaRepo(String repoUrl) {

@@ -9,7 +9,7 @@ import type { NewProgramInput } from '../../state/AppContext'
 import type { PurposeId, RunTypeId, Scope } from '../../types'
 
 const FLOW = [
-  { t: 'GitHub 레포 등록', d: '표준 규격(service.yaml·Dockerfile)에 맞춘 레포 주소 입력' },
+  { t: 'Gitea 레포 등록', d: '표준 규격(service.yaml·Dockerfile)에 맞춘 내부 Gitea 레포 주소 입력' },
   { t: '규격 자동 검증', d: '필수 파일·포트·헬스 경로 정적 검사' },
   { t: '운영 관리자 검토', d: '승인 시 새 서비스로 배포' },
   { t: '공개', d: '전 직원 또는 부서에 공개' },
@@ -69,7 +69,7 @@ export function Register() {
     <div className="page container">
       <div className="page-head">
         <div className="page-title">프로그램 등록</div>
-        <div className="page-desc">내부 Gitea 주소(권장) 또는 GitHub 레포 주소를 등록하면 규격 검증 후 운영 관리자 검토를 거쳐 새 서비스로 배포됩니다.</div>
+        <div className="page-desc">내부 Gitea 레포 주소를 등록하면 규격 검증 후 운영 관리자 검토를 거쳐 새 서비스로 배포됩니다. (외부 GitHub 등은 사용할 수 없습니다)</div>
       </div>
 
       <div className="form-layout">
@@ -131,7 +131,7 @@ export function Register() {
           </div>
 
           <div className="form-section">
-            <div className="form-section-title"><span className="step-no">3</span> GitHub 저장소</div>
+            <div className="form-section-title"><span className="step-no">3</span> Gitea 저장소</div>
             <div className="form-section-desc">표준 규격에 맞춘 공개 레포 주소를 입력합니다.</div>
             <div className="notice-inline">
               <Icon name="info" size={16} />
@@ -140,7 +140,7 @@ export function Register() {
             <div className="grid-2">
               <div className="field" style={{ gridColumn: '1 / span 1' }}>
                 <label>레포 주소<span className="req">*</span></label>
-                <input className="input" value={f.repo} onChange={(e) => set({ repo: e.target.value })} placeholder="https://gitea.edu.internal/내계정/my-tool (또는 GitHub 주소)" />
+                <input className="input" value={f.repo} onChange={(e) => set({ repo: e.target.value })} placeholder="https://gitea.edu.internal/내계정/my-tool" />
               </div>
               <div className="field">
                 <label>브랜치</label>

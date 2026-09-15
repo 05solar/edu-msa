@@ -68,7 +68,7 @@ make prod-registry-secret PROD_REGISTRY=.. REG_USER=.. REG_PASS=..  # Kaniko pus
 make prod-status                                # 상태 확인
 ```
 
-**GitHub 레포 빌드(real 파이프라인)가 실서버에서 동작하기 위한 전제** — `prod-preflight` 가 점검한다:
+**레포 빌드(real 파이프라인)가 실서버에서 동작하기 위한 전제** — `prod-preflight` 가 점검한다:
 
 1. **RBAC** — `rbac.yaml` 이 배포 SA(edu-deployer)에 Kaniko Job(batch)·HPA·PDB 권한까지
    부여한다(코어 배포에 포함). 이 권한이 없으면 배포가 전부 Forbidden 으로 실패한다.
@@ -77,8 +77,9 @@ make prod-status                                # 상태 확인
    사설이면 `make prod-registry-secret` 으로 push 인증(edu-registry-auth)을 만들고,
    노드 pull 인증은 노드 containerd 설정 또는 imagePullSecrets 로 별도 구성한다.
    HTTP(비TLS) 레지스트리면 backend env `EDU_DEPLOY_KANIKO_INSECURE=true`.
-3. **egress** — 클러스터에서 github.com(clone)·gcr.io(Kaniko 이미지) 접근 필요.
-   폐쇄망이면 Kaniko executor 이미지를 사내 레지스트리로 미러링.
+3. **egress** — clone 은 내부 Gitea(인클러스터)라 외부 접근이 필요 없다
+   (`EDU_DEPLOY_GITEA_ONLY=true` — 외부 GitHub 등은 차단). gcr.io(Kaniko executor
+   이미지)만 접근 필요하며, 폐쇄망이면 사내 레지스트리로 미러링.
 
 **예제 7종의 서브도메인**(`<slug>.edu-poc.headit.kr`)은 ① DNS `*.edu-poc.headit.kr` →
 서버 IP, ② 전면 Nginx 에 `server_name *.edu-poc.headit.kr` 프록시 블록

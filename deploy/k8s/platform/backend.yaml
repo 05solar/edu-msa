@@ -116,6 +116,9 @@ spec:
             # Secret(edu-gitea-token)은 bootstrap stack 이 봇 계정과 함께 생성한다(optional).
             - name: EDU_GITEA_HOST
               value: gitea.edu.internal
+            # 내부 Gitea 전용 — 외부(GitHub 등) 레포는 등록·검증·수집 전 단계에서 차단
+            - name: EDU_DEPLOY_GITEA_ONLY
+              value: "true"
             # 인클러스터 수집은 Ingress 를 거치지 않고 서비스 주소로 직접 받는다
             # (kind 의 *.localhost 루프백 강제 해석 문제도 함께 회피).
             - name: EDU_GITEA_CLONE_BASE

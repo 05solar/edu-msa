@@ -120,7 +120,7 @@ export function Home() {
 
         <div className="home-note">
           <Icon name="info" size={16} />
-          <span><b>내가 만든 프로그램도 공유할 수 있어요.</b> GitHub 레포 주소만 등록하면 새 서비스로 배포됩니다.</span>
+          <span><b>내가 만든 프로그램도 공유할 수 있어요.</b> 내부 Gitea 레포 주소만 등록하면 새 서비스로 배포됩니다.</span>
           <button className="btn btn-sm btn-primary" onClick={() => go('register')}>프로그램 등록</button>
         </div>
       </div>

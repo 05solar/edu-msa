@@ -82,6 +82,9 @@ spec:
               value: gitea.edu.internal
             - name: EDU_GITEA_CLONE_BASE
               value: http://gitea-http.gitea.svc:3000
+            # 내부 Gitea 전용 — 외부(GitHub 등) 레포는 수집(clone) 단계에서 차단
+            - name: EDU_DEPLOY_GITEA_ONLY
+              value: "true"
             - name: EDU_GITEA_USER
               valueFrom: { secretKeyRef: { name: edu-gitea-token, key: username, optional: true } }
             - name: EDU_GITEA_TOKEN

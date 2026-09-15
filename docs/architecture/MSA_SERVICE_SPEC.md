@@ -1,6 +1,6 @@
 # MSA 표준 서비스 규격 · "기본 프로그램은 이래야 한다"
 
-이 문서는 바이브 코더가 올린 임의의 GitHub 레포지토리가 교육청 플랫폼에서 하나의
+이 문서는 바이브 코더가 내부 Gitea 에 올린 임의의 레포지토리가 교육청 플랫폼에서 하나의
 MSA 서비스로 배포되기 위해 만족해야 하는 **기술 계약(contract)**을 정의한다.
 쉬운 안내는 [VIBE_CODING_GUIDE.md](../guides/VIBE_CODING_GUIDE.md)를 참고한다.
 
@@ -16,7 +16,7 @@ MSA 서비스로 배포되기 위해 만족해야 하는 **기술 계약(contrac
 ## 1. 배포 파이프라인 개요
 
 ```
-GitHub 레포 주소 등록 (CODER 이상)
+내부 Gitea 레포 주소 등록 (CODER 이상)
    → 코드 수집 (git clone, 지정 브랜치)
    → 규격 검증 (service.yaml / Dockerfile / 헬스 경로 정적 검사)
    → 컨테이너 이미지 빌드 (레포의 Dockerfile 사용)
@@ -30,8 +30,9 @@ GitHub 레포 주소 등록 (CODER 이상)
   네트워크에 합류시키고 Traefik `/dynamic/<slug>.yml` 라우트를 기록 → `http://<slug>.localhost`
 - `real`: 이미지 push + K8s 배포 (Deployment + Service + ingress-nginx 서브도메인 라우팅)
 
-**레포 주소 형식**: `https://github.com/…`(실제) · `local:///workspace/examples/<name>`(로컬
-예제) · `sample://<name>`(classpath 번들, 검증 전용).
+**레포 주소 형식**: `https://gitea.<도메인>/…`(내부 Gitea — 운영은 `EDU_DEPLOY_GITEA_ONLY=true`
+로 이 호스트만 허용) · `local:///workspace/examples/<name>`(로컬 예제) ·
+`sample://<name>`(classpath 번들, 검증 전용).
 
 ## 2. 필수 산출물 (레포 루트)
 

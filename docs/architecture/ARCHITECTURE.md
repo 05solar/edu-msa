@@ -2,8 +2,9 @@
 
 ## 1. 목표
 
-교육청 구성원이 만든 프로그램을 GitHub 레포로 올리면, 플랫폼이 자동으로 MSA
-서비스로 배포해 다른 직원이 웹에서 바로 사용하게 한다.
+교육청 구성원이 만든 프로그램을 내부 Gitea 레포로 올리면, 플랫폼이 자동으로 MSA
+서비스로 배포해 다른 직원이 웹에서 바로 사용하게 한다. (내부망 전제 — 소스는
+외부 GitHub 등으로 나가지 않으며, 운영은 `EDU_DEPLOY_GITEA_ONLY=true` 로 강제한다.)
 
 ## 2. 구성 요소
 
@@ -69,7 +70,7 @@
 - 기능별 패키지 분리. MariaDB 영속화.
 
 ### 배포 파이프라인 (`backend/deploy` + `deploy/`)
-- GitHub clone → `service.yaml`/`Dockerfile` 정적 검증 → 이미지 빌드 → (docker) eduproxy 합류
+- 내부 Gitea clone → `service.yaml`/`Dockerfile` 정적 검증 → 이미지 빌드 → (docker) eduproxy 합류
   또는 (real) 레지스트리 push + K8s 적용 → 헬스 확인 → 상태 전환.
 - docker 모드에서는 컨테이너를 `eduproxy` 네트워크에 합류시키고 Traefik `/dynamic/<slug>.yml`
   라우트를 기록한 뒤, 컨테이너 `/healthz` 응답까지 대기(readiness)해 첫 접속 502를 방지한다.

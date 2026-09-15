@@ -2,9 +2,9 @@
 
 ![CI](https://github.com/05solar/edu-msa/actions/workflows/ci.yml/badge.svg)
 
-교육청 구성원이 단기 교육에서 바이브 코딩으로 만든 프로그램을 GitHub 레포지토리로
+교육청 구성원이 단기 교육에서 바이브 코딩으로 만든 프로그램을 내부 Gitea 레포지토리로
 올리면, 본 플랫폼이 해당 코드를 가져와 **하나의 MSA 서비스로 띄워** 다른 직원들이
-바로 사용할 수 있게 하는 사내 포털이다.
+바로 사용할 수 있게 하는 사내 포털이다. (내부망 전제 — 소스는 외부로 나가지 않는다.)
 
 - 프론트엔드: **React + Vite + TypeScript(TSX)**
 - 백엔드: **Spring Boot 3 (Gradle Kotlin DSL)**
@@ -136,11 +136,11 @@ SSO 가 추가되어도 변경 범위가 `auth-service` 안에 갇힌다.
 | --- | --- | --- |
 | 1 | 저장소 스캐폴드 + 프론트엔드 데모 (7개 화면, 데모 로그인/권한 전환) | 완료 |
 | 2 | Spring 백엔드 CRUD + DB(현행 MariaDB) 연동 | 완료 |
-| 3 | MSA 동적 배포 파이프라인 (GitHub 레포 → 새 서비스) + K8s 매니페스트 | 완료 |
+| 3 | MSA 동적 배포 파이프라인 (내부 Gitea 레포 → 새 서비스) + K8s 매니페스트 | 완료 |
 
 ### MSA 배포 파이프라인 (Phase 3)
 
-GitHub 레포 등록 → `service.yaml`/`Dockerfile` 규격 검증 → 이미지 빌드 →
+내부 Gitea 레포 등록 → `service.yaml`/`Dockerfile` 규격 검증 → 이미지 빌드 →
 K8s 매니페스트(Deployment/Service/Ingress) 렌더링·적용 → 헬스 통과 → 공개.
 
 - 표준 규격: [docs/MSA_SERVICE_SPEC.md](docs/architecture/MSA_SERVICE_SPEC.md)
@@ -165,10 +165,10 @@ K8s 매니페스트(Deployment/Service/Ingress) 렌더링·적용 → 헬스 통
   각 서비스·플랫폼에는 링크 미리보기(OG) 이미지와 파비콘이 포함된다.
 - 백엔드 배포 API: `POST /api/deploy/validate`, `POST /api/programs/{id}/deploy`
 - 배포 모드(`EDU_DEPLOY_MODE`): `simulate`(매니페스트 렌더만·기본) · `docker`(호스트 Docker로 **실제 컨테이너 기동**) · `real`(K8s `kubectl apply`)
-- 레포 주소 형식: `https://github.com/…`(실제) · `local://examples/<slug>`(플랫폼 동봉 기본 서비스)
+- 레포 주소 형식: `https://gitea.<도메인>/…`(내부 Gitea — 운영은 `EDU_DEPLOY_GITEA_ONLY=true` 로 이 호스트만 허용) · `local://examples/<slug>`(플랫폼 동봉 기본 서비스)
 - 자세한 배포/모드는 [backend/README.md](backend/README.md)
 - **K8s로 띄우는 법**: [deploy/k8s/README.md](deploy/k8s/README.md) — 로컬 `kind` 리허설로
-  GitHub 레포의 서비스가 실제 **Pod + Service**로 떠서 응답하는 것까지 검증됨.
+  내부 Gitea 레포의 서비스가 실제 **Pod + Service**로 떠서 응답하는 것까지 검증됨.
 
 ## 전체 스택 한 번에 실행
 

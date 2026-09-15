@@ -47,14 +47,17 @@ public class ProgramService {
     private final CommentRepository comments;
     private final NotificationService notifications;
     private final CatalogCacheEvictor cacheEvictor;
+    private final com.edu.msa.deploy.DeployProperties deployProps;
 
     public ProgramService(ProgramRepository programs, CommentRepository comments,
                           NotificationService notifications,
-                          CatalogCacheEvictor cacheEvictor) {
+                          CatalogCacheEvictor cacheEvictor,
+                          com.edu.msa.deploy.DeployProperties deployProps) {
         this.programs = programs;
         this.comments = comments;
         this.notifications = notifications;
         this.cacheEvictor = cacheEvictor;
+        this.deployProps = deployProps;
     }
 
     /**
@@ -191,6 +194,11 @@ public class ProgramService {
     public ProgramDetailResponse create(CreateProgramRequest req, AuthPrincipal who) {
         if (who == null || who.id() == null) {
             throw new org.springframework.security.access.AccessDeniedException("로그인이 필요합니다.");
+        }
+        // gitea-only 정책: 수집 시점(SourceResolver)뿐 아니라 등록 시점에도 차단해
+        // 외부(GitHub 등) 주소가 DB 에 저장조차 되지 않게 한다.
+        if (!deployProps.isAllowedRepo(req.repo())) {
+            throw new IllegalArgumentException(deployProps.giteaOnlyMessage());
         }
         Program p = new Program();
         p.setName(req.name());

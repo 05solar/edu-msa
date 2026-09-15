@@ -147,6 +147,9 @@ services:
       EDU_GITEA_WEBHOOK_SECRET: ${EDU_GITEA_WEBHOOK_SECRET:-}
       # Gitea 계정 셀프 발급용 관리자 토큰(write:admin) — 미설정 시 발급 기능 비활성
       EDU_GITEA_ADMIN_TOKEN: ${EDU_GITEA_ADMIN_TOKEN:-}
+      # 내부 Gitea 전용 정책 — 운영(K8s)은 true 고정. 로컬 compose 는 Gitea 가 없는 게
+      # 기본이라 끔(port-forward 로 Gitea 를 붙였다면 true 로 켜서 동일 정책 시험 가능).
+      EDU_DEPLOY_GITEA_ONLY: ${EDU_DEPLOY_GITEA_ONLY:-false}
       # 카탈로그 읽기 캐시(Redis) — 장애 시 DB 폴백
       REDIS_HOST: redis
       REDIS_PASSWORD: ${REDIS_PASSWORD:-eduredis}

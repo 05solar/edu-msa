@@ -124,7 +124,9 @@ CODER/ADMIN 상향은 신청→운영 관리자 승인으로만 부여된다(자
 배포 작업이 큐에 실려 컨테이너가 뜨고 프로그램이 자동 공개된다. (등록→승인→기동)
 
 **레포 주소 형식**
-- `https://github.com/…` : 실제 공개 레포 (git clone, docker/real 모드에서 빌드)
+- `https://gitea.<도메인>/…` : 내부 Gitea 레포 (git clone, docker/real 모드에서 빌드).
+  운영은 `EDU_DEPLOY_GITEA_ONLY=true` 로 이 호스트만 허용(외부 GitHub 등 차단) —
+  로컬 개발 기본값은 false 라 임의 https 레포도 시험 가능.
 - `local://examples/<slug>` : compose에 마운트된 로컬 예제 (`examples/` → `/app/examples`, docker 모드 시험용)
 - `sample://<name>` : classpath 번들 예제 (검증 전용, 빌드 컨텍스트 없음)
 

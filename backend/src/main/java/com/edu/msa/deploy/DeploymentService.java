@@ -32,7 +32,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
-/** GitHub 레포 → 규격 검증 → 이미지 빌드 → K8s 매니페스트 렌더/적용 → 공개 파이프라인. */
+/** 레포(내부 Gitea) → 규격 검증 → 이미지 빌드 → K8s 매니페스트 렌더/적용 → 공개 파이프라인. */
 @Service
 public class DeploymentService {
 

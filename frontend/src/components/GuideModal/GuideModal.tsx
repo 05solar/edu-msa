@@ -1,14 +1,24 @@
 import './GuideModal.css'
+import { useEffect, useState } from 'react'
 import { useApp } from '../../state/AppContext'
 import { Icon } from '../../icons/Icon'
+import { api, USE_API } from '../../api/client'
 
 /*
  * 프로그램 등록 가이드 — 개발 경험이 없는 비전공자도 순서대로 따라 하면
  * 자신이 만든 프로그램을 플랫폼 서비스로 올릴 수 있도록 실제 용어를 쉬운 말로
  * 단계별로 자세히 설명한다.
+ * 코드는 외부(GitHub)가 아니라 내부 Gitea 저장소에만 올린다(내부망 정책).
  */
 export function GuideModal() {
   const { closeModal } = useApp()
+  // 내부 Gitea 실제 호스트 — 서버 설정에서 받아 안내문에 표시(미연동 시 예시 주소로 대체)
+  const [giteaHost, setGiteaHost] = useState<string | null>(null)
+  useEffect(() => {
+    if (!USE_API) return
+    api.giteaAccount().then((s) => { if (s.host) setGiteaHost(s.host) }).catch(() => { /* 안내문은 예시 주소 사용 */ })
+  }, [])
+  const host = giteaHost ?? 'gitea.<플랫폼 주소>'
 
   return (
     <div className="modal wide">
@@ -47,10 +57,10 @@ export function GuideModal() {
           <div className="g-card">
             <span className="g-ic"><Icon name="gitea" size={18} /></span>
             <div>
-              <div className="g-t">GitHub · 저장소(레포지토리)</div>
-              <div className="g-d">코드를 인터넷에 보관하고 공유하는 서비스가 <b>GitHub</b>이고, 그 안에서 프로그램
-                하나를 담는 폴더가 <b>저장소(repository)</b>입니다. 무료이며, 여기에 코드를 올려 두면
-                플랫폼이 그 주소로 코드를 가져갑니다.</div>
+              <div className="g-t">내부 Gitea · 저장소(레포지토리)</div>
+              <div className="g-d">코드를 보관하고 공유하는 <b>교육청 내부 서비스</b>가 <b>Gitea</b>이고, 그 안에서 프로그램
+                하나를 담는 폴더가 <b>저장소(repository)</b>입니다. 여기에 코드를 올려 두면 플랫폼이 그 주소로
+                코드를 가져갑니다. <b>외부 서비스(GitHub 등)는 사용하지 않습니다</b> — 코드가 기관 밖으로 나가지 않습니다.</div>
             </div>
           </div>
           <div className="g-card">
@@ -71,28 +81,42 @@ export function GuideModal() {
           </div>
         </div>
 
-        <h4><span className="g-badge">1</span>1단계 · GitHub에 코드 올리기</h4>
+        <h4><span className="g-badge">1</span>1단계 · 내부 Gitea에 코드 올리기</h4>
         <div className="g-steps">
           <div className="g-step"><span className="g-no">1</span><div className="g-body">
-            <div className="g-st">GitHub 계정 만들기 (이미 있으면 넘어가기)</div>
-            <div className="g-sd"><code>github.com</code>에 접속해 이메일로 무료 가입합니다.</div>
+            <div className="g-st">Gitea 계정 발급받기 (이미 있으면 넘어가기)</div>
+            <div className="g-sd"><b>마이페이지 → Gitea 계정</b> 패널에서 영문 아이디와 비밀번호(8자 이상)를
+              정해 <b>계정 발급</b>을 누릅니다. 발급 후 같은 패널의 <b>Gitea 열기</b> 버튼으로
+              <code> {host}</code>에 접속해 로그인합니다.</div>
           </div></div>
           <div className="g-step"><span className="g-no">2</span><div className="g-body">
             <div className="g-st">새 저장소 만들기</div>
-            <div className="g-sd">오른쪽 위 <b>+</b> → <b>New repository</b> → 저장소 이름 입력 →
-              공개 범위는 <b>Public(공개)</b> 선택 → <b>Create repository</b> 클릭. (비공개로 두면 플랫폼이
-              코드를 가져올 수 없습니다.)</div>
+            <div className="g-sd">오른쪽 위 <b>+</b> → <b>새 저장소(New Repository)</b> → 저장소 이름(영문) 입력 →
+              <b> 저장소 만들기</b> 클릭. 새 저장소는 기본 <b>비공개</b>인데 그대로 둬도 됩니다 —
+              비공개 저장소는 <b>설정 → 협업자</b>에서 <code>edu-deploy-bot</code>을 초대(읽기 권한)해야
+              플랫폼이 코드를 가져올 수 있습니다. (공개로 만들면 초대 없이 바로 됩니다.)</div>
           </div></div>
           <div className="g-step"><span className="g-no">3</span><div className="g-body">
-            <div className="g-st">내가 만든 코드 파일 올리기</div>
-            <div className="g-sd">저장소 화면에서 <b>Add file → Upload files</b>로 파일을 끌어다 놓고
-              <b> Commit changes</b>를 누르면 업로드됩니다. (Git을 안다면 <code>git push</code>도 가능합니다.)</div>
+            <div className="g-st">내 컴퓨터의 코드 파일 올리기 — 방법 A (웹 화면, 쉬움)</div>
+            <div className="g-sd">저장소 화면에서 <b>파일 업로드(Upload File)</b>를 누르고 내 컴퓨터의 파일들을
+              끌어다 놓은 뒤 <b>변경 사항 커밋</b>을 누르면 업로드됩니다. 프로그램 파일이 몇 개 안 되면
+              이 방법이 가장 간단합니다.</div>
+          </div></div>
+          <div className="g-step"><span className="g-no">4</span><div className="g-body">
+            <div className="g-st">내 컴퓨터의 코드 파일 올리기 — 방법 B (git 명령, 익숙한 분)</div>
+            <div className="g-sd">프로젝트 폴더에서 아래 명령을 실행합니다. 아이디/비밀번호는 1번에서 발급한
+              Gitea 계정입니다.
+              <div className="code" style={{ marginTop: 8 }}>{`git init
+git add .
+git commit -m "최초 등록"
+git remote add origin https://${host}/<내아이디>/<저장소이름>.git
+git push -u origin main`}</div></div>
           </div></div>
         </div>
 
         <h4><span className="g-badge">2</span>2단계 · 설정 파일 2개 추가하기</h4>
         <p>저장소의 <b>맨 위 폴더(루트)</b>에 아래 두 파일을 새로 만들어 추가합니다.
-          (저장소 화면 <b>Add file → Create new file</b>에서 파일 이름과 내용을 입력하면 됩니다.)</p>
+          (Gitea 저장소 화면 <b>새 파일(New File)</b>에서 파일 이름과 내용을 입력하면 됩니다.)</p>
 
         <p style={{ marginTop: 14 }}><b>① service.yaml</b> — 아래 내용을 붙여넣고 내 프로그램에 맞게 값만 바꿉니다.</p>
         <div className="code">{`name: 출장 정산 자동 계산기
@@ -157,7 +181,8 @@ docker run -e PORT=8080 -p 8080:8080 my-app
         <div className="g-steps">
           <div className="g-step"><span className="g-no">1</span><div className="g-body">
             <div className="g-st">저장소 주소 복사</div>
-            <div className="g-sd">GitHub 저장소 주소(예: <code>https://github.com/이름/저장소</code>)를 복사합니다.</div>
+            <div className="g-sd">Gitea 저장소 주소(예: <code>{`https://${host}/내아이디/저장소`}</code>)를 복사합니다.
+              저장소 화면의 주소창 주소를 그대로 쓰면 됩니다.</div>
           </div></div>
           <div className="g-step"><span className="g-no">2</span><div className="g-body">
             <div className="g-st">등록 화면에 붙여넣고 규격 검증</div>
@@ -188,13 +213,14 @@ docker run -e PORT=8080 -p 8080:8080 my-app
           <li>포트를 코드에 숫자로 고정함 → 환경변수 <code>PORT</code>를 읽도록 수정</li>
           <li><code>service.yaml</code>·<code>Dockerfile</code>을 하위 폴더에 둠 → 반드시 저장소 <b>맨 위(루트)</b></li>
           <li><code>/healthz</code> 주소가 없음 → 짧게 하나 추가</li>
-          <li>저장소를 비공개로 둠 → <b>공개(Public)</b>로 변경</li>
+          <li>비공개 저장소에 <code>edu-deploy-bot</code>을 초대하지 않음 → 협업자(읽기)로 추가하거나 저장소를 공개로 변경</li>
+          <li>외부 저장소(GitHub 등) 주소를 등록함 → 내부 Gitea 주소만 등록 가능</li>
           <li>개인정보·비밀번호를 코드나 데이터에 포함 → 절대 올리지 않기</li>
         </ul>
 
         <h4><span className="g-badge">8</span>등록 전 최종 체크리스트</h4>
         <ul className="g-list">
-          <li>공개 상태의 GitHub 저장소가 있고 주소를 안다</li>
+          <li>내부 Gitea 에 저장소가 있고 주소를 안다 (비공개면 <code>edu-deploy-bot</code> 초대 완료)</li>
           <li>루트에 <code>service.yaml</code>이 있고 name·slug·category·port가 채워져 있다</li>
           <li>루트에 <code>Dockerfile</code>이 있다</li>
           <li>프로그램이 <code>PORT</code>로 열리고 <code>/healthz</code>가 <code>ok</code>를 응답한다</li>

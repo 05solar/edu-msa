@@ -19,6 +19,9 @@ export interface SpecView {
 export interface ValidationResult {
   valid: boolean; errors: string[]; spec: SpecView | null; resolvedFrom: string
 }
+export interface GiteaAccountStatus {
+  enabled: boolean; issued: boolean; username: string | null; host: string | null
+}
 export interface DeploymentResponse {
   id: number; programId: number | null; slug: string; name: string
   status: string; url: string | null; imageTag: string | null; mode: string
@@ -148,6 +151,11 @@ export const api = {
   // 프로그램 삭제 — 소유자 본인(관리자는 전체). 배포 흔적·부속 데이터도 서버가 함께 정리한다.
   deleteProgram: (id: number) => req<void>(`/programs/${id}`, { method: 'DELETE' }),
   deploymentOf: (id: number) => req<DeploymentResponse | null>(`/programs/${id}/deployment`),
+
+  // Gitea 계정 셀프 발급 — 대상은 서버가 JWT 로 판단한다(본인 계정만).
+  giteaAccount: () => req<GiteaAccountStatus>('/gitea/account'),
+  createGiteaAccount: (username: string, password: string) =>
+    req<GiteaAccountStatus>('/gitea/account', { method: 'POST', body: JSON.stringify({ username, password }) }),
 
   users: () => req<AppUser[]>('/users'),
   setRole: (name: string, role: Role) =>

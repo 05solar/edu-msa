@@ -84,6 +84,7 @@ kubectl -n gitea port-forward svc/gitea-http 3000:3000
 | `EDU_GITEA_HOST` | 사용자 등록용 공개 호스트(이 호스트의 레포만 자격 증명 주입) | `gitea.edu.internal` |
 | `EDU_GITEA_USER` / `EDU_GITEA_TOKEN` | 봇 계정·토큰(Secret 참조) | `edu-deploy-bot` |
 | `EDU_GITEA_CLONE_BASE` | clone 실제 접근 주소(내부용, 선택) | `http://gitea-http.gitea.svc:3000` |
+| `EDU_GITEA_ADMIN_TOKEN` | 계정 셀프 발급용 관리자 토큰(Secret `edu-gitea-admin-token`) | — |
 
 `EDU_GITEA_CLONE_BASE` 를 두는 이유 — 사용자는 공개 주소로 등록하지만 수집기는
 내부 주소로 받는 분리(split-horizon) 구성이며, **git/curl 이 `*.localhost` 호스트를
@@ -100,6 +101,31 @@ EDU_GITEA_CLONE_BASE=http://host.docker.internal:3000 \
 보안: 토큰은 URL·명령 인자에 넣지 않고 **git 환경변수(extraHeader)** 로 주입되어
 프로세스 목록·배포 로그·오류 메시지에 노출되지 않는다. Kaniko 빌드는
 `edu-gitea-token` Secret 참조 env(GIT_USERNAME/GIT_PASSWORD)로 받는다(매니페스트에 평문 없음).
+
+## 포털 Gitea 계정 셀프 발급
+
+포털 마이페이지에서 로그인 사용자가 본인 Gitea 계정(영문 아이디·비밀번호 8자 이상)을
+직접 발급한다(SSO 도입 전 운영 방식 — GITEA_PLAN §7). backend 가 Gitea 관리자 API
+(`POST /api/v1/admin/users`)로 계정을 만들며, 자격은 `write:admin` 스코프 토큰이다.
+`bootstrap.sh stack` 이 자동 준비한다(있으면 건너뜀):
+
+- 관리자 계정(`edu-admin`)의 `write:admin` 토큰 발급 →
+  `edu-platform` Secret `edu-gitea-admin-token`(키: `token`) 생성
+- backend 는 `EDU_GITEA_ADMIN_TOKEN` 으로 주입받는다 — 미주입 시 발급 기능만 비활성
+
+수동 발급(자동 실패 시):
+
+```bash
+kubectl -n gitea exec deploy/gitea -c gitea -- \
+  gitea admin user generate-access-token --username edu-admin \
+    --token-name edu-account-admin --scopes write:admin --raw
+kubectl -n edu-platform create secret generic edu-gitea-admin-token \
+  --from-literal=token=<위 출력값>
+kubectl -n edu-platform rollout restart deploy/backend
+```
+
+발급 이력은 플랫폼 DB `gitea_accounts`(uid ↔ gitea 아이디, 1인 1계정)에 기록된다.
+비밀번호 변경·분실 처리는 Gitea 에서 직접 한다(관리자 화면 또는 사용자 설정).
 
 ## push 자동 재배포 (4단계)
 

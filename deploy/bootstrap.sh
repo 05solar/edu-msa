@@ -485,6 +485,26 @@ EOF
       warn "Gitea 봇 토큰 발급 실패 — 수동 발급 후 Secret 생성: deploy/k8s/platform/gitea/README.md 참고"
     fi
   fi
+  # 포털 Gitea 계정 셀프 발급(마이페이지): 관리자 스코프(write:admin) 토큰 →
+  # edu-platform Secret(edu-gitea-admin-token). backend 가 관리자 API(admin/users)로
+  # 계정을 만든다. 배포 봇 토큰(read 전용)과 분리 — 유출 반경을 좁힌다.
+  if kubectl get ns edu-platform >/dev/null 2>&1 \
+      && ! kubectl -n edu-platform get secret edu-gitea-admin-token >/dev/null 2>&1; then
+    log "· Gitea 계정 발급용 관리자 토큰 준비"
+    local atoken
+    atoken="$(kubectl -n gitea exec deploy/gitea -c gitea -- \
+        gitea admin user generate-access-token --username "${GITEA_ADMIN_USER:-edu-admin}" \
+          --token-name "edu-account-admin-$(date +%s)" --scopes write:admin --raw 2>/dev/null | tail -1)"
+    if [ -n "$atoken" ]; then
+      kubectl -n edu-platform create secret generic edu-gitea-admin-token \
+        --from-literal=token="$atoken" >/dev/null 2>&1 \
+        && { ok "edu-gitea-admin-token Secret 생성 (edu-platform) — 포털 Gitea 계정 발급 활성"; gitea_secrets_created=1; } \
+        || warn "edu-gitea-admin-token Secret 생성 실패"
+    else
+      warn "Gitea 관리자 토큰 발급 실패 — 포털 Gitea 계정 발급 비활성(수동 발급: gitea/README.md 참고)"
+    fi
+  fi
+
   # Kaniko 빌드 Job 은 격리 ns(edu-build)에서 돌므로 같은 토큰이 그 ns 에도 필요하다.
   # 신규 발급뿐 아니라 기존 클러스터 재실행(edu-platform 에 이미 존재)도 동기화한다.
   if kubectl -n edu-platform get secret edu-gitea-token >/dev/null 2>&1 \

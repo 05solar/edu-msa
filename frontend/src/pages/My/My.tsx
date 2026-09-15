@@ -7,6 +7,7 @@ import { api, USE_API } from '../../api/client'
 import { Icon } from '../../icons/Icon'
 import { StatusBadge } from '../../components/program/Badges'
 import { ProgramCard } from '../../components/program/ProgramCard'
+import { GiteaAccountPanel } from '../../components/my/GiteaAccountPanel'
 import type { NotiKind, ProgramStatus } from '../../types'
 
 type Tab = 'mine' | 'fav' | 'noti'
@@ -82,6 +83,8 @@ export function My() {
         <div className="page-title">{title}</div>
         <div className="page-desc">{isUser ? '즐겨찾기와 알림을 확인합니다.' : '등록 현황·승인 상태·즐겨찾기·알림을 확인합니다.'}</div>
       </div>
+
+      {account && !demoMode && <GiteaAccountPanel />}
 
       {account && !demoMode && account.role !== 'admin' && (
         <div className="panel" style={{ marginBottom: 16 }}>

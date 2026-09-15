@@ -145,6 +145,8 @@ services:
       EDU_GITEA_CLONE_BASE: ${EDU_GITEA_CLONE_BASE:-}
       # push webhook 서명 검증 시크릿 — 미설정 시 webhook 엔드포인트 비활성(404)
       EDU_GITEA_WEBHOOK_SECRET: ${EDU_GITEA_WEBHOOK_SECRET:-}
+      # Gitea 계정 셀프 발급용 관리자 토큰(write:admin) — 미설정 시 발급 기능 비활성
+      EDU_GITEA_ADMIN_TOKEN: ${EDU_GITEA_ADMIN_TOKEN:-}
       # 카탈로그 읽기 캐시(Redis) — 장애 시 DB 폴백
       REDIS_HOST: redis
       REDIS_PASSWORD: ${REDIS_PASSWORD:-eduredis}

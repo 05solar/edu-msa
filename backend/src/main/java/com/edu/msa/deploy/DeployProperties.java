@@ -40,6 +40,9 @@ public class DeployProperties {
     @Value("${edu.deploy.gitea-clone-base:}")           private String giteaCloneBase;
     // Gitea push webhook 서명 검증 시크릿(4단계). 미설정 시 webhook 엔드포인트 비활성(404).
     @Value("${edu.deploy.gitea-webhook-secret:}")       private String giteaWebhookSecret;
+    // Gitea 계정 셀프 발급용 관리자 토큰(write:admin) — 배포 봇 토큰(read 전용)과 별개.
+    // 미설정 시 계정 발급 기능 비활성(GiteaAccountService.enabled).
+    @Value("${edu.deploy.gitea-admin-token:}")          private String giteaAdminToken;
 
     public boolean isReal() { return "real".equalsIgnoreCase(mode); }
     public boolean isDocker() { return "docker".equalsIgnoreCase(mode); }
@@ -53,6 +56,8 @@ public class DeployProperties {
     public String giteaUser() { return giteaUser; }
     public String giteaToken() { return giteaToken; }
     public String giteaWebhookSecret() { return giteaWebhookSecret; }
+    public String giteaAdminToken() { return giteaAdminToken; }
+    public String giteaCloneBase() { return giteaCloneBase; }
 
     /** repoUrl 이 설정된 내부 Gitea 호스트의 레포인지 판단한다(자격 증명 주입 대상 선별). */
     public boolean isGiteaRepo(String repoUrl) {

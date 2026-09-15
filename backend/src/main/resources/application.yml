@@ -126,6 +126,8 @@ edu:
     gitea-clone-base: ${EDU_GITEA_CLONE_BASE:}
     # push webhook 서명 검증 시크릿 — 미설정 시 /api/webhooks/gitea 비활성(404)
     gitea-webhook-secret: ${EDU_GITEA_WEBHOOK_SECRET:}
+    # Gitea 계정 셀프 발급용 관리자 토큰(write:admin) — 미설정 시 발급 기능 비활성
+    gitea-admin-token: ${EDU_GITEA_ADMIN_TOKEN:}
     worker:
       enabled: ${EDU_DEPLOY_WORKER_ENABLED:true}          # 배포 작업 큐 워커
       poll-ms: ${EDU_DEPLOY_WORKER_POLL_MS:3000}

@@ -28,8 +28,8 @@
 curl -X POST $AUTH/api/auth/signup -H 'Content-Type: application/json' -d '{
   "username":"lt_template","password":"LoadTest#2026!","name":"부하템플릿",
   "email":"lt_template@loadtest.local","dept":"부하테스트"}'
-psql "$AUTH_DB_URL" -v count=200000 -f loadtest/seed/seed-accounts.sql
-psql "$DB_URL"      -v count=2000   -f loadtest/seed/seed-programs.sql
+( echo "SET @count=200000;"; cat loadtest/seed/seed-accounts.sql ) | mariadb -h <auth-db 호스트> -ueduauth -p eduauth
+( echo "SET @count=2000;";   cat loadtest/seed/seed-programs.sql ) | mariadb -h <db 호스트>      -uedumsa  -p edumsa
 
 # ③ 스모크(배선 확인)
 k6 run -e BASE_URL=http://edu.localhost loadtest/k6/smoke.js
@@ -43,7 +43,7 @@ k6 run -e BASE_URL=http://edu.localhost loadtest/k6/smoke.js
 RESULT=loadtest/results/$(date +%Y%m%d-%H%M)-rps1000
 mkdir -p "$RESULT"
 
-# ① 관측 수집(백그라운드) — 파드 CPU/메모리·HPA·pg 커넥션·redis 적중률 CSV
+# ① 관측 수집(백그라운드) — 파드 CPU/메모리·HPA·DB 커넥션·redis 적중률 CSV
 ./loadtest/observability/capture.sh "$RESULT" 5 &
 
 # ② 혼합 시나리오 — PROFILE 을 rps100 → rps500 → rps1000 → rps2000 순으로 단계 실행
@@ -80,15 +80,17 @@ k6 run -e ADMIN_USER=<관리자> -e ADMIN_PASS=<비밀번호> loadtest/k6/deploy
 
 - `summary.json` — k6 `--summary-export` (p50/p95/p99·오류율·RPS, 시나리오/태그별)
 - `k6.log` — 실행 로그(마지막 줄에 한 줄 요약)
-- `pods.csv` / `hpa.csv` / `pg.csv` / `redis.csv` — capture.sh 수집분
+- `pods.csv` / `hpa.csv` / `db.csv` / `redis.csv` — capture.sh 수집분
 - 판독 후 `loadtest/RESULTS.template.md` 를 복사해 `RESULTS-<날짜>.md` 로 기록
 - Prometheus 판독 쿼리: `loadtest/observability/queries.md`
 
 ## 5. 정리
 
 ```bash
-psql "$DB_URL"      -f loadtest/seed/cleanup.sql
-psql "$AUTH_DB_URL" -f loadtest/seed/cleanup.sql
+# --force: cleanup.sql 은 platform/auth 두 DB 의 문장을 모두 담고 있어
+# 상대 DB 테이블이 없다는 오류를 건너뛰고 계속 진행해야 한다.
+mariadb --force -h <db 호스트>      -uedumsa  -p edumsa  < loadtest/seed/cleanup.sql
+mariadb --force -h <auth-db 호스트> -ueduauth -p eduauth < loadtest/seed/cleanup.sql
 ```
 
 ## 주의

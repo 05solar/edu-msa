@@ -34,12 +34,12 @@
 
 ## 리소스·풀 (rps1000 steady 구간)
 
-| 항목 | backend | auth-service | postgres | redis |
+| 항목 | backend | auth-service | mariadb | redis |
 |---|---|---|---|---|
 | CPU 피크(m) | | | | |
 | 메모리 피크(Mi) | | | | |
 | Hikari active / pending | | | — | — |
-| pg 커넥션 총/활성/대기 (max_connections 대비) | — | — | | — |
+| DB 커넥션 총/활성/유휴 (max_connections 대비) | — | — | | — |
 | Redis hit ratio | — | — | — | |
 
 ## HPA
@@ -68,4 +68,4 @@
 | HPA maxReplicas (backend/auth) | 10 / — | | |
 | backend/auth resources | 1c·1Gi / 1c·768Mi | | |
 | EDU_CACHE_LIST_TTL / COUNTS_TTL | 30s / 60s | | |
-| Pooler default_pool_size | 25 / 20 | | |
+| MariaDB max_connections | 151(기본) | | |

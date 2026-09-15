@@ -56,3 +56,4 @@ deploy/
 - 2026-08-25 — P0-3 DB HA: CloudNativePG 오퍼레이터 + postgres-ha.yaml(Cluster instances 3), backend.yaml을 edu-db-rw + edu-db-app 시크릿으로 전환. kind 검증: 3/3 healthy, primary 삭제→복제본 자동 승격(edu-db-1→2)→재수렴. P0 전부 완료.
 - 2026-08-25 — 대규모 로드맵(ROADMAP.md) 착수. P0-1 오토스케일: platform/autoscale.yaml(HPA+PDB), 서비스 템플릿 HPA. kind에서 metrics-server + HPA `cpu:1%/70%` 판독 검증.
 - 2026-08-25 — 멀티테넌트 보안 하드닝(hardening/) 추가: 신뢰 등급별 네임스페이스(baseline/restricted), ResourceQuota/LimitRange, NetworkPolicy(deny-by-default), gVisor RuntimeClass, Kaniko 빌드 Job 템플릿. 서비스 템플릿에 securityContext 강화. kind에서 restricted 루트 파드 거부 검증.
+- 2026-09-14 — MariaDB 전환: compose·k8s 를 mariadb:11.4 로 교체(utf8mb4/UTC, exporter 사이드카), CNPG HA/풀러 제거(후속 트랙 — PRODUCTION.md §4-3), edu-db/edu-auth-db Secret 키 MARIADB_* 전환 + edu-gitea-db 신설, mariadb-dump 백업 CronJob, cnpg_* 경보 → mysql_* 경보 + ServiceMonitor, Gitea 외부 DB(mysql) 전환. kind 클린 설치로 코어 200·gitea DB init·백업 Job·파드 재시작 지속성 검증.

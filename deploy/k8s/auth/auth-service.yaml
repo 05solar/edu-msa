@@ -60,17 +60,16 @@ spec:
               exec:
                 command: ["sh", "-c", "sleep 5"]
           env:
-            # HA DB(CloudNativePG, auth-db-ha.yaml) 사용: PgBouncer 풀러(edu-auth-db-pooler-rw) 경유.
-            # 앱 계정 시크릿(edu-auth-db-app: username/password)은 오퍼레이터가 생성한다.
-            # (개발용 단일 auth-db.yaml 사용 시 bootstrap.sh 가 host=auth-db, secret=edu-auth-db 로 치환)
+            # 인증 전용 MariaDB 단일 인스턴스(auth/auth-db.yaml) 직결.
+            # HA(다중 인스턴스·풀러)는 후속 트랙 — deploy/PRODUCTION.md §4 참고.
             - name: AUTH_DB_URL
-              value: jdbc:postgresql://edu-auth-db-pooler-rw.edu-platform.svc.cluster.local:5432/eduauth
+              value: jdbc:mariadb://auth-db.edu-platform.svc.cluster.local:3306/eduauth?timezone=UTC
             - name: AUTH_DB_USER
               valueFrom:
-                secretKeyRef: { name: edu-auth-db-app, key: username }
+                secretKeyRef: { name: edu-auth-db, key: MARIADB_USER }
             - name: AUTH_DB_PASSWORD
               valueFrom:
-                secretKeyRef: { name: edu-auth-db-app, key: password }
+                secretKeyRef: { name: edu-auth-db, key: MARIADB_PASSWORD }
             - name: PORT
               value: "8080"
             # [부하 실측 2026-09-09] 로그인은 @Transactional 안 bcrypt(~50ms)가 커넥션을 점유해

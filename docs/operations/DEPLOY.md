@@ -3,7 +3,7 @@
 edu-msa 를 **명령어 한 번으로** Kubernetes 에 올리는 방법과, **실제 GPU 서버**에서 돌리는 방법을
 한곳에 정리한다. 세부는 [deploy/PRODUCTION.md](../../deploy/PRODUCTION.md) · [deploy/INFRA.md](../../deploy/INFRA.md).
 
-> 먼저 알아둘 점 — **플랫폼 코어(React 프론트 + Spring Boot backend/auth + PostgreSQL)는 GPU가
+> 먼저 알아둘 점 — **플랫폼 코어(React 프론트 + Spring Boot backend/auth + MariaDB)는 GPU가
 > 필요 없다. CPU만으로 동작한다.** GPU는 **배포되는 테넌트 서비스**가 `service.yaml` 에서
 > `resources.gpu >= 1` 로 요청할 때만 쓰인다.
 
@@ -175,7 +175,7 @@ GPU 노드 taint·격리(공개 tier·MIG·runtimeClass) 주의는
 | 스토리지(PVC) | 자동 | StorageClass(k3s `local-path` 등) |
 | 레지스트리 | `localhost:5001` | 사내 registry / 노드 로컬 |
 | 도메인·TLS | `edu.localhost`(HTTP) | 실도메인 + cert-manager(내부 CA/ACME) |
-| DB | 단일 postgres | (선택) CloudNativePG HA |
+| DB | 단일 MariaDB | 단일 MariaDB + 백업(HA 는 후속 트랙) |
 | 시크릿 | 자리표시자 | **즉시 교체**(EDU_JWT_SECRET 등) |
 | GPU | — | NVIDIA GPU Operator |
 

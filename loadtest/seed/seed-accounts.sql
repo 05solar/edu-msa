@@ -1,4 +1,4 @@
--- 부하 테스트 계정 대량 시드 (auth-db / eduauth)
+-- 부하 테스트 계정 대량 시드 (auth-db / eduauth · MariaDB)
 -- 전제: 절대 운영 DB 에 적용하지 않는다 — 부하 테스트 전용 환경에서만 실행.
 --
 -- bcrypt 해시는 로컬에서 만들 수 없으므로, 먼저 "템플릿 계정" 1개를 회원가입 API 로 만들고
@@ -8,21 +8,24 @@
 --     "username":"lt_template","password":"LoadTest#2026!","name":"부하템플릿",
 --     "email":"lt_template@loadtest.local","dept":"부하테스트"}'
 --
--- 실행(계정 수 조정은 :count):
---   psql "$AUTH_DB_URL" -v count=200000 -f loadtest/seed/seed-accounts.sql
-\set count :count
+-- 실행(계정 수는 @count — 미지정 시 200000):
+--   ( echo "SET @count=200000;"; cat loadtest/seed/seed-accounts.sql ) \
+--     | mariadb -h <host> -ueduauth -p eduauth
 
-INSERT INTO accounts (username, password_hash, name, email, dept, role,
-                      must_change_password, created_at, updated_at)
+SET @count = IFNULL(@count, 200000);
+SET SESSION max_recursive_iterations = 1000000;
+
+INSERT IGNORE INTO accounts (username, password_hash, name, email, dept, role,
+                             must_change_password, created_at, updated_at)
 SELECT
-  'lt_user_' || lpad(i::text, 6, '0'),
+  CONCAT('lt_user_', LPAD(i, 6, '0')),
   (SELECT password_hash FROM accounts WHERE username = 'lt_template'),
-  '부하사용자' || i,
-  'lt_user_' || lpad(i::text, 6, '0') || '@loadtest.local',
+  CONCAT('부하사용자', i),
+  CONCAT('lt_user_', LPAD(i, 6, '0'), '@loadtest.local'),
   '부하테스트',
   'USER',
-  false, now(), now()
-FROM generate_series(1, :count) AS i
-ON CONFLICT (username) DO NOTHING;
+  false, NOW(6), NOW(6)
+FROM (WITH RECURSIVE seq(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM seq WHERE i < @count)
+      SELECT i FROM seq) s;
 
-SELECT count(*) AS loadtest_accounts FROM accounts WHERE username LIKE 'lt\_user\_%';
+SELECT COUNT(*) AS loadtest_accounts FROM accounts WHERE username LIKE 'lt\_user\_%';

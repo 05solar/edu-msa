@@ -108,7 +108,7 @@ kubectl apply -f deploy/k8s/hardening/30-runtimeclass-gvisor.yaml   # 노드에 
   업로더 `repoUrl`/`branch`는 정규식 검증 후에만 Kaniko `--context`에 삽입(인자·YAML 주입 차단).
   업로더 신뢰도에 따라 배포 네임스페이스(`edu-services` vs `edu-services-public`) **fail-closed** 자동 선택.
   검증: kind에서 Kaniko가 실제 GitHub 레포를 docker.sock 없이 빌드→레지스트리 push 성공.
-- **플랫폼 HA**: 백엔드 무상태+복제, 관리형 HA PostgreSQL, 시크릿 관리(Vault/Sealed Secrets).
+- **플랫폼 HA**: 백엔드 무상태+복제, MariaDB(HA 승격은 후속 트랙), 시크릿 관리(Vault/Sealed Secrets).
 - **관측성**: 로그/메트릭/감사(감사 로그, 이미지 스캐닝, 정책 위반 알림).
 
 자세한 K8s 배포 절차는 [deploy/k8s/README.md](../../deploy/k8s/README.md),

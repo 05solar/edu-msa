@@ -16,9 +16,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 /**
  * slug 소유권 예약(P0-2). 동시성 원자성은 slug_claims 의 PK(INSERT 경쟁)가 담당한다.
  *
- * 예약 INSERT 는 독립 트랜잭션(REQUIRES_NEW)에서 시도한다 — PostgreSQL 은 제약 위반
- * 시 트랜잭션 전체를 abort 하므로, 바깥(배포 파이프라인의 짧은 상태 트랜잭션들)을
- * 오염시키지 않으려면 위반 가능성이 있는 INSERT 를 격리해야 한다.
+ * 예약 INSERT 는 독립 트랜잭션(REQUIRES_NEW)에서 시도한다 — 제약 위반 시 JPA 세션이
+ * 오염된 채 바깥(배포 파이프라인의 짧은 상태 트랜잭션들)으로 전파되지 않도록,
+ * 위반 가능성이 있는 INSERT 를 격리해 실패를 이 지점에서 흡수한다.
  */
 @Component
 public class SlugClaims {

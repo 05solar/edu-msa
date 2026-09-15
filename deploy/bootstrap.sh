@@ -145,7 +145,8 @@ build_images(){
 #  - server(운영): Sealed Secrets 등으로 사전 반영되어 있어야 하며, 없으면 중단한다.
 _rand(){ openssl rand -base64 "${1:-24}" 2>/dev/null || head -c "${1:-24}" /dev/urandom | od -An -tx1 | tr -d ' \n'; }
 ensure_secrets(){
-  local required=(edu-db edu-auth-db edu-auth-jwt edu-redis-auth)
+  # edu-gitea-db: MariaDB 최초 초기화 시 gitea DB/계정 생성(init 스크립트) + Gitea 차트 PASSWD 주입에 쓴다.
+  local required=(edu-db edu-auth-db edu-auth-jwt edu-redis-auth edu-gitea-db)
   if [ "$MODE" = server ]; then
     local missing=()
     local s; for s in "${required[@]}"; do
@@ -160,12 +161,17 @@ ensure_secrets(){
   # kind: 무작위 생성(존재 시 유지)
   kubectl -n edu-platform get secret edu-db >/dev/null 2>&1 || kubectl -n edu-platform \
     create secret generic edu-db \
-    --from-literal=POSTGRES_DB=edumsa --from-literal=POSTGRES_USER=edumsa \
-    --from-literal=POSTGRES_PASSWORD="$(_rand 24)" >/dev/null
+    --from-literal=MARIADB_DATABASE=edumsa --from-literal=MARIADB_USER=edumsa \
+    --from-literal=MARIADB_PASSWORD="$(_rand 24)" \
+    --from-literal=MARIADB_ROOT_PASSWORD="$(_rand 24)" >/dev/null
   kubectl -n edu-platform get secret edu-auth-db >/dev/null 2>&1 || kubectl -n edu-platform \
     create secret generic edu-auth-db \
-    --from-literal=POSTGRES_DB=eduauth --from-literal=POSTGRES_USER=eduauth \
-    --from-literal=POSTGRES_PASSWORD="$(_rand 24)" >/dev/null
+    --from-literal=MARIADB_DATABASE=eduauth --from-literal=MARIADB_USER=eduauth \
+    --from-literal=MARIADB_PASSWORD="$(_rand 24)" \
+    --from-literal=MARIADB_ROOT_PASSWORD="$(_rand 24)" >/dev/null
+  kubectl -n edu-platform get secret edu-gitea-db >/dev/null 2>&1 || kubectl -n edu-platform \
+    create secret generic edu-gitea-db \
+    --from-literal=password="$(_rand 24)" >/dev/null
   kubectl -n edu-platform get secret edu-auth-jwt >/dev/null 2>&1 || kubectl -n edu-platform \
     create secret generic edu-auth-jwt \
     --from-literal=EDU_JWT_SECRET="$(_rand 48)" \
@@ -194,7 +200,8 @@ apply_core(){
     "$K8S/namespaces.yaml"
     "$K8S/platform/build.yaml"
     "$K8S/platform/rbac.yaml"
-    "$K8S/platform/postgres.yaml"
+    "$K8S/platform/mariadb.yaml"
+    "$K8S/platform/mariadb-backup.yaml"
     "$K8S/platform/redis.yaml"
     "$K8S/auth/auth-db.yaml"
     "$K8S/auth/auth-service.yaml"
@@ -216,15 +223,9 @@ apply_core(){
     if [ -n "$STORAGE_CLASS" ]; then
       sed -i.bak "s/^  #EDU_STORAGE_CLASS/  storageClassName: ${STORAGE_CLASS}/" "$out" && rm -f "$out.bak"
     fi
-    # backend(API·워커 공통)는 HA(CloudNativePG Pooler) 대신 코어 단일 postgres 를 쓰도록 치환.
-    # 단일 postgres 엔 replica 가 없으므로 DB_RO_URL 을 비워 read 라우팅을 끈다(워커 파일엔 없음).
+    # DB 접속은 매니페스트가 단일 MariaDB(mariadb/auth-db Service + edu-db/edu-auth-db Secret)를
+    # 직접 가리킨다 — 과거 CNPG 풀러 치환은 MariaDB 전환으로 제거됐다(HA 는 후속 트랙).
     if [ "$base" = backend.yaml ] || [ "$base" = backend-worker.yaml ]; then
-      sed -i.bak \
-        -e "s#edu-db-pooler-rw\.edu-platform#postgres.edu-platform#g" \
-        -e "/name: DB_RO_URL/{n;s#value: .*#value: \"\"#;}" \
-        -e "s#name: edu-db-app, key: username#name: edu-db, key: POSTGRES_USER#g" \
-        -e "s#name: edu-db-app, key: password#name: edu-db, key: POSTGRES_PASSWORD#g" \
-        "$out" && rm -f "$out.bak"
       # kind: Kaniko/노드 모두 도달 가능한 인클러스터 엔드포인트로 배포 레지스트리를 바꾸고
       #       (localhost:5001 은 파드 안에서 자기 자신을 가리켜 push 불가) HTTP 라서 insecure 켬.
       if [ "$MODE" = kind ]; then
@@ -233,14 +234,6 @@ apply_core(){
           -e "/name: EDU_DEPLOY_KANIKO_INSECURE/{n;s#value: \"false\"#value: \"true\"#;}" \
           "$out" && rm -f "$out.bak"
       fi
-    fi
-    # auth-service 도 HA(CNPG Pooler) 대신 코어 단일 auth-db 를 쓰도록 치환
-    if [ "$base" = auth-service.yaml ]; then
-      sed -i.bak \
-        -e "s#edu-auth-db-pooler-rw\.edu-platform#auth-db.edu-platform#g" \
-        -e "s#name: edu-auth-db-app, key: username#name: edu-auth-db, key: POSTGRES_USER#g" \
-        -e "s#name: edu-auth-db-app, key: password#name: edu-auth-db, key: POSTGRES_PASSWORD#g" \
-        "$out" && rm -f "$out.bak"
     fi
     # kind(HTTP): CORS 오리진 스킴을 http 로 (같은 오리진이라 대개 무해하지만 명시적으로 맞춤)
     if [ "$MODE" = kind ]; then
@@ -277,7 +270,8 @@ apply_core(){
     -p '{"automountServiceAccountToken": false}' >/dev/null 2>&1 \
     || warn "edu-build default SA automount patch 실패 — 수동 확인 필요"
   ensure_secrets
-  kubectl apply -f "$tmp/postgres.yaml"
+  kubectl apply -f "$tmp/mariadb.yaml"
+  kubectl apply -f "$tmp/mariadb-backup.yaml" || warn "mariadb-backup(CronJob) 적용 실패 — 백업 없음. 재적용 필요."
   kubectl apply -f "$tmp/redis.yaml"
   kubectl apply -f "$tmp/auth-db.yaml"
   kubectl apply -f "$tmp/auth-service.yaml"   # backend 보다 먼저 — edu-auth-jwt Secret 생성
@@ -317,9 +311,8 @@ install_stack(){
       warn "clusterissuers 적용 실패 — cert-manager CRD 준비 후 재적용하세요."
 
   # alertmanager.enabled 명시: 과거 수동 설치(README 초기 명령)가 false 로 남긴 릴리스를
-  # 업그레이드해도 켜지도록 고정. podMonitorSelectorNilUsesHelmValues=false: CNPG 오퍼레이터가
-  # 만드는 PodMonitor(edu-db·edu-auth-db)에는 release 라벨이 없어 기본 셀렉터에 안 잡힌다 —
-  # 이 플래그가 없으면 DB 메트릭(cnpg_*)이 아예 수집되지 않는다.
+  # 업그레이드해도 켜지도록 고정. DB 메트릭(mysql_*)은 mariadb/auth-db 파드의 mysqld_exporter
+  # 사이드카를 ServiceMonitor(release=monitoring 라벨)가 스크레이프한다.
   # 수신처(webhook URL)는 Secret edu-alert-receiver 로만 주입 — 존재할 때만 라우팅 values 적용.
   # (없이 적용하면 url_file 이 가리키는 파일 부재로 Alertmanager 기동 실패 → 조건부 적용)
   local am_values=()
@@ -333,13 +326,14 @@ install_stack(){
       helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
       -n monitoring --create-namespace --wait --timeout 8m \
       --set alertmanager.enabled=true \
-      --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false \
       "${am_values[@]}"
   # 경보 규칙·스크레이프 대상은 조용히 넘기지 않는다 — 적용 실패가 곧 "경보 없음"이다.
   kubectl apply -f "$K8S/platform/monitoring/prometheus-rules.yaml" \
       || warn "prometheus-rules 적용 실패 — 경보 규칙 없음. CRD 준비 후 재적용 필수."
   kubectl apply -f "$K8S/platform/monitoring/backend-servicemonitor.yaml" \
       || warn "backend-servicemonitor 적용 실패 — 앱 메트릭 미수집. 재적용 필수."
+  kubectl apply -f "$K8S/platform/monitoring/mariadb-servicemonitor.yaml" \
+      || warn "mariadb-servicemonitor 적용 실패 — DB 메트릭(mysql_*) 미수집. 재적용 필수."
 
   _try "KEDA (scale-to-zero)" helm upgrade --install keda kedacore/keda \
       -n keda --create-namespace --wait --timeout 5m
@@ -369,11 +363,18 @@ install_stack(){
   fi
   # 2단계(도메인·TLS·Ingress): 호스트는 예제 패턴과 동일 — kind gitea.localhost / server gitea.<DOMAIN>.
   # ROOT_URL/DOMAIN 을 환경에 맞게 주입해 웹 링크·clone URL 이 Ingress 주소와 일치하게 한다.
+  # DB: 플랫폼 MariaDB 의 gitea 데이터베이스(외부 DB) — 계정 비밀번호는 edu-gitea-db Secret 에서
+  # 읽어 PASSWD 로 주입한다(values.yaml 에 평문 금지). DB/계정은 MariaDB 최초 초기화 시
+  # init 스크립트(platform/mariadb.yaml)가 만든다 — 기존 DB 는 gitea/README.md 수동 SQL 참고.
   local ghost; [ "$MODE" = kind ] && ghost="gitea.localhost" || ghost="gitea.${DOMAIN}"
+  local gitea_db_pass
+  gitea_db_pass="$(kubectl -n edu-platform get secret edu-gitea-db -o jsonpath='{.data.password}' 2>/dev/null | base64 -d)"
+  [ -n "$gitea_db_pass" ] || warn "edu-gitea-db Secret 없음 — Gitea 가 DB 접속에 실패한다. 코어(ensure_secrets) 먼저 실행 필요."
   _try "Gitea (내부 코드 저장소)" helm upgrade --install gitea gitea-charts/gitea \
       -n gitea -f "$K8S/platform/gitea/values.yaml" \
       --set-string "gitea.config.server.ROOT_URL=${SCHEME}://${ghost}/" \
       --set-string "gitea.config.server.DOMAIN=${ghost}" \
+      --set-string "gitea.config.database.PASSWD=${gitea_db_pass}" \
       ${sc_gitea[@]+"${sc_gitea[@]}"} \
       --wait --timeout 6m
 
@@ -651,7 +652,8 @@ EOF
     url="${SCHEME}://${s}.${base}"
     sql+=$'\n'"INSERT INTO deployments (program_id, slug, name, repo_url, branch, image_tag, url, status, log_text, created_at, updated_at) VALUES (${i},'${s}','${name}','local://examples/${s}','main','${IMAGE_TAG}','${url}','RUNNING','- bootstrap.sh examples · K8s(edu-services) 배포',now(),now());"
   done
-  if echo "$sql" | kubectl -n edu-platform exec -i deploy/postgres -- psql -U edumsa -d edumsa >/dev/null; then
+  if echo "$sql" | kubectl -n edu-platform exec -i deploy/mariadb -c mariadb -- \
+      sh -c 'exec mariadb -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" "$MARIADB_DATABASE"' >/dev/null; then
     ok "배포 레코드 ${#EXAMPLE_SLUGS[@]}건 등록 완료"
   else
     warn "DB 레코드 등록 실패 — 서비스 접속은 되지만 프론트 '웹에서 바로 사용' 버튼이 안 보일 수 있습니다."

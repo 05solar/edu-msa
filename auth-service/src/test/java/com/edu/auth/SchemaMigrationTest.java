@@ -9,14 +9,14 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
 /**
- * Flyway 마이그레이션 검증 — 빈 DB(H2 PostgreSQL 모드)에 V1 을 실제로 적용한 뒤
+ * Flyway 마이그레이션 검증 — 빈 DB(H2 MariaDB 모드)에 V1 을 실제로 적용한 뒤
  * Hibernate `ddl-auto: validate` 가 엔티티 매핑과 스키마 일치를 확인하고,
  * 시드(AccountSeeder)가 그 스키마에 실제 INSERT 까지 성공해야 컨텍스트가 뜬다.
  */
 @SpringBootTest(properties = {
         "spring.flyway.enabled=true",
         "spring.jpa.hibernate.ddl-auto=validate",
-        "spring.datasource.url=jdbc:h2:mem:authflywaydb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE",
+        "spring.datasource.url=jdbc:h2:mem:authflywaydb;DB_CLOSE_DELAY=-1;MODE=MariaDB;DATABASE_TO_LOWER=TRUE",
         "edu.seed.enabled=true",
         "edu.seed.password=Test#Seed1",
 })

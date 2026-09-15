@@ -1,4 +1,4 @@
-# 로컬(비-K8s: JAR + docker pg/redis) 측정용 캡처 — capture.sh 의 로컬 변형.
+# 로컬(비-K8s: JAR + docker mariadb/redis) 측정용 캡처 — capture.sh 의 로컬 변형.
 # 사용:  powershell -File loadtest/observability/capture-local.ps1 -OutDir loadtest/results/<dir> [-IntervalSec 5]
 # 종료:  Ctrl+C
 param(
@@ -14,7 +14,7 @@ param(
 $ErrorActionPreference = "SilentlyContinue"
 New-Item -ItemType Directory -Force $OutDir | Out-Null
 $csv = Join-Path $OutDir "local-metrics.csv"
-"ts,be_cpu_pct,be_ws_mb,au_cpu_pct,au_ws_mb,be_hik_act,be_hik_pend,be_tomcat_busy,au_hik_act,au_hik_pend,au_tomcat_busy,pg_total,pg_active,pg_wait,aupg_total,redis_hits,redis_misses" |
+"ts,be_cpu_pct,be_ws_mb,au_cpu_pct,au_ws_mb,be_hik_act,be_hik_pend,be_tomcat_busy,au_hik_act,au_hik_pend,au_tomcat_busy,db_total,db_active,audb_total,redis_hits,redis_misses" |
   Out-File $csv -Encoding utf8
 
 function Get-PidByPort([int]$port) {
@@ -44,8 +44,9 @@ while ($true) {
   }
   $be = (Invoke-WebRequest -UseBasicParsing -TimeoutSec 3 $BackendProm).Content
   $au = (Invoke-WebRequest -UseBasicParsing -TimeoutSec 3 $AuthProm).Content
-  $pg = docker exec $PgContainer psql -U edumsa -d edumsa -At -F',' -c "SELECT count(*),count(*) FILTER (WHERE state='active'),count(*) FILTER (WHERE wait_event_type='Client' AND state<>'idle') FROM pg_stat_activity WHERE datname='edumsa';" 2>$null
-  $aupg = docker exec $AuthPgContainer psql -U eduauth -d eduauth -At -c "SELECT count(*) FROM pg_stat_activity WHERE datname='eduauth';" 2>$null
+  # MariaDB 커넥션(총/활성) — information_schema.processlist 기준(Sleep = 유휴)
+  $pg = docker exec $PgContainer sh -c 'mariadb -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" -N -B -e "SELECT CONCAT(COUNT(*),'','',SUM(command<>''Sleep'')) FROM information_schema.processlist WHERE db=''edumsa'';"' 2>$null
+  $aupg = docker exec $AuthPgContainer sh -c 'mariadb -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" -N -B -e "SELECT COUNT(*) FROM information_schema.processlist WHERE db=''eduauth'';"' 2>$null
   $rstats = docker exec $RedisContainer redis-cli -a $RedisPassword --no-auth-warning INFO stats 2>$null
   $hits = ([regex]::Match(($rstats -join "`n"), "keyspace_hits:(\d+)")).Groups[1].Value
   $miss = ([regex]::Match(($rstats -join "`n"), "keyspace_misses:(\d+)")).Groups[1].Value

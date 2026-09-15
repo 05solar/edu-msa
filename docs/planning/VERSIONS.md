@@ -118,7 +118,7 @@ kind 로컬 검증 + 서브에이전트 리뷰 PASS 후 완료 처리([ROADMAP.m
 | 구분 | 내용 |
 |---|---|
 | 코드 (1~5) | 배포 트랜잭션 경계 분리(640s 커넥션 점유 해소) · 카탈로그 페이지네이션+N+1 제거+DB 인덱스 · 로그인 rate limit(LoginGuard)+데모 로그인 fail-safe · refresh_tokens 정리 스케줄러+배포 임시파일 정리 · Hikari/Tomcat 명시 설정+Flyway+graceful shutdown |
-| 인프라 (6~9) | 멀티노드 운영 토폴로지(워커 3+·HA 컨트롤플레인·L4 LB 기준) · auth-db CNPG 승격+barman 백업/PITR+PgBouncer Pooler · Redis(캐시·분산 rate-limit 카운터) · Sealed Secrets+불변 이미지 태그+CI release |
+| 인프라 (6~9) | 멀티노드 운영 토폴로지(워커 3+·HA 컨트롤플레인·L4 LB 기준) · auth-db CNPG 승격+barman 백업/PITR+PgBouncer Pooler(당시 PostgreSQL 스택 — 2026-09-14 MariaDB 전환으로 대체, [MARIADB_PLAN.md](MARIADB_PLAN.md)) · Redis(캐시·분산 rate-limit 카운터) · Sealed Secrets+불변 이미지 태그+CI release |
 | 규모 검증 (10~13) | k6 부하 테스트 체계(20만 계정 시드·RPS 프로파일) · 실측 기반 풀 튜닝(auth 풀 40 — 로그인 p95 12s→62ms) · read replica 라우팅+정적 자산 캐시/압축 · API/배포워커 스케일 축 분리+큐 깊이 기반 KEDA 오토스케일 |
 | staging 실검증 | kind 멀티노드(cp1+worker3, Calico) 전체 스택 실배포 — 배선 결함 4건 수정, HPA 2→10·KEDA 워커 1→4 스케일아웃 실측 |
 
@@ -164,6 +164,8 @@ ROADMAP 실구현 항목(P0~P3)은 완료. 잔여·신규 항목을 우선순위
 | B | 교육청 SSO | auth-service 를 SSO(OIDC) 위임으로 확장 — 토큰 형태 동일이라 자원 서버 무변경 | P1-4 잔여 |
 | B | 앱 OTel 계측 | backend·auth-service 실계측 + trace_id 로그 표준화 | P3-2 잔여 |
 | B | 알림 수신처 | Alertmanager Slack/Email 라우팅·억제·SLO 규칙 | P3-3 잔여 |
+| B | MariaDB HA | replication/Galera + MaxScale 도입 및 read replica 라우팅(`DB_RO_URL`) 재배선 — 현재는 단일 인스턴스 + mariadb-dump 백업 | MariaDB 전환 후속 트랙 |
+| B | 백업 오프사이트 복제 | mariadb-dump 백업(PVC)을 오브젝트 스토리지로 오프사이트 복제(`edu-db-backup-creds` 사용) | MariaDB 전환 후속 트랙 |
 | C | WAF CRS 튜닝 | 오탐 튜닝 + CDN/DDoS 앞단 | P2-3 잔여 |
 | C | 대시보드 코드화 | Grafana 대시보드 as-code | P2-2 잔여 |
 | C | 인증서 최적화 | 실서버 ACME 전환, 와일드카드 단일 인증서 | P3-1 잔여 |
@@ -194,5 +196,6 @@ ROADMAP 실구현 항목(P0~P3)은 완료. 잔여·신규 항목을 우선순위
 
 ## 갱신 이력
 
+- 2026-09-14 — MariaDB 전환 반영(7단계 CNPG/PgBouncer 경로 대체 표기), 백로그에 MariaDB HA·백업 오프사이트 복제 항목 추가.
 - 2026-09-10 — 6단계(Gitea)·7단계(확장성 개조 13단계+staging 실검증) 이력 추가, `v0.8.0` 태깅 기준선 등재, 백로그 정리(시크릿 관리 완료 처리·로그인 용량 항목 신설).
 - 2026-09-01 — 문서 작성. 0~5단계 이력 정리, 태깅 기준선·Gitea 계획·백로그·프로세스 수립.

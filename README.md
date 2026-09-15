@@ -8,7 +8,7 @@
 
 - 프론트엔드: **React + Vite + TypeScript(TSX)**
 - 백엔드: **Spring Boot 3 (Gradle Kotlin DSL)**
-- 데이터베이스: **PostgreSQL**
+- 데이터베이스: **MariaDB**
 - 오케스트레이션: **Kubernetes (MSA)**
 
 바이브 코더가 어떤 언어로 만들든(파이썬, Node, Go 등), 표준 규격
@@ -40,7 +40,7 @@ edu-msa/
 │   └── src/main/java/com/edu/auth/…
 ├── examples/                  # 기본 업무 서비스 7개(카테고리별 1개, 각 폴더 = 배포 가능한 레포)
 └── deploy/
-    ├── docker-compose.yml     # postgres + auth-db + auth-service + traefik(서브도메인) + backend
+    ├── docker-compose.yml     # mariadb + auth-db + auth-service + traefik(서브도메인) + backend
     ├── .env.example           # 시크릿 주입 예시 (EDU_JWT_SECRET 등)
     └── k8s/                   # namespace · 플랫폼 · 인증 · 서비스 템플릿 · RBAC
 ```
@@ -135,7 +135,7 @@ SSO 가 추가되어도 변경 범위가 `auth-service` 안에 갇힌다.
 | 단계 | 내용 | 상태 |
 | --- | --- | --- |
 | 1 | 저장소 스캐폴드 + 프론트엔드 데모 (7개 화면, 데모 로그인/권한 전환) | 완료 |
-| 2 | Spring 백엔드 CRUD + PostgreSQL 연동 | 완료 |
+| 2 | Spring 백엔드 CRUD + DB(현행 MariaDB) 연동 | 완료 |
 | 3 | MSA 동적 배포 파이프라인 (GitHub 레포 → 새 서비스) + K8s 매니페스트 | 완료 |
 
 ### MSA 배포 파이프라인 (Phase 3)
@@ -176,7 +176,7 @@ K8s 매니페스트(Deployment/Service/Ingress) 렌더링·적용 → 헬스 통
 # 0) 시크릿 준비 — auth-service 발급/백엔드 검증 공용 서명 키(≥32B)
 cp deploy/.env.example deploy/.env        # EDU_JWT_SECRET 등 값 채우기
 
-# 1) 백엔드 스택 (Docker): postgres · auth-db · auth-service(:8089) · traefik(:80) · backend(:8088)
+# 1) 백엔드 스택 (Docker): mariadb · auth-db · auth-service(:8089) · traefik(:80) · backend(:8088)
 docker compose -f deploy/docker-compose.yml up --build -d
 
 # 2) 프론트엔드 (백엔드 연동 모드)

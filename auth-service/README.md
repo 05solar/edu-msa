@@ -1,10 +1,10 @@
 # auth-service · 인증 마이크로서비스
 
 플랫폼의 **계정 정보 단일 소스**. 회원가입·로그인·토큰 발급을 담당하며, 자체 DB(`auth-db`)를
-사용해 플랫폼 backend 의 PostgreSQL 과 분리되어 있다.
+사용해 플랫폼 backend 의 MariaDB 와 분리되어 있다.
 
 - Spring Boot 3.3 / Java 21 / Gradle Kotlin DSL
-- PostgreSQL (`eduauth`)
+- MariaDB 11.4 (`eduauth`)
 - BCrypt 비밀번호 해시 · HS256 JWT
 
 ---
@@ -99,7 +99,7 @@ JWT 의 `role` 클레임은 대문자(`USER`/`CODER`/`ADMIN`), API 응답 JSON �
 
 | 이름 | 기본값 | 설명 |
 |---|---|---|
-| `AUTH_DB_URL` | `jdbc:postgresql://localhost:5433/eduauth` | auth-db 접속 |
+| `AUTH_DB_URL` | `jdbc:mariadb://localhost:3307/eduauth?timezone=UTC` | auth-db 접속(세션 타임존 UTC 고정) |
 | `AUTH_DB_USER` / `AUTH_DB_PASSWORD` | `eduauth` | auth-db 자격 증명 |
 | `PORT` | `8080` | listen 포트 |
 | `CORS_ORIGINS` | `http://localhost:5173` | 허용 Origin |

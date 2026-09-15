@@ -19,12 +19,14 @@ capture.sh 의 CSV 와 교차 확인한다.
 | rate-limit Redis 폴백 | `edu_auth_ratelimit_failover_total` |
 | 배포 임시파일 정리 실패 | `edu_deploy_cleanup_failures_total` |
 
-## PostgreSQL
+## MariaDB
 
-- 커넥션 총량/상태: capture.sh `pg.csv` (`pg_stat_activity`) — `max_connections`(기본 100) 대비
-  `total_conn` 이 90% 를 넘거나 `waiting`>0 이 지속되면 **커넥션 고갈**로 판정.
-- CNPG(HA) 사용 시 PodMonitor 지표: `cnpg_backends_total`, `cnpg_pg_stat_database_xact_commit` 등.
-- CPU/IO: `container_cpu_usage_seconds_total{pod=~"postgres.*|edu-db.*"}`,
+- 커넥션 총량/상태: capture.sh `db.csv` (`information_schema.processlist`) —
+  `max_connections`(기본 151) 대비 `total_conn` 이 90% 를 넘으면 **커넥션 고갈**로 판정.
+- mysqld_exporter(ServiceMonitor) 지표: `mysql_up`,
+  `mysql_global_status_threads_connected`, `mysql_global_variables_max_connections`,
+  `mysql_global_status_slow_queries` 등 (prometheus-rules 의 EduDb* 경보와 동일 축).
+- CPU/IO: `container_cpu_usage_seconds_total{pod=~"mariadb.*|auth-db.*"}`,
   `container_fs_reads_bytes_total` / `container_fs_writes_bytes_total`.
 
 ## Redis
@@ -42,8 +44,8 @@ capture.sh 의 CSV 와 교차 확인한다.
 
 | 신호 | 판정 |
 |---|---|
-| `hikaricp_connections_pending` 지속 > 0 | 앱 풀 부족 → `DB_POOL_MAX_SIZE` 상향 검토(총합 ≤ pg max_connections) |
-| pg `total_conn` ≈ max_connections | DB 커넥션 고갈 → 풀러(PgBouncer) 경유 확인·풀 재산정 |
+| `hikaricp_connections_pending` 지속 > 0 | 앱 풀 부족 → `DB_POOL_MAX_SIZE` 상향 검토(replica 총합 ≤ MariaDB max_connections) |
+| db.csv `total_conn` ≈ max_connections | DB 커넥션 고갈 → max_connections·풀 재산정(풀러 MaxScale/ProxySQL 은 후속 — deploy/PRODUCTION.md §4) |
 | auth CPU 포화 + login p95 급등 | bcrypt 한계 → auth replica/HPA max 상향 |
 | Redis hit < 50% | 캐시 키 폭발 → 검색 파라미터 캐시 제외 검토 |
 | HPA maxReplicas 도달 후 p95 유지 실패 | maxReplicas·노드 용량 상향 |

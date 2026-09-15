@@ -1,0 +1,132 @@
+# 플랫폼 MariaDB — 개발/리허설/1차 운영용 단일 인스턴스 (postgres.yaml 을 대체).
+# HA(다중 인스턴스·자동 failover)는 후속 트랙 — deploy/PRODUCTION.md §4 참고.
+#
+# 접속정보 Secret(edu-db: MARIADB_DATABASE/USER/PASSWORD/ROOT_PASSWORD)은 이 파일에 두지 않는다.
+#  - 로컬/리허설: bootstrap.sh 가 무작위 비밀번호로 자동 생성한다.
+#  - 운영: Sealed Secrets 로 반영한다 — deploy/k8s/secrets/README.md 참고.
+#    (server 모드 bootstrap 은 Secret 이 없으면 안내와 함께 중단한다 — placeholder 반입 차단)
+#
+# Gitea 외부 DB: 최초 초기화(빈 datadir) 시 init 스크립트가 gitea DB/계정을 함께 만든다
+# (Secret edu-gitea-db 의 password 를 참조). 이미 초기화된 DB 에 추가하려면
+# deploy/k8s/platform/gitea/README.md 의 수동 SQL 절차를 따른다.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: edu-mariadb-data
+  namespace: edu-platform
+spec:
+  # 운영: 노드 종속 스토리지(local-path 등) 금지 — 네트워크 스토리지 클래스를 지정해야
+  # 노드 장애/드레인 시 파드가 다른 노드로 재스케줄될 수 있다.
+  # bootstrap.sh 가 STORAGE_CLASS 설정 시 아래 마커를 실제 값으로 치환한다(미설정 시 클러스터 기본).
+  #EDU_STORAGE_CLASS
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 5Gi
+---
+# 최초 초기화 시 실행되는 스크립트(공식 이미지 /docker-entrypoint-initdb.d 규약).
+# GITEA_DB_PASSWORD 미주입 시 gitea DB 생성을 건너뛴다(코어만 쓰는 설치 허용).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: edu-mariadb-init
+  namespace: edu-platform
+data:
+  10-gitea.sh: |
+    #!/bin/sh
+    # Gitea 외부 DB — utf8mb4 고정. docker-entrypoint 가 root 로 실행해 준다.
+    if [ -n "${GITEA_DB_PASSWORD:-}" ]; then
+      mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" <<SQL
+    CREATE DATABASE IF NOT EXISTS gitea CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    CREATE USER IF NOT EXISTS 'gitea'@'%' IDENTIFIED BY '${GITEA_DB_PASSWORD}';
+    GRANT ALL PRIVILEGES ON gitea.* TO 'gitea'@'%';
+    FLUSH PRIVILEGES;
+    SQL
+    fi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mariadb
+  namespace: edu-platform
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate            # RWO PVC + 단일 인스턴스 — 동시 마운트 방지
+  selector:
+    matchLabels:
+      app: mariadb
+  template:
+    metadata:
+      labels:
+        app: mariadb
+    spec:
+      containers:
+        - name: mariadb
+          image: mariadb:11.4
+          # utf8mb4(한글) + UTC — 앱(Instant)·커넥터(timezone=UTC)의 기준 시계와 일치
+          args:
+            - --character-set-server=utf8mb4
+            - --collation-server=utf8mb4_unicode_ci
+          envFrom:
+            - secretRef:
+                name: edu-db
+          env:
+            - name: TZ
+              value: UTC
+            - name: GITEA_DB_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: edu-gitea-db, key: password, optional: true }
+          ports:
+            - containerPort: 3306
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "mariadb-admin ping -h 127.0.0.1 -uroot -p\"$MARIADB_ROOT_PASSWORD\" --silent"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+        # 메트릭 익스포터 — Prometheus 가 mysql_up·커넥션·슬로우쿼리 등을 수집한다
+        # (monitoring/mariadb-servicemonitor.yaml + prometheus-rules.yaml 의 EduDb* 경보).
+        - name: exporter
+          image: prom/mysqld-exporter:v0.15.1
+          args: ["--mysqld.username=root", "--mysqld.address=127.0.0.1:3306"]
+          env:
+            - name: MYSQLD_EXPORTER_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: edu-db, key: MARIADB_ROOT_PASSWORD }
+          ports:
+            - name: metrics
+              containerPort: 9104
+          resources:
+            requests: { cpu: "10m", memory: "32Mi" }
+            limits: { cpu: "100m", memory: "64Mi" }
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: edu-mariadb-data
+        - name: init
+          configMap:
+            name: edu-mariadb-init
+            defaultMode: 0755
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mariadb
+  namespace: edu-platform
+  labels:
+    app: mariadb          # ServiceMonitor(monitoring/mariadb-servicemonitor.yaml) selector 매칭용
+spec:
+  selector:
+    app: mariadb
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: 3306
+    - name: metrics
+      port: 9104
+      targetPort: 9104

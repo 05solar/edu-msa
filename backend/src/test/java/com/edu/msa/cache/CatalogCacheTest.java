@@ -28,7 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @SpringBootTest(properties = {
         "spring.cache.type=simple",
-        "spring.datasource.url=jdbc:h2:mem:cachedb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL",
+        "spring.datasource.url=jdbc:h2:mem:cachedb;DB_CLOSE_DELAY=-1;MODE=MariaDB",
 })
 @ActiveProfiles("test")
 @Transactional

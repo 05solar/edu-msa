@@ -1,7 +1,7 @@
 -- 부하 테스트 데이터 정리 — lt_ / lt-prog- 접두어만 제거하므로 다른 데이터에 영향 없다.
--- 실행:
---   psql "$DB_URL"      -f loadtest/seed/cleanup.sql          # platform-db 부분
---   psql "$AUTH_DB_URL" -f loadtest/seed/cleanup.sql          # auth-db 부분(없는 테이블은 무시됨)
+-- 실행 (--force: 상대 DB 테이블이 없다는 오류를 건너뛰고 계속 진행):
+--   mariadb --force -h <host> -uedumsa  -p edumsa  < loadtest/seed/cleanup.sql   # platform-db 부분
+--   mariadb --force -h <host> -ueduauth -p eduauth < loadtest/seed/cleanup.sql   # auth-db 부분
 
 -- platform-db (edumsa)
 DELETE FROM program_tags     WHERE program_id IN (SELECT id FROM programs WHERE slug LIKE 'lt-prog-%');

@@ -32,7 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
         "edu.deploy.worker.enabled=true",          // 워커 빈 활성(스케줄은 poll 간격이라 간섭 없음)
         "edu.deploy.worker.poll-ms=3600000",       // 자동 tick 이 테스트를 방해하지 않게 1시간
         "edu.deploy.worker.retry-backoff-seconds=30",
-        "spring.datasource.url=jdbc:h2:mem:workerdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL",
+        "spring.datasource.url=jdbc:h2:mem:workerdb;DB_CLOSE_DELAY=-1;MODE=MariaDB",
 })
 @ActiveProfiles("test")
 class DeployWorkerResilienceTest {
